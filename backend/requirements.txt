@@ -1,0 +1,5 @@
+fastapi
+pydantic
+uvicorn
+tortoise-orm[asyncpg]
+python-multipart

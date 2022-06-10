@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<link rel="icon" href="/favicon.ico">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel='manifest' href='/manifest.json'>
+	<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<!-- Compiled and minified CSS -->
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+
+	<!-- Compiled and minified JavaScript -->
+	<script async src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+	<link rel="stylesheet" href="/style.css"/>
+	<style>
+		header, main, footer {
+      padding-left: 200px;
+    }
+
+    @media only screen and (max-width : 992px) {
+      header, main, footer {
+        padding-left: 0;
+      }
+    }
+	</style>
+	%sveltekit.head%
+</head>
+
+<body>
+	<div id="svelte">%sveltekit.body%</div>
+	<script>
+		document.addEventListener('DOMContentLoaded', function () {
+			var elems = document.querySelectorAll('.sidenav');
+			var instances = M.Sidenav.init(elems);
+		});
+	</script>
+</body>
+
+</html>

@@ -1,0 +1,22 @@
+{
+	"name": "Kunjika",
+	"version": "0.0.1",
+	"private": true,
+	"license": "MIT",
+	"type": "module",
+	"scripts": {
+		"dev": "svelte-kit dev",
+		"build": "svelte-kit build --verbose",
+		"preview": "svelte-kit preview"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-netlify": "next",
+		"@sveltejs/adapter-vercel": "next",
+		"@sveltejs/kit": "next",
+		"marked": "^4.0.0",
+		"svelte": "^3.42.1"
+	},
+	"dependencies": {
+		"cookie": "^0.5.0"
+	}
+}

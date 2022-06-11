@@ -3,3 +3,5 @@
 __pycache__/
 node_modules/
 .svelte-kit/
+kunjika.egg-info/
+build/

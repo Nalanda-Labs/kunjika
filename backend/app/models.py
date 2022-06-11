@@ -1,33 +1,17 @@
-# from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
-# from sqlalchemy.orm import relationship
-# import hashlib
-
-# from database import Base
-
+from dataclasses import field
+from enum import unique
 from tortoise.models import Model
 from tortoise import fields
+
 
 class Users(Model):
 
     id = fields.IntField(pk=True)
-    email = fields.CharField(max_length=256)
+    email = fields.CharField(max_length=256, unique=True)
+    username = fields.CharField(max_length=64, unique=True)
     hashed_password = fields.CharField(max_length=128)
-    salt= fields.CharField(max_length=128)
+    salt = fields.CharField(max_length=128)
+    email_verified = fields.BooleanField(default=False)
     is_active = fields.BooleanField(default=True)
-    
-
-
-class Item(Model):
-
-    id = fields.IntField(pk=True)
-    title = fields.CharField(max_length=128, index=True)
-    description = fields.CharField(max_length=128, index=True)
-    owner_id = fields.ForeignKeyField("models.Users")
-
-
-class Note(Model):
-
-    id = fields.IntField(pk=True)
-    title = fields.CharField(max_length=128, index=True)
-    description = fields.CharField(max_length=128, index=True)
-    owner_id = fields.ForeignKeyField("models.Users")
+    created_at = fields.DatetimeField(auto_now_add=True)
+    modified_at = fields.DatetimeField(auto_now=True)

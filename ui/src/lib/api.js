@@ -1,4 +1,5 @@
-const base = 'https://conduit.productionready.io/api';
+import { apiUrl } from "./constants";
+const base = 'http://localhost:8000/api';
 
 async function send({ method, path, data, token }) {
 	const opts = { method, headers: {} };
@@ -11,7 +12,7 @@ async function send({ method, path, data, token }) {
 	if (token) {
 		opts.headers['Authorization'] = `Token ${token}`;
 	}
-
+	
 	return fetch(`${base}/${path}`, opts)
 		.then((r) => r.text())
 		.then((json) => {

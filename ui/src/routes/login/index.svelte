@@ -24,7 +24,6 @@
     async function submit(event) {
         const response = await post(`auth/login`, { email, password });
 
-        // TODO handle network errors
         errors = response.errors;
 
         if (response.user) {
@@ -35,7 +34,7 @@
 </script>
 
 <svelte:head>
-    <title>Login • Kunjika</title>
+    <title>Login ❤ Kunjika</title>
 </svelte:head>
 
 <main>

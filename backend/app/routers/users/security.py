@@ -1,15 +1,13 @@
-import hashlib
 import base64
 from datetime import datetime, timedelta
 from typing import Optional
 from jwt import *
 import json
-import crud
+
+import passlib
 
 SECRET_KEY = ""
 ALGORITHM = "HS256"
-
-
 
 
 def verify_hash(password,savedSalt):
@@ -43,12 +41,3 @@ def get_current_user_email(token):
     # email: str = payload["sub"]
     user_email = json.loads(decoded["payload"])["sub"]
     return user_email
-    # if username is None:
-    #     raise credentials_exception
-    # token_data = TokenData(username=username)
-    # except JWTError:
-    #     raise credentials_exception
-    # user = get_user(fake_users_db, username=token_data.username)
-    # if user is None:
-    #     raise credentials_exception
-    # return user

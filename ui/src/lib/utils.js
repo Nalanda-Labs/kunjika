@@ -42,3 +42,12 @@ export function parseJwt(token) {
 export function deleteCookie(name) {
 	document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
 }
+
+export function getXsrfToken(token) {
+	const cookie = getCookie("jwt");
+	const jwt = parseJwt(cookie);
+	if (jwt !== "") {
+		return jwt.xsrf_token;
+	}
+	return null;
+};

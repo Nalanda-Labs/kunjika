@@ -1,5 +1,5 @@
 import { apiUrl } from "./constants";
-const base = 'http://localhost:8000/api';
+const base = 'http://localhost/api';
 
 async function send({ method, path, data, xsrf_token }) {
 	const opts = { method, headers: {} };

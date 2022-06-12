@@ -1,26 +1,19 @@
-nav {
-    background-color: #0f9d58;
-}
-
-.b-wrapper {
-    width: 100%;
-    height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-a {
-    color: #4285F4;
-    text-decoration: none;
-}
-.btn {
-    background-color: #4285F4;
-}
 .wrapper {
     width: 100%;
     height: 600px;
     display: flex;
     justify-content: center;
+}
+.b-wrapper {
+    width: 100%;
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.anchor {
+    color: #4285F4;
+    text-decoration: none;
 }
 
 .danger {

@@ -9,7 +9,7 @@ import routers.users.schemas as schemas
 
 
 async def get_user(user_id: int):
-    return await Users.filter(Users.id == user_id).first()
+    return await Users.filter(id == user_id).first()
 
 
 async def get_user_by_email(email: str):
@@ -42,4 +42,4 @@ async def get_user_by_username(username: str):
     return await Users.filter(username=username).first()
 
 async def verify_email(email: str):
-    return await Users.filter(email=email).first().update(email_verified=True)
+    u = await Users.filter(email=email.decode('utf-8')).first().update(email_verified=True)

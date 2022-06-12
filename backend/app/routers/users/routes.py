@@ -15,7 +15,7 @@ from utils.email import send_email, EmailSchema
 router = APIRouter(prefix="/api")
 
 
-@router.post("/register/", response_model=schemas.User, response_class=ORJSONResponse)
+@router.post("/register", response_model=schemas.User, response_class=ORJSONResponse)
 async def create_user(user: schemas.UserCreate, background_task: BackgroundTasks):
     if user.password != user.confirm_password and len(user.password) < 16:
         raise HTTPException(status_code=409, detail="Invalid password")
@@ -109,8 +109,9 @@ async def confirm_email(token: str):
         email = await verify_token(token)
         await crud.verify_email(email)
         return {"success": True}
-    except:
-        raise HTTPException(status_code=402, detail="Invalid or expired token.")
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=401, detail="Invalid or expired token.")
 
 @router.post("/logout")
 async def logout( response: Response, x_token: list[str] | None = Header(default=None), response_class=ORJSONResponse):

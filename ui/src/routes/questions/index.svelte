@@ -10,7 +10,7 @@
     import { getCookie, parseJwt } from "$lib/utils.js";
     import InfiniteLoading from "svelte-infinite-loading";
 
-    let topics = [];
+    let questions = [];
     let data = [];
     let user = null;
 
@@ -22,8 +22,8 @@
             xsrf_token = jwt_decoded.xsrf_token;
         }
         let updated_at = "";
-        if (topics.length) {
-            updated_at = topics[topics.length - 1].updated_at;
+        if (questions.length) {
+            updated_at = questions[questions.length - 1].updated_at;
         }
         let response = await api.post(
             `questions/`,
@@ -31,16 +31,16 @@
             xsrf_token
         );
 
-        if (response.topics) {
-            topics = response.topics;
+        if (response.questions) {
+            questions = response.questions;
         }
-        for (let i = 0; i < topics.length; i++) {
-            topics[i]["tags"] = topics[i]["tags"].slice(1, -1);
-            topics[i]["tags"] = topics[i]["tags"].split(",");
-            topics[i]["tid"] = topics[i]["tid"].slice(1, -1);
-            topics[i]["tid"] = topics[i]["tid"].split(",");
-            let asked_ts = Date.parse(topics[i].created_at);
-            let updated_ts = Date.parse(topics[i].updated_at);
+        for (let i = 0; i < questions.length; i++) {
+            questions[i]["tags"] = questions[i]["tags"].slice(1, -1);
+            questions[i]["tags"] = questions[i]["tags"].split(",");
+            questions[i]["tid"] = questions[i]["tid"].slice(1, -1);
+            questions[i]["tid"] = questions[i]["tid"].split(",");
+            let asked_ts = Date.parse(questions[i].created_at);
+            let updated_ts = Date.parse(questions[i].updated_at);
             let now = new Date();
 
             if (asked_ts == updated_ts) {
@@ -49,7 +49,7 @@
                     (now - asked_ts) / 1000 + offset * 60
                 );
                 if (shown_ts >= 259200) {
-                    asked_ts = new Date(topics[i].created_at);
+                    asked_ts = new Date(questions[i].created_at);
                     let year = asked_ts.getYear() + 1900;
                     let month = asked_ts.getMonth() + 1;
                     shown_ts =
@@ -71,14 +71,14 @@
                 } else {
                     shown_ts = "asked " + shown_ts + "s ago";
                 }
-                topics[i].shown_ts = shown_ts;
+                questions[i].shown_ts = shown_ts;
             } else {
                 var offset = new Date().getTimezoneOffset();
                 let shown_ts = Math.floor(
                     (now - updated_ts) / 1000 + offset * 60
                 );
                 if (shown_ts >= 259200) {
-                    asked_ts = new Date(topics[i].created_at);
+                    asked_ts = new Date(questions[i].created_at);
                     let year = updated_ts.getYear() + 1900;
                     let month = updated_ts.getMonth() + 1;
                     shown_ts =
@@ -102,11 +102,11 @@
                 } else {
                     shown_ts = "modified " + shown_ts + "s ago";
                 }
-                topics[i].shown_ts = shown_ts;
+                questions[i].shown_ts = shown_ts;
             }
         }
-        if (topics.length) {
-            data = topics;
+        if (questions.length) {
+            data = questions;
         }
     }
     onMount(async () => {
@@ -121,25 +121,25 @@
             xsrf_token = jwt_decoded.xsrf_token;
         }
         let updated_at = "";
-        if (topics.length) {
-            updated_at = topics[topics.length - 1].updated_at;
+        if (questions.length) {
+            updated_at = questions[questions.length - 1].updated_at;
         }
         let response = await api.post(
             `questions/`,
             { updated_at: updated_at },
             xsrf_token
         );
-        if (response.topics) {
-            topics = response.topics;
+        if (response.questions) {
+            questions = response.questions;
         }
-        if (topics.length) {
-            for (let i = 0; i < topics.length; i++) {
-                topics[i]["tags"] = topics[i]["tags"].slice(1, -1);
-                topics[i]["tags"] = topics[i]["tags"].split(",");
-                topics[i]["tid"] = topics[i]["tid"].slice(1, -1);
-                topics[i]["tid"] = topics[i]["tid"].split(",");
-                let asked_ts = Date.parse(topics[i].created_at);
-                let updated_ts = Date.parse(topics[i].updated_at);
+        if (questions.length) {
+            for (let i = 0; i < questions.length; i++) {
+                questions[i]["tags"] = questions[i]["tags"].slice(1, -1);
+                questions[i]["tags"] = questions[i]["tags"].split(",");
+                questions[i]["tid"] = questions[i]["tid"].slice(1, -1);
+                questions[i]["tid"] = questions[i]["tid"].split(",");
+                let asked_ts = Date.parse(questions[i].created_at);
+                let updated_ts = Date.parse(questions[i].updated_at);
                 let now = new Date();
 
                 if (asked_ts == updated_ts) {
@@ -148,7 +148,7 @@
                         (now - asked_ts) / 1000 + offset * 60
                     );
                     if (shown_ts >= 259200) {
-                        asked_ts = new Date(topics[i].created_at);
+                        asked_ts = new Date(questions[i].created_at);
                         let year = asked_ts.getYear() + 1900;
                         let month = asked_ts.getMonth() + 1;
                         shown_ts =
@@ -172,14 +172,14 @@
                     } else {
                         shown_ts = "asked " + shown_ts + "s ago";
                     }
-                    topics[i].shown_ts = shown_ts;
+                    questions[i].shown_ts = shown_ts;
                 } else {
                     var offset = new Date().getTimezoneOffset();
                     let shown_ts = Math.floor(
                         (now - updated_ts) / 1000 + offset * 60
                     );
                     if (shown_ts >= 259200) {
-                        asked_ts = new Date(topics[i].created_at);
+                        asked_ts = new Date(questions[i].created_at);
                         let year = updated_ts.getYear() + 1900;
                         let month = updated_ts.getMonth() + 1;
                         shown_ts =
@@ -203,10 +203,10 @@
                     } else {
                         shown_ts = "modified " + shown_ts + "s ago";
                     }
-                    topics[i].shown_ts = shown_ts;
+                    questions[i].shown_ts = shown_ts;
                 }
             }
-            data = [...data, ...topics];
+            data = [...data, ...questions];
             loaded();
         } else {
             complete();
@@ -215,7 +215,7 @@
 </script>
 
 <svelte:head>
-    <title>All Topics ❤ Arth</title>
+    <title>All questions ❤ Arth</title>
 </svelte:head>
 <div class="topic container">
     <h3>
@@ -267,7 +267,7 @@
                 <div style="margin-top:10px;clear:both" />
                 {#each tags as tag, i}
                     <a
-                        href="/topics/tagged/{tag}"
+                        href="/questions/tagged/{tag}"
                         style="text-decoration:none; color: #fff;background-color: #4285F4; padding:7px; margin-right:10px; border-radius: 4px"
                         >{tag}</a
                     >

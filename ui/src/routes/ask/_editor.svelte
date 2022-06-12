@@ -4,7 +4,7 @@
     import * as api from "$lib/api.js";
     import { onMount } from "svelte";
     import "bytemd/dist/index.min.css";
-    import { getCookie, parseJwt } from "$lib/utils";
+    import { getCookie, parseJwt, getXsrfToken } from "$lib/utils";
 
     export let question;
     export let id;
@@ -12,7 +12,8 @@
     let Tags = null;
 
     async function onSubmit() {
-        if ($session.user) {
+        let xsrf_token = getXsrfToken();
+        if ($session.user && xsrf_token) {
             if (question.title < 6 || question.title > 256) {
                 M.toast({
                     html: "Title should not be less than 6 or more than 256 characters.",
@@ -34,13 +35,12 @@
 
             const response = await api.post(
                 "create-question/",
-                { question },
-                localStorage.getItem("jwt")
+                { question }, xsrf_token
             );
 
             if (response.id && response.slug) {
                 id = response.id;
-                await goto(`/t/${response.id}/${response.slug}`);
+                await goto(`/questions/${response.id}/${response.slug}`);
             }
         } else {
             M.toast({ html: "You are not logged in." });

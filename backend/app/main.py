@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import users, tags
+from app.routers import users, tags, questions
 from tortoise import Tortoise
 from config import settings
 
@@ -8,6 +8,7 @@ from config import settings
 app = FastAPI()
 app.include_router(users.router)
 app.include_router(tags.router)
+app.include_router(questions.router)
 
 
 app.add_middleware(

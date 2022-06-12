@@ -5,7 +5,7 @@
 </script>
 
 {#if $navigating}
-  <preloadingindicator />
+  <PreloadingIndicator />
 {/if}
 
 <Nav />

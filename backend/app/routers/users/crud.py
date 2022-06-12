@@ -1,6 +1,5 @@
 import base64
 import os
-from typing import OrderedDict
 
 from jwt import *
 from passlib.hash import argon2
@@ -32,8 +31,9 @@ async def create_user(user: schemas.UserCreate):
     db_user = Users(
         username=user.username,
         email=user.email,
-        hashed_password=key,
+        password_hash=key,
         salt=encodedSalt.decode("utf-8"),
+        username_lower = user.username.lower()
     )
     await db_user.save()
     return db_user

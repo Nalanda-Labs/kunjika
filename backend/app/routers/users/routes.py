@@ -1,17 +1,19 @@
 import re
 from typing import List
+from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Response, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Response, BackgroundTasks, Header
 from fastapi.responses import ORJSONResponse
 
 from config import settings
 import routers.users.schemas as schemas
 import routers.users.crud as crud
-import routers.users.security as security
+import app.security as security
 from utils.token import get_token, verify_token
 from utils.email import send_email, EmailSchema
 
 router = APIRouter(prefix="/api")
+
 
 @router.post("/register/", response_model=schemas.User, response_class=ORJSONResponse)
 async def create_user(user: schemas.UserCreate, background_task: BackgroundTasks):
@@ -27,16 +29,18 @@ async def create_user(user: schemas.UserCreate, background_task: BackgroundTasks
     if db_user:
         raise HTTPException(status_code=409, detail="Username unavailable")
     token = await get_token(user.email)
-    body = f'''Hi {user.username},
+    body = f"""Hi {user.username},
 
 Thank you for registering at Kunjika.
-Your email confirmation link is https://{settings['host']}/confirm-email/{token.encode('utf-8')}.
+Your email confirmation link is https://{settings['host']}/confirm-email/{token.decode('utf-8')}.
 This email will expire in one day.
 
 Thanks,
 Shiv
-'''
-    email = EmailSchema(email=[user.email], subject='Registration at Kunjika', body=body)
+"""
+    email = EmailSchema(
+        email=[user.email], subject="Registration at Kunjika", body=body
+    )
     await send_email(email=email, background_tasks=background_task)
     return await crud.create_user(user=user)
 
@@ -47,7 +51,9 @@ async def read_users(skip: int = 0, limit: int = 100):
     return users
 
 
-@router.get("/users/{user_id}", response_model=schemas.User, response_class=ORJSONResponse)
+@router.get(
+    "/users/{user_id}", response_model=schemas.User, response_class=ORJSONResponse
+)
 async def read_user(user_id: int):
     db_user = crud.get_user(user_id=user_id)
     if db_user is None:
@@ -58,12 +64,25 @@ async def read_user(user_id: int):
 @router.post("/login/", response_class=ORJSONResponse)
 async def login(user: schemas.Login, response: Response):
     db_user = await crud.get_user_by_email(email=user.email)
+    # we save jwt to cookie to prevent XSS and supply xsrf_token in this to prevent
+    # CSRF attacks. This should come back in X-XSRF-Token
+    xsrf_token = str(uuid4())
     if db_user:
-        if (security.verify_hash(user.password, db_user.salt).decode('utf-8') == db_user.hashed_password):
+        if security.verify_hash(user.password, db_user.salt, db_user.password_hash):
             access_token = security.create_access_token(
-                data={"sub": db_user.email}
+                data={
+                    "sub": db_user.email,
+                    "user": {
+                        "username": db_user.username,
+                        "email": db_user.email,
+                        "id": str(db_user.id),
+                    },
+                    "xsrf_token": xsrf_token,
+                }
             )
-            response.set_cookie(key="jwt", value=access_token)
+            # the expires is 2^31- 1 which is max 32 bit signed integer
+            # the cookie must be http only so that XSS is disabled
+            response.set_cookie(key="jwt", value=access_token, expires=2147483647, secure=True)
             return {"success": True}
         else:
             raise HTTPException(status_code=401, detail="Unauthorized")
@@ -71,9 +90,13 @@ async def login(user: schemas.Login, response: Response):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
-@router.post("/check-username-availability", response_model=schemas.Availability, response_class=ORJSONResponse)
+@router.post(
+    "/check-username-availability",
+    response_model=schemas.Availability,
+    response_class=ORJSONResponse,
+)
 async def check_username_availability(username: schemas.Username):
-    
+
     if await crud.get_user_by_username(username=username.username):
         return {"available": False}
     else:
@@ -88,3 +111,8 @@ async def confirm_email(token: str):
         return {"success": True}
     except:
         raise HTTPException(status_code=402, detail="Invalid or expired token.")
+
+@router.post("/logout")
+async def logout( response: Response, x_token: list[str] | None = Header(default=None), response_class=ORJSONResponse):
+    response.set_cookie(key="jwt", value='', max_age=0, secure=True)
+    return {"success": True}

@@ -3,7 +3,7 @@
         if (session.user) {
             return {
                 status: 302,
-                redirect: "/",
+                redirect: "/questions",
             };
         }
 
@@ -14,21 +14,23 @@
 <script>
     import { session } from "$app/stores";
     import { goto } from "$app/navigation";
-    import { post } from "$lib/utils.js";
+    import { post, getCookie, parseJwt } from "$lib/utils.js";
     import ListErrors from "$lib/ListErrors.svelte";
 
     let email = "";
     let password = "";
     let errors = null;
 
-    async function submit(event) {
-        const response = await post(`auth/login`, { email, password });
+    async function submit() {
+        const response = await post(`login`, { email, password });
 
         errors = response.errors;
 
-        if (response.user) {
-            $session.user = response.user;
-            goto("/");
+        if (response.success) {
+            const jwt = getCookie('jwt');
+            const jwt_decoded = parseJwt(jwt);
+            $session.user = jwt_decoded.user;
+            goto("/questions");
         }
     }
 </script>
@@ -53,6 +55,7 @@
                         <input
                             class="validate"
                             type="email"
+                            id="email"
                             required
                             bind:value={email}
                         />
@@ -62,8 +65,10 @@
                         <input
                             class="validate"
                             type="password"
+                            id="password"
                             required
                             bind:value={password}
+                            minlength="16"
                         />
                         <label for="password">Passsword</label>
                     </div>

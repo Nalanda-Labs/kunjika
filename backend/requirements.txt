@@ -2,7 +2,6 @@ fastapi
 pydantic
 uvicorn
 tortoise-orm[asyncpg]
-python-multipart
 passlib
 argon2_cffi
 itsdangerous

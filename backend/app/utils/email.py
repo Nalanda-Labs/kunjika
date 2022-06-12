@@ -37,3 +37,4 @@ async def send_email(background_tasks: BackgroundTasks, email: EmailSchema):
     fm = FastMail(conf)
 
     background_tasks.add_task(fm.send_message, message)
+    # await fm.send_message(message)

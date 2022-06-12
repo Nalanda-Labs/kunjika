@@ -3,7 +3,7 @@
         if (session.user) {
             return {
                 status: 302,
-                redirect: "/",
+                redirect: "/questions",
             };
         }
 
@@ -48,7 +48,9 @@
         errors = response.errors;
 
         if (response.email) {
-            M.toast({html: "You have been sent a confirmation email. Please verify!"})
+            M.toast({
+                html: "You have been sent a confirmation email. Please verify!",
+            });
         }
     }
 </script>
@@ -77,7 +79,7 @@
                             bind:value={username}
                             on:keyup={check_username_availablity}
                             id="username"
-                        /> 
+                        />
                         <label for="username">Username</label>
                     </div>
                     <div class="input-field col s12">

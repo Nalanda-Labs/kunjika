@@ -1,7 +1,7 @@
 import { apiUrl } from "./constants";
 const base = 'http://localhost:8000/api';
 
-async function send({ method, path, data, token }) {
+async function send({ method, path, data, xsrf_token }) {
 	const opts = { method, headers: {} };
 
 	if (data) {
@@ -9,10 +9,11 @@ async function send({ method, path, data, token }) {
 		opts.body = JSON.stringify(data);
 	}
 
-	if (token) {
-		opts.headers['Authorization'] = `Token ${token}`;
+	if(xsrf_token) {
+		opts.headers['X-XSRF-Token'] = xsrf_token
 	}
-	
+	opts.credentials = 'include';
+
 	return fetch(`${base}/${path}`, opts)
 		.then((r) => r.text())
 		.then((json) => {
@@ -24,18 +25,18 @@ async function send({ method, path, data, token }) {
 		});
 }
 
-export function get(path, token) {
-	return send({ method: 'GET', path, token });
+export function get(path, xsrf_token) {
+	return send({ method: 'GET', path, xsrf_token });
 }
 
-export function del(path, token) {
-	return send({ method: 'DELETE', path, token });
+export function del(path, xsrf_token) {
+	return send({ method: 'DELETE', path, xsrf_token });
 }
 
-export function post(path, data, token) {
-	return send({ method: 'POST', path, data, token });
+export function post(path, data, xsrf_token) {
+	return send({ method: 'POST', path, data, xsrf_token });
 }
 
-export function put(path, data, token) {
-	return send({ method: 'PUT', path, data, token });
+export function put(path, data, xsrf_token) {
+	return send({ method: 'PUT', path, data, xsrf_token });
 }

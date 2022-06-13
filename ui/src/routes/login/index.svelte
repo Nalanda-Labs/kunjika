@@ -14,7 +14,7 @@
 <script>
     import { session } from "$app/stores";
     import { goto } from "$app/navigation";
-    import { post, getCookie, parseJwt } from "$lib/utils.js";
+    import * as api from "$lib/api.js";
     import ListErrors from "$lib/ListErrors.svelte";
 
     let email = "";
@@ -22,15 +22,12 @@
     let errors = null;
 
     async function submit() {
-        const response = await post(`login`, { email, password });
+        const response = await api.post(`login`, { email, password });
 
         errors = response.errors;
 
         if (response.success) {
-            const jwt = getCookie('jwt');
-            const jwt_decoded = parseJwt(jwt);
-            $session.user = jwt_decoded.user;
-            goto("/questions");
+            window.location.replace('/questions');
         }
     }
 </script>

@@ -1,5 +1,5 @@
 export function post(endpoint, data) {
-	return fetch(`api/${endpoint}`, {
+	return fetch(`${endpoint}`, {
 		method: 'POST',
 		credentials: 'include',
 		body: JSON.stringify(data || {}),

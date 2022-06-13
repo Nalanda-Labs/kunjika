@@ -12,8 +12,7 @@
     let Tags = null;
 
     async function onSubmit() {
-        let xsrf_token = getXsrfToken();
-        if ($session.user && xsrf_token) {
+        if ($session.user && $session.user.xsrf_token) {
             if (question.title < 6 || question.title > 256) {
                 M.toast({
                     html: "Title should not be less than 6 or more than 256 characters.",
@@ -35,7 +34,8 @@
 
             const response = await api.post(
                 "create-question/",
-                { question }, xsrf_token
+                { question },
+                $session.user.xsrf_token
             );
 
             if (response.id && response.slug) {
@@ -52,15 +52,12 @@
     let value = "";
 
     onMount(async () => {
-        const bytemd = await import("bytemd");
-        Editor = bytemd.Editor;
-        Tags = (await import("$lib/Tags.svelte")).default;
-        const cookie = getCookie("jwt");
-        const jwt = parseJwt(cookie);
-        if (jwt === "") {
-            goto("/questions");
+        if ($session.user) {
+            const bytemd = await import("bytemd");
+            Editor = bytemd.Editor;
+            Tags = (await import("$lib/Tags.svelte")).default;
         } else {
-            user = jwt.user;
+            goto("/questions");
         }
     });
 
@@ -73,32 +70,28 @@
         let re = /[a-zA-Z0-0\-\+]+/;
         for (let i = 0; i < question.tagList.length; i++) {
             if (question.tagList[i].length > 32) {
-                M.toast({html: "32 Characterx max."});
+                M.toast({ html: "32 Characterx max." });
             }
         }
     }
 
     // function for auto-completing tags
     async function ts() {
-        const cookie = getCookie("jwt");
-        const jwt = parseJwt(cookie);
-        let xsrf_token = null;
-        if (jwt !== "") {
-            xsrf_token = jwt.xsrf_token;
-            const response = await api.post("get-tags/", {
+        const response = await api.post(
+            "get-tags",
+            {
                 tag: document.getElementById("tags").value,
-            }, xsrf_token);
-            if (response.tags) {
-                let tags = [];
-                for (let i = 0; i < response.tags.length; i++) {
-                    tags.push(response.tags[i]);
-                }
-                return tags;
-            } else {
-                return [];
+            },
+            $session.user.xsrf_token
+        );
+        if (response.data) {
+            let tags = [];
+            for (let i = 0; i < response.data.length; i++) {
+                tags.push(response.data[i].name);
             }
+            return tags;
         } else {
-            M.toast({html: "Invalid state! Please relogin."})
+            return [];
         }
     }
 </script>

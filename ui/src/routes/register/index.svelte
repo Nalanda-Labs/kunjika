@@ -30,7 +30,7 @@
             });
             errors = response.erros;
 
-            if (response.available) {
+            if (response.code == 200) {
                 M.toast({ html: "Username available!" });
             } else {
                 M.toast({ html: "Username unavailable" });
@@ -38,6 +38,14 @@
         }
     }
     async function submit() {
+        if(username.length < 3) {
+            M.toast({html: "Username must be at least 3 character."});
+            return;
+        }
+        if (password !== confirm_password && (password.length < 16 || confirm_password.length)) {
+            M.toast({html: "Passphrases must be at least 16 characters and be same."});
+            return;
+        }
         const response = await post(`register`, {
             username,
             email,
@@ -47,7 +55,7 @@
 
         errors = response.errors;
 
-        if (response.email) {
+        if (response.data) {
             M.toast({
                 html: "You have been sent a confirmation email. Please verify!",
             });

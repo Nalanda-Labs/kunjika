@@ -12,7 +12,6 @@
 
     let questions = [];
     let data = [];
-    let user = null;
 
     async function fetchData() {
         const jwt = getCookie("jwt");

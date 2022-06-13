@@ -3,7 +3,7 @@
     import * as api from "$lib/api.js";
     import "bytemd/dist/index.min.css";
     import TagList from "$lib/TagList.svelte";
-    import { stores } from "$app/stores";
+    import { session } from "$app/stores";
   
     export let id;
     export let slug;
@@ -27,15 +27,12 @@
     let initials;
     let shown_ts;
   
-    const { session } = stores();
-  
     onMount(async () => {
       bytemd = await import("bytemd");
       Viewer = bytemd.Viewer;
   
       let response = await api.get(
         `questions/${id}/${slug}`,
-        localStorage.getItem("jwt")
       );
   
       if (response.question) {
@@ -159,7 +156,7 @@
         Swal.fire("You need to be logged in before accepting answer.");
         return;
       }
-      if(parseInt(posted_by)!= $session.user_id) {
+      if(parseInt(posted_by)!= $session.user.id) {
         Swal.fire("Only author of question can accept the answer.");
       }
       const response = await api.post(
@@ -320,7 +317,7 @@
               <i class="fas fa-angle-down" />
             </a>
             <br />
-            {#if posted_by == $session.user_id}
+            {#if posted_by == $session.user.id}
               {#if answer_accepted}
                 <a
                   href="/vote-down"

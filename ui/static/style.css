@@ -13,7 +13,7 @@ a {
     color: #4285F4;
     text-decoration: none;
 }
-.btn {
+.btn, .btn:hover {
     background-color: #4285F4;
 }
 .wrapper {

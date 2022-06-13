@@ -1,11 +1,11 @@
 <script>
 	import { page, session } from "$app/stores";
+	import { post } from "$lib/utils.js";
 	import { goto } from "$app/navigation";
-	import { post } from "$lib/api.js";
-	import { deleteCookie } from "$lib/utils.js";
+	import { onMount } from "svelte";
 
-	async function logout() {
-		deleteCookie('jwt');
+	function logout() {
+		post("/logout");
 		$session.user = null;
 		goto("/questions");
 	}
@@ -46,11 +46,7 @@
 								</a>
 							</li>
 							<li>
-								<a
-									rel="prefetch"
-									href="#"
-									on:click={logout}
-								>
+								<a rel="prefetch" href="#" on:click={logout}>
 									Logout
 								</a>
 							</li>
@@ -89,7 +85,9 @@
 		style="transform: translateX(0%);"
 	>
 		<li class="logo">
-			<a id="logo-container" href="/questions" class="brand-logo"> Kunjika</a>
+			<a id="logo-container" href="/questions" class="brand-logo">
+				Kunjika</a
+			>
 		</li>
 		<li><div class="divider" /></li>
 		<li>

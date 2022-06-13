@@ -5,3 +5,5 @@ node_modules/
 .svelte-kit/
 kunjika.egg-info/
 build/
+template.json
+target

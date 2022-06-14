@@ -1,8 +1,0 @@
-fastapi
-pydantic
-uvicorn
-tortoise-orm[asyncpg]
-passlib
-argon2_cffi
-itsdangerous
-fastapi-mail

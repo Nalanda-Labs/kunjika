@@ -1,11 +1,11 @@
 use super::dao::IUser;
-use super::user::{Claims, Login, Register};
+use super::user::{AvailabilityResponse, Claims, Login, Register, UserName};
 use crate::api::ApiResult;
 use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
-use crate::utils::security::sign;
+use crate::utils::security::{check_signature, sign};
 
-use actix_web::{cookie::Cookie, delete as del, get, post, web, Error, HttpResponse, Responder};
+use actix_web::{cookie::Cookie, get, post, web, Error, HttpResponse, Responder};
 use lettre::{
     transport::smtp::authentication::Credentials, AsyncSmtpTransport, AsyncTransport, Message,
     Tokio1Executor,
@@ -34,32 +34,30 @@ async fn register(form: web::Json<Register>, state: AppState) -> impl Responder 
                 state.config.mail_password.clone(),
             );
 
-            let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay("smtp.email.com")
-                .unwrap()
-                .credentials(smtp_credentials)
-                .build();
+            let mailer =
+                AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&state.config.mail_host)
+                    .unwrap()
+                    .credentials(smtp_credentials)
+                    .build();
 
-            let from = format!(
-                "{:?}<{:?}>",
-                state.config.from_name, state.config.from_email
-            );
-            let to = format!("<{:?}>", form.email);
+            let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
+            let to = form.email.clone();
             let subject = "Registration at Kunjika";
 
             // Sign an arbitrary string.
             let token = sign(&form.email, &state).await;
             let body = format!(
-                "Hi {:?},
+                "Hi {},
 
 Thank you for registering at Kunjika.
-Your email confirmation link is https://{:?}/confirm-email/{:?}.
+Your email confirmation link is https://{}/confirm-email/{}.
 This email will expire in one day.
 
 Thanks,
 Shiv",
                 form.username, state.config.host, token
             );
-
+            debug!("{:?}, {:?}", from, to);
             let email = Message::builder()
                 .from(from.parse().unwrap())
                 .to(to.parse().unwrap())
@@ -67,9 +65,16 @@ Shiv",
                 .body(body.to_string())
                 .unwrap();
 
+            debug!("Sending email");
             match mailer.send(email).await {
-                Ok(_r) => ApiResult::new().with_msg("ok").with_data(res),
-                Err(_e) => ApiResult::new().with_msg("ok").with_data(0),
+                Ok(_r) => {
+                    debug!("{:?}", _r);
+                    ApiResult::new().with_msg("ok").with_data(res)
+                }
+                Err(_e) => {
+                    debug!("{:?}", _e);
+                    ApiResult::new().code(502).with_msg("ok").with_data(0)
+                }
             }
         }
         Err(e) => {
@@ -150,90 +155,51 @@ async fn login(form: web::Json<Login>, state: AppState) -> impl Responder {
     }
 }
 
-// curl -H 'Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJCb2IiLCJleHAiOjE1OTEyNDYwOTR9.O1dbYu3tqiIi6I8OUlixLuj9dp-1tLl4mjmXZ0ve6uo' localhost:8080/user/info/who |jq .
-// curl 'localhost:8080/user/userInfo?access_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJCb2IiLCJleHAiOjE1OTEyNTYxNDd9.zJKlZOozYfq-xMXO89kjUyme6SA8_eziacqt5gvXj2U' |jq .
-#[get("/info/{who}")]
-async fn info(
-    form: web::Path<String>,
-    auth: AuthorizationService,
-    state: AppState,
-) -> impl Responder {
-    let who = form.into_inner();
-    let w = who.as_str();
-
-    // me
-    let user = match state.get_ref().user_query(&auth.claims.sub).await {
-        Ok(user) => {
-            debug!("find user {:?} ok: {:?}", auth.claims, user);
-
-            if who == "_"
-                || [
-                    user.id.to_string().as_str(),
-                    user.name.as_str(),
-                    user.email.as_str(),
-                ]
-                .contains(&w)
-            {
-                return ApiResult::new().with_msg("ok").with_data(user);
-            }
-
-            user
+#[post("/check-username-availability")]
+async fn check_username_availability(form: web::Json<UserName>, state: AppState) -> impl Responder {
+    match state.get_ref().user_query(&form.username).await {
+        Ok(_user) => {
+            debug!("User found, username unavailable");
+            let res = AvailabilityResponse { success: false };
+            ApiResult::new()
+                .code(200)
+                .with_msg("username unavailable")
+                .with_data(res)
         }
         Err(e) => {
-            error!("find user {:?} error: {:?}", auth.claims, e);
-            return ApiResult::new().code(500).with_msg(e.to_string());
-        }
-    };
-
-    // todo: add role(admin, user, guest)
-    if user.status != "normal" {
-        return ApiResult::new().code(403);
-    }
-
-    match state.get_ref().user_query(w).await {
-        Ok(user) => {
-            debug!("find user {:?} ok: {:?}", w, user);
-            ApiResult::new().with_msg("ok").with_data(user)
-        }
-        Err(e) => {
-            error!("find user {:?} error: {:?}", w, e);
-            ApiResult::new().code(500).with_msg(e.to_string())
+            debug!("{:?}", e.to_string());
+            let res = AvailabilityResponse { success: true };
+            ApiResult::new()
+                .code(200)
+                .with_msg("username available")
+                .with_data(res)
         }
     }
 }
 
-// curl -v -X DELETE localhost:8080/user/who
-#[del("/delete/{who}")]
-async fn delete(
+#[get("/confirm-email/{token}")]
+async fn confirm_email(
     form: web::Path<String>,
-    auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
-    let user = match state.get_ref().user_query(&auth.claims.sub).await {
-        Ok(user) => user,
-        Err(e) => {
-            error!("find user {:?} error: {:?}", auth.claims, e);
-            return ApiResult::new().code(500).with_msg(e.to_string());
-        }
-    };
-
-    // todo: add role(admin, user, guest)
-    if user.status != "normal" {
-        return ApiResult::new().code(403);
-    }
-
-    let who = form.into_inner();
-    match state.get_ref().user_delete(&who).await {
-        Ok(res) => {
-            info!(
-                "delete {:?} res: {} {} {} {}",
-                who, res.id, res.name, res.email, res.status
-            );
-            ApiResult::new().with_msg("ok").with_data(res)
-        }
-        Err(e) => {
-            error!("delete {:?} error: {:?}", who, e);
-            ApiResult::new().code(400).with_msg(e.to_string())
+    let token = form.into_inner();
+    let email = check_signature(&token, &state).await;
+    if &email == "Signature was expired" {
+        ApiResult::new().code(400).with_msg("Bad request").with_data("".to_string())
+    } else {
+        match state.get_ref().user_query(&email).await {
+            Ok(_user) => {
+                debug!("User found, username unavailable");
+                ApiResult::new()
+                    .code(200)
+                    .with_msg("Email verified")
+            }
+            Err(e) => {
+                debug!("{:?}", e.to_string());
+                ApiResult::new()
+                    .code(400)
+                    .with_msg("Your email is not registered with us!")
+            }
         }
     }
 }
@@ -241,6 +207,6 @@ async fn delete(
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(login);
     cfg.service(register);
-    cfg.service(delete);
-    cfg.service(info);
+    cfg.service(check_username_availability);
+    cfg.service(confirm_email);
 }

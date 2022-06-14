@@ -1,4 +1,4 @@
-use super::question::*;
+use super::question::DbQuestion;
 use crate::state::AppStateRaw;
 
 #[async_trait]
@@ -21,11 +21,11 @@ impl IQuestion for &AppStateRaw {
         .execute(&mut tx)
         .await?;
 
-        let id = sqlx::query!(
+        let p = sqlx::query!(
             r#"
-        INSERT INTO posts (title, description, slug, op_id, posted_by_id, updated_by_id)
-        VALUES ($1 ,$2 ,$3, $4, $5, $6)
-                "#,
+            INSERT INTO posts (title, description, slug, op_id, posted_by_id, updated_by_id)
+            VALUES ($1 ,$2 ,$3, $4, $5, $6)
+            RETURNING id"#,
             q.title,
             q.description,
             q.slug,
@@ -33,12 +33,32 @@ impl IQuestion for &AppStateRaw {
             q.posted_by_id,
             q.updated_by_id
         )
-        .execute(&mut tx)
-        .await
-        .map(|d| d.rows_affected());
+        .fetch_one(&mut tx)
+        .await?;
 
+        let tag_ids = sqlx::query!(
+            r#"SELECT id
+            FROM tags
+            where name = ANY($1);"#,
+            &q.tag_list[..]
+        )
+        .fetch_all(&mut tx)
+        .await?;
+
+        for t in tag_ids {
+            sqlx::query!(
+                r#"
+                INSERT INTO post_tags(post_id, tag_id)
+                VALUES($1, $2)
+                "#,
+                p.id as i64,
+                t.id
+            )
+            .execute(&mut tx)
+            .await?;
+        }
         tx.commit().await?;
 
-        id
+        Ok(p.id as u64)
     }
 }

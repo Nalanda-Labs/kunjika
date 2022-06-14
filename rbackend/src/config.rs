@@ -10,6 +10,14 @@ pub struct Config {
     pub redis: String,
     pub listen: String,
     pub jwt_priv: String,
+    pub mail_host: String,
+    pub mail_port: u16,
+    pub mail_username: String,
+    pub mail_password: String,
+    pub from_email: String,
+    pub from_name: String,
+    pub host: String,
+    pub secret_key: String
 }
 
 impl Config {

@@ -3,8 +3,13 @@ use super::user::{Claims, Login, Register};
 use crate::api::ApiResult;
 use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
+use crate::utils::security::sign;
 
-use actix_web::{cookie::Cookie, delete as del, get, post, Error, web, HttpResponse, Responder};
+use actix_web::{cookie::Cookie, delete as del, get, post, web, Error, HttpResponse, Responder};
+use lettre::{
+    transport::smtp::authentication::Credentials, AsyncSmtpTransport, AsyncTransport, Message,
+    Tokio1Executor,
+};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -23,7 +28,49 @@ async fn register(form: web::Json<Register>, state: AppState) -> impl Responder 
     match state.get_ref().user_add(&form).await {
         Ok(res) => {
             info!("register {:?} res: {}", form, res);
-            ApiResult::new().with_msg("ok").with_data(res)
+            // TODO: move it out to a common logic
+            let smtp_credentials = Credentials::new(
+                state.config.mail_username.clone(),
+                state.config.mail_password.clone(),
+            );
+
+            let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay("smtp.email.com")
+                .unwrap()
+                .credentials(smtp_credentials)
+                .build();
+
+            let from = format!(
+                "{:?}<{:?}>",
+                state.config.from_name, state.config.from_email
+            );
+            let to = format!("<{:?}>", form.email);
+            let subject = "Registration at Kunjika";
+
+            // Sign an arbitrary string.
+            let token = sign(&form.email, &state).await;
+            let body = format!(
+                "Hi {:?},
+
+Thank you for registering at Kunjika.
+Your email confirmation link is https://{:?}/confirm-email/{:?}.
+This email will expire in one day.
+
+Thanks,
+Shiv",
+                form.username, state.config.host, token
+            );
+
+            let email = Message::builder()
+                .from(from.parse().unwrap())
+                .to(to.parse().unwrap())
+                .subject(subject)
+                .body(body.to_string())
+                .unwrap();
+
+            match mailer.send(email).await {
+                Ok(_r) => ApiResult::new().with_msg("ok").with_data(res),
+                Err(_e) => ApiResult::new().with_msg("ok").with_data(0),
+            }
         }
         Err(e) => {
             error!("regitser {:?} error: {:?}", form, e);
@@ -57,7 +104,7 @@ async fn login(form: web::Json<Login>, state: AppState) -> impl Responder {
                     + if form.rememberme {
                         Duration::days(30)
                     } else {
-                        Duration::days(365*100)
+                        Duration::days(365 * 100)
                     };
 
                 let uuid = Uuid::new_v4().to_string();
@@ -67,7 +114,7 @@ async fn login(form: web::Json<Login>, state: AppState) -> impl Responder {
                     email: form.email,
                     username: user.name.clone(),
                     id: user.id,
-                    xsrf_token: uuid
+                    xsrf_token: uuid,
                 };
                 let key = state.config.jwt_priv.as_bytes();
                 let token = encode(
@@ -79,21 +126,19 @@ async fn login(form: web::Json<Login>, state: AppState) -> impl Responder {
                 let r = LoginResponse { success: true };
                 let resp = match serde_json::to_string(&r) {
                     Ok(json) => HttpResponse::Ok()
-                    .cookie(
-                        Cookie::build("jwt", token)
-                            .domain("localhost")
-                            .path("/")
-                            .secure(true)
-                            .http_only(true)
-                            .finish(),
-                    )
-                    .content_type("application/json")
-                    .body(json),
+                        .cookie(
+                            Cookie::build("jwt", token)
+                                .domain("localhost")
+                                .path("/")
+                                .secure(true)
+                                .http_only(true)
+                                .finish(),
+                        )
+                        .content_type("application/json")
+                        .body(json),
                     Err(e) => Error::from(e).into(),
                 };
                 resp
-
-                
             } else {
                 HttpResponse::Unauthorized().finish()
             }

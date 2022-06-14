@@ -20,6 +20,7 @@ pub mod state;
 pub mod users;
 pub mod tags;
 pub mod questions;
+pub mod utils;
 
 use config::{Config, Opts};
 

@@ -30,6 +30,7 @@ pub struct User {
     #[serde(skip_serializing)]
     pub pass: String,
     pub status: String,
+    pub image_url: String,
     pub create_dt: SqlDateTime,
     pub update_dt: SqlDateTime,
 }

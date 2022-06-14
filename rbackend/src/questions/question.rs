@@ -66,5 +66,6 @@ pub struct QuestionResponse {
     pub created_at: SqlDateTime,
     pub updated_at: SqlDateTime,
     pub tags: Vec<String>,
-    pub username: String
+    pub username: String,
+    pub image_url: String
 }

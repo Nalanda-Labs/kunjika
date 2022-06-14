@@ -45,11 +45,10 @@
         username = response.data.username;
         reply_to_id = posted_by;
         user_replied = username;
-        // image_url = response.data.image_url;
-        // if (image_url === "") {
-        //   initials = username[0];
-        // }
-        initials = username[0];
+        image_url = response.data.image_url;
+        if (image_url === "") {
+          initials = username[0];
+        }
         let asked_ts = Date.parse(time);
         let now = Date.now();
         shown_ts = Math.floor((now - asked_ts) / 1000);

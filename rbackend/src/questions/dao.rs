@@ -1,6 +1,5 @@
-use super::question::{self, DbQuestion, Question, QuestionResponse};
+use super::question::{DbQuestion, QuestionResponse};
 use crate::state::AppStateRaw;
-use crate::tags::tag::Tag;
 
 #[async_trait]
 pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
@@ -68,8 +67,8 @@ impl IQuestion for &AppStateRaw {
         let question = sqlx::query!(
             r#"
             select t.title as title, t.description, t.visible, t.created_at, t.posted_by_id, t.updated_at,
-            t.votes, t.views, t.op_id, t.updated_by_id, users.username from posts t left join users on
-            t.posted_by_id=users.id where t.id=$1
+            t.votes, t.views, t.op_id, t.updated_by_id, users.username as username, users.image_url as image_url
+            from posts t left join users on t.posted_by_id=users.id where t.id=$1
             "#, qid
         ).fetch_one(&self.sql)
         .await?;
@@ -85,6 +84,10 @@ impl IQuestion for &AppStateRaw {
         for t in tags {
             trs.push(t.name);
         }
+        let image_url = match question.image_url{
+            Some(i) => i,
+            None => "".to_string()
+        };
         let qr = QuestionResponse {
             id: qid as i64,
             title: question.title,
@@ -98,6 +101,7 @@ impl IQuestion for &AppStateRaw {
             created_at: question.created_at,
             updated_at: question.updated_at,
             username: question.username,
+            image_url: image_url,
             tags: trs,
         };
 

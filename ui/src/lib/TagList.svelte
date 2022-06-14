@@ -1,5 +1,4 @@
 <script>
-    import "../routes/_utils.scss";
     export let taglist;
 </script>
 

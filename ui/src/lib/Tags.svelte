@@ -398,7 +398,7 @@
         display: flex;
         white-space: nowrap;
         list-style: none;
-        background: #000;
+        background: #4285F4;
         color: #fff;
         border-radius: 2px;
         margin-right: 5px;
@@ -443,7 +443,7 @@
 
     .svelte-tags-input-matchs li:hover,
     .svelte-tags-input-matchs li:focus {
-        background: #000;
+        background: #4285F4;
         color: #fff;
         outline: none;
     }

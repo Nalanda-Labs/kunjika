@@ -1,6 +1,5 @@
 <script context="module">
-    export function preload({ params }, { user }) {
-    }
+    export function preload({ params }, { user }) {}
 </script>
 
 <script>
@@ -39,9 +38,9 @@
         if ($session.user) {
             inProgress = true;
             if (value.length < 20 || value.length > 100000) {
-                Swal.fire(
-                    "Body should not be less than 20 or more than 100000 characters."
-                );
+                M.toast({
+                    html: "Body should not be less than 20 or more than 100000 characters.",
+                });
                 return;
             }
 
@@ -69,7 +68,7 @@
             }
             inProgress = false;
         } else {
-            Swal.fire("You are not logged in.");
+            M.toast({ html: "You are not logged in." });
         }
     }
     onMount(async () => {

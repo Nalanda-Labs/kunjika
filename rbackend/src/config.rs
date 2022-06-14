@@ -17,7 +17,8 @@ pub struct Config {
     pub from_email: String,
     pub from_name: String,
     pub host: String,
-    pub secret_key: String
+    pub secret_key: String,
+    pub email_verification_expiry_time: u64
 }
 
 impl Config {

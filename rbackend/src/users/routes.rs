@@ -3,7 +3,7 @@ use super::user::{AvailabilityResponse, Claims, Login, Register, UserName};
 use crate::api::ApiResult;
 use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
-use crate::utils::security::sign;
+use crate::utils::security::{check_signature, sign};
 
 use actix_web::{cookie::Cookie, get, post, web, Error, HttpResponse, Responder};
 use lettre::{
@@ -177,8 +177,36 @@ async fn check_username_availability(form: web::Json<UserName>, state: AppState)
     }
 }
 
+#[get("/confirm-email/{token}")]
+async fn confirm_email(
+    form: web::Path<String>,
+    state: AppState,
+) -> impl Responder {
+    let token = form.into_inner();
+    let email = check_signature(&token, &state).await;
+    if &email == "Signature was expired" {
+        ApiResult::new().code(400).with_msg("Bad request").with_data("".to_string())
+    } else {
+        match state.get_ref().user_query(&email).await {
+            Ok(_user) => {
+                debug!("User found, username unavailable");
+                ApiResult::new()
+                    .code(200)
+                    .with_msg("Email verified")
+            }
+            Err(e) => {
+                debug!("{:?}", e.to_string());
+                ApiResult::new()
+                    .code(400)
+                    .with_msg("Your email is not registered with us!")
+            }
+        }
+    }
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(login);
     cfg.service(register);
     cfg.service(check_username_availability);
+    cfg.service(confirm_email);
 }

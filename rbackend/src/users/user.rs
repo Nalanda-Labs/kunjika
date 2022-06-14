@@ -23,7 +23,7 @@ type SqlDateTime = chrono::DateTime<Utc>;
 #[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct User {
     pub id: SqlID,
-    pub name: String,
+    pub username: String,
     // pub phone: String,
     pub email: String,
     // not return password

@@ -114,10 +114,10 @@ async fn login(form: web::Json<Login>, state: AppState) -> impl Responder {
 
                 let uuid = Uuid::new_v4().to_string();
                 let my_claims = Claims {
-                    sub: user.name.clone(),
+                    sub: user.username.clone(),
                     exp: exp.timestamp() as usize,
                     email: form.email,
-                    username: user.name.clone(),
+                    username: user.username.clone(),
                     id: user.id,
                     xsrf_token: uuid,
                 };

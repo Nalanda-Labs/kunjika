@@ -4,7 +4,7 @@ use crate::api::ApiResult;
 use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
 
-use actix_web::{post, web, Responder};
+use actix_web::{get, post, web, Responder};
 
 #[post("/create-question")]
 async fn insert_question(
@@ -44,23 +44,41 @@ async fn insert_question(
         posted_by_id: auth.claims.id,
         slug: slug.clone(),
         updated_by_id: auth.claims.id,
-        tag_list: r.tag_list
+        tag_list: r.tag_list,
     };
 
     match state.get_ref().insert_question(&q).await {
         Ok(t) => {
             debug!("insert question {:?} ", t);
-            let res = AskResponse { id:  t.to_string(), slug};
+            let res = AskResponse {
+                id: t.to_string(),
+                slug,
+            };
 
-            return ApiResult::new().with_msg("ok").with_data(res);
+            ApiResult::new().with_msg("ok").with_data(res)
         }
         Err(e) => {
             error!("insert question error: {:?}", e);
-            return ApiResult::new().code(500).with_msg(e.to_string());
+            ApiResult::new().code(502).with_msg(e.to_string())
+        }
+    }
+}
+
+#[get("/questions/{id}/{slug}")]
+async fn get_question(params: web::Path<(String, String)>, state: AppState) -> impl Responder {
+    let qid: i64 = (params.0).parse().unwrap();
+    debug!("Question id is {}", qid);
+    match state.get_ref().get_question(qid).await {
+        Ok(db_question) => {
+            ApiResult::new().with_msg("").with_data(db_question)
+        }
+        Err(e) => {
+            ApiResult::new().code(502).with_msg(e.to_string())
         }
     }
 }
 
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(insert_question);
+    cfg.service(get_question);
 }

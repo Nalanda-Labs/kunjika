@@ -1,10 +1,16 @@
-use super::question::{DbQuestion, QuestionResponse};
+use super::question::{DbQuestion, QuestionResponse, QuestionsResponse, QR};
 use crate::state::AppStateRaw;
+
+use chrono::*;
 
 #[async_trait]
 pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
     async fn insert_question(&self, name: &DbQuestion) -> sqlx::Result<u64>;
     async fn get_question(&self, qid: i64) -> sqlx::Result<QuestionResponse>;
+    async fn get_questions(
+        &self,
+        updated_at: &chrono::DateTime<Utc>,
+    ) -> sqlx::Result<QuestionsResponse>;
 }
 
 #[cfg(any(feature = "postgres"))]
@@ -24,13 +30,12 @@ impl IQuestion for &AppStateRaw {
 
         let p = sqlx::query!(
             r#"
-            INSERT INTO posts (title, description, slug, op_id, posted_by_id, updated_by_id)
-            VALUES ($1 ,$2 ,$3, $4, $5, $6)
+            INSERT INTO posts (title, description, slug, posted_by_id, updated_by_id)
+            VALUES ($1 ,$2 ,$3, $4, $5)
             RETURNING id"#,
             q.title,
             q.description,
             q.slug,
-            q.op_id,
             q.posted_by_id,
             q.updated_by_id
         )
@@ -84,9 +89,9 @@ impl IQuestion for &AppStateRaw {
         for t in tags {
             trs.push(t.name);
         }
-        let image_url = match question.image_url{
+        let image_url = match question.image_url {
             Some(i) => i,
-            None => "".to_string()
+            None => "".to_owned(),
         };
         let qr = QuestionResponse {
             id: qid as i64,
@@ -106,5 +111,59 @@ impl IQuestion for &AppStateRaw {
         };
 
         Ok(qr)
+    }
+
+    async fn get_questions(
+        &self,
+        updated_at: &chrono::DateTime<Utc>,
+    ) -> sqlx::Result<QuestionsResponse> {
+        let questions = sqlx::query!(
+            r#"
+            select t.id, t.visible, t.title, t.created_at , t.posted_by_id, t.updated_at, t.votes, t.views, t.slug, users.image_url,
+            users.username as username, users.id as uid, array_agg(post_tags.tag_id) as tag_id, array_agg(tags.name) as tags, t.answer_count from posts t left
+            join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
+            tags on post_tags.tag_id = tags.id where t.op_id=0 and t.updated_at < $1 group by t.id, users.id order by
+            t.updated_at desc limit $2
+            "#, updated_at, self.config.questions_per_page as i64
+        ).fetch_all(&self.sql)
+        .await?;
+
+        let mut qrs: QuestionsResponse = QuestionsResponse {
+            questions: Vec::new(),
+        };
+
+        for q in questions {
+            let image_url = match q.image_url {
+                Some(i) => i,
+                None => "".to_string(),
+            };
+            let tags = match q.tags {
+                Some(t) => t.join(","),
+                None => "".to_owned(),
+            };
+            let tid = match q.tag_id {
+                Some(t) => t.iter().map(|&e| e.to_string() + ",").collect(),
+                None => "".to_owned(),
+            };
+            let qr = QR {
+                id: q.id,
+                title: q.title,
+                visible: q.visible,
+                votes: q.votes,
+                views: q.views,
+                slug: q.slug,
+                posted_by_id: q.posted_by_id,
+                created_at: q.created_at,
+                updated_at: q.updated_at,
+                username: q.username,
+                image_url,
+                tags,
+                uid: q.uid,
+                tid,
+                answers: q.answer_count,
+            };
+            qrs.questions.push(qr);
+        }
+        Ok(qrs)
     }
 }

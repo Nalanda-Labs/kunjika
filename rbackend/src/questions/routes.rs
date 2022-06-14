@@ -5,6 +5,7 @@ use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
 
 use actix_web::{get, post, web, Responder};
+use chrono::{*};
 
 #[post("/create-question")]
 async fn insert_question(
@@ -40,7 +41,6 @@ async fn insert_question(
     let q = DbQuestion {
         title: r.title,
         description: r.description,
-        op_id: auth.claims.id,
         posted_by_id: auth.claims.id,
         slug: slug.clone(),
         updated_by_id: auth.claims.id,
@@ -78,7 +78,29 @@ async fn get_question(params: web::Path<(String, String)>, state: AppState) -> i
     }
 }
 
+#[post("/questions/")]
+async fn get_questions(ut: web::Json<QuestionsReq>, state: AppState) -> impl Responder {
+    let updated_at = ut.into_inner();
+    let up_at;
+    debug!("{:?}",&updated_at.updated_at);
+    if updated_at.updated_at == "" {
+        up_at = chrono::offset::Utc::now();
+        debug!("{:?}",up_at);
+    } else {
+        up_at = chrono::DateTime::parse_from_rfc3339(&updated_at.updated_at).unwrap().with_timezone(&Utc);
+    }
+    match state.get_ref().get_questions(&up_at).await {
+        Ok(db_questions) => {
+            ApiResult::new().with_msg("").with_data(db_questions)
+        }
+        Err(e) => {
+            ApiResult::new().code(502).with_msg(e.to_string())
+        }
+    }
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(insert_question);
     cfg.service(get_question);
+    cfg.service(get_questions);
 }

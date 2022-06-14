@@ -5,104 +5,11 @@
 <script>
     import { goto } from "$app/navigation";
     import { session } from "$app/stores";
-    import { onMount } from "svelte";
     import * as api from "$lib/api.js";
     import InfiniteLoading from "svelte-infinite-loading";
 
     let questions = [];
     let data = [];
-
-    async function fetchData() {
-        let updated_at = "";
-        if (questions.length) {
-            updated_at = questions[questions.length - 1].updated_at;
-        }
-        let response = await api.post(
-            `questions/`,
-            { updated_at: updated_at }
-        );
-
-        if (response.questions) {
-            questions = response.questions;
-        }
-        for (let i = 0; i < questions.length; i++) {
-            questions[i]["tags"] = questions[i]["tags"].slice(1, -1);
-            questions[i]["tags"] = questions[i]["tags"].split(",");
-            questions[i]["tid"] = questions[i]["tid"].slice(1, -1);
-            questions[i]["tid"] = questions[i]["tid"].split(",");
-            let asked_ts = Date.parse(questions[i].created_at);
-            let updated_ts = Date.parse(questions[i].updated_at);
-            let now = new Date();
-
-            if (asked_ts == updated_ts) {
-                var offset = new Date().getTimezoneOffset();
-                let shown_ts = Math.floor(
-                    (now - asked_ts) / 1000 + offset * 60
-                );
-                if (shown_ts >= 259200) {
-                    asked_ts = new Date(questions[i].created_at);
-                    let year = asked_ts.getYear() + 1900;
-                    let month = asked_ts.getMonth() + 1;
-                    shown_ts =
-                        "asked on " +
-                        asked_ts.getDate() +
-                        "/" +
-                        month +
-                        "/" +
-                        year;
-                } else if (172800 <= shown_ts && shown_ts < 259200) {
-                    shown_ts = "asked 2 days ago";
-                } else if (86400 <= shown_ts && shown_ts < 172800) {
-                    shown_ts = "asked yesterday";
-                } else if (3600 <= shown_ts && shown_ts < 8640000) {
-                    shown_ts = "asked " + Math.floor(shown_ts / 3600) + "h ago";
-                } else if (60 <= shown_ts && shown_ts < 3600) {
-                    console.log(shown_ts);
-                    shown_ts = "asked " + Math.floor(shown_ts / 60) + "m ago";
-                } else {
-                    shown_ts = "asked " + shown_ts + "s ago";
-                }
-                questions[i].shown_ts = shown_ts;
-            } else {
-                var offset = new Date().getTimezoneOffset();
-                let shown_ts = Math.floor(
-                    (now - updated_ts) / 1000 + offset * 60
-                );
-                if (shown_ts >= 259200) {
-                    asked_ts = new Date(questions[i].created_at);
-                    let year = updated_ts.getYear() + 1900;
-                    let month = updated_ts.getMonth() + 1;
-                    shown_ts =
-                        "modified on " +
-                        updated_ts.getDay() +
-                        "/" +
-                        month +
-                        "/" +
-                        year;
-                } else if (172800 <= shown_ts && shown_ts < 259200) {
-                    shown_ts = "modiffed 2 days ago";
-                } else if (86400 <= shown_ts && shown_ts < 172800) {
-                    shown_ts = "modified yesterday";
-                } else if (3600 <= shown_ts && shown_ts < 8640000) {
-                    shown_ts =
-                        "modified " + Math.floor(shown_ts / 3600) + "h ago";
-                } else if (60 <= shown_ts && shown_ts < 3600) {
-                    console.log(shown_ts);
-                    shown_ts =
-                        "modified " + Math.floor(shown_ts / 60) + "m ago";
-                } else {
-                    shown_ts = "modified " + shown_ts + "s ago";
-                }
-                questions[i].shown_ts = shown_ts;
-            }
-        }
-        if (questions.length) {
-            data = questions;
-        }
-    }
-    onMount(async () => {
-        await fetchData();
-    });
 
     async function infiniteHandler({ detail: { loaded, complete } }) {
         let updated_at = "";
@@ -111,16 +18,16 @@
         }
         let response = await api.post(
             `questions/`,
-            { updated_at: updated_at }
+            { updated_at }
         );
-        if (response.questions) {
-            questions = response.questions;
+        if (response.data.questions) {
+            questions = response.data.questions;
         }
         if (questions.length) {
             for (let i = 0; i < questions.length; i++) {
-                questions[i]["tags"] = questions[i]["tags"].slice(1, -1);
+                // questions[i]["tags"] = questions[i]["tags"].slice(1, -1);
                 questions[i]["tags"] = questions[i]["tags"].split(",");
-                questions[i]["tid"] = questions[i]["tid"].slice(1, -1);
+                // questions[i]["tid"] = questions[i]["tid"].slice(1, -1);
                 questions[i]["tid"] = questions[i]["tid"].split(",");
                 let asked_ts = Date.parse(questions[i].created_at);
                 let updated_ts = Date.parse(questions[i].updated_at);
@@ -128,7 +35,7 @@
 
                 if (asked_ts == updated_ts) {
                     var offset = new Date().getTimezoneOffset();
-                    let shown_ts = Math.floor(
+                    let shown_ts = -Math.floor(
                         (now - asked_ts) / 1000 + offset * 60
                     );
                     if (shown_ts >= 259200) {
@@ -221,19 +128,17 @@
                 style="border-bottom:1px solid;color:#eee;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
             />
             <div
-                style="margin-right:10px;flex-basis: 5%;max-width:5%;height:60px"
-                class="mdc-elevation--z4"
+                style="margin-right:10px;flex-basis: 5%;max-width:5%;height:60px;float:left"
             >
                 <p style="text-align:center;font-size:16px;margin-top:5px">
                     {answers}
                 </p>
-                <p style="text-align:center;font-size:9px;margin-top:-20px;">
+                <p style="text-align:center;font-size:9px;margin-top:-20px;float:left">
                     answers
                 </p>
             </div>
             <div
-                style="margin-right:10px;flex-basis: 5%;max-width:5%;height:60px"
-                class="mdc-elevation--z4"
+                style="margin-right:10px;flex-basis: 5%;max-width:5%;height:60px;float:left"
             >
                 <p style="text-align:center;font-size:16px;margin-top:5px">
                     {views}

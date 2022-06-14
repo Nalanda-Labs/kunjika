@@ -32,7 +32,6 @@ pub struct DbQuestion {
     pub description: String,
     pub tag_list: Vec<String>,
     pub slug: String,
-    pub op_id: SqlID,
     pub posted_by_id: SqlID,
     pub updated_by_id: SqlID
 }
@@ -68,4 +67,33 @@ pub struct QuestionResponse {
     pub tags: Vec<String>,
     pub username: String,
     pub image_url: String
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct QuestionsReq {
+    pub updated_at: String
+}
+
+#[derive(FromRow, Serialize, Deserialize, Debug)]
+pub struct QR {
+    pub id: SqlID,
+    pub title: String,
+    pub visible: bool,
+    pub votes: i64,
+    pub views: i64,
+    pub slug: String,
+    pub posted_by_id: SqlID,
+    pub created_at: SqlDateTime,
+    pub updated_at: SqlDateTime,
+    pub username: String,
+    pub image_url: String,
+    pub uid: SqlID,
+    pub tid: String,
+    pub tags: String,
+    pub answers: i32,
+}
+
+#[derive(FromRow, Serialize, Deserialize, Debug)]
+pub struct QuestionsResponse {
+    pub questions: Vec<QR>
 }

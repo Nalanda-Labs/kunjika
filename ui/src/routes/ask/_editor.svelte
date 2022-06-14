@@ -4,7 +4,6 @@
     import * as api from "$lib/api.js";
     import { onMount } from "svelte";
     import "bytemd/dist/index.min.css";
-    import { getCookie, parseJwt, getXsrfToken } from "$lib/utils";
 
     export let question;
     export let id;
@@ -33,14 +32,14 @@
             }
 
             const response = await api.post(
-                "create-question/",
-                { question },
+                "create-question",
+                { "title": question.title, "description": question.body, "tag_list": question.tagList },
                 $session.user.xsrf_token
             );
 
-            if (response.id && response.slug) {
-                id = response.id;
-                await goto(`/questions/${response.id}/${response.slug}`);
+            if (response.data.id && response.data.slug) {
+                id = response.data.id;
+                await goto(`/questions/${id}/${response.data.slug}`);
             }
         } else {
             M.toast({ html: "You are not logged in." });

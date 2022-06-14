@@ -19,6 +19,7 @@ pub mod middlewares;
 pub mod state;
 pub mod users;
 pub mod tags;
+pub mod questions;
 
 use config::{Config, Opts};
 
@@ -38,7 +39,8 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Compress::default())
             .wrap(middleware::Logger::default())
             .service(web::scope(&apiv1).configure(users::routes::init)
-            .service(web::scope(&apiv1)).configure(tags::routes::init))
+            .service(web::scope(&apiv1)).configure(tags::routes::init)
+            .service(web::scope(&apiv1)).configure(questions::routes::init))
     })
     .keep_alive(std::time::Duration::from_secs(300))
     .bind(&state2.config.listen)?

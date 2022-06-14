@@ -34,32 +34,30 @@ async fn register(form: web::Json<Register>, state: AppState) -> impl Responder 
                 state.config.mail_password.clone(),
             );
 
-            let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay("smtp.email.com")
-                .unwrap()
-                .credentials(smtp_credentials)
-                .build();
+            let mailer =
+                AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&state.config.mail_host)
+                    .unwrap()
+                    .credentials(smtp_credentials)
+                    .build();
 
-            let from = format!(
-                "{:?}<{:?}>",
-                state.config.from_name, state.config.from_email
-            );
-            let to = format!("<{:?}>", form.email);
+            let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
+            let to = form.email.clone();
             let subject = "Registration at Kunjika";
 
             // Sign an arbitrary string.
             let token = sign(&form.email, &state).await;
             let body = format!(
-                "Hi {:?},
+                "Hi {},
 
 Thank you for registering at Kunjika.
-Your email confirmation link is https://{:?}/confirm-email/{:?}.
+Your email confirmation link is https://{}/confirm-email/{}.
 This email will expire in one day.
 
 Thanks,
 Shiv",
                 form.username, state.config.host, token
             );
-
+            debug!("{:?}, {:?}", from, to);
             let email = Message::builder()
                 .from(from.parse().unwrap())
                 .to(to.parse().unwrap())
@@ -67,9 +65,16 @@ Shiv",
                 .body(body.to_string())
                 .unwrap();
 
+            debug!("Sending email");
             match mailer.send(email).await {
-                Ok(_r) => ApiResult::new().with_msg("ok").with_data(res),
-                Err(_e) => ApiResult::new().with_msg("ok").with_data(0),
+                Ok(_r) => {
+                    debug!("{:?}", _r);
+                    ApiResult::new().with_msg("ok").with_data(res)
+                }
+                Err(_e) => {
+                    debug!("{:?}", _e);
+                    ApiResult::new().code(502).with_msg("ok").with_data(0)
+                }
             }
         }
         Err(e) => {

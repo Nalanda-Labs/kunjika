@@ -1,0 +1,15 @@
+{
+    "sql":"postgres://user@password@localhost:5432/db_name",
+    "redis": "redis://127.0.0.1",
+    "listen": "127.0.0.1:8000",
+    "jwt_priv": "0xa06f853898a9dd4f32441a56879c52878f96c42730ed31c50e00 or some hex string",
+    "mail_host": "mail host",
+    "mail_port": 587,
+    "mail_username": "mail user",
+    "mail_password": " sender mail password",
+    "from_email": "from email",
+    "from_name": "from name",
+    "email_verification_expiry_time": 86400,
+    "host": "localhost",
+    "secret_key": "some super secret key"
+}

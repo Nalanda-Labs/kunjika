@@ -7,27 +7,19 @@
     import { session } from "$app/stores";
     import { onMount } from "svelte";
     import * as api from "$lib/api.js";
-    import { getCookie, parseJwt } from "$lib/utils.js";
     import InfiniteLoading from "svelte-infinite-loading";
 
     let questions = [];
     let data = [];
 
     async function fetchData() {
-        const jwt = getCookie("jwt");
-        let xsrf_token = null;
-        if (jwt) {
-            const jwt_decoded = parseJwt(jwt);
-            xsrf_token = jwt_decoded.xsrf_token;
-        }
         let updated_at = "";
         if (questions.length) {
             updated_at = questions[questions.length - 1].updated_at;
         }
         let response = await api.post(
             `questions/`,
-            { updated_at: updated_at },
-            xsrf_token
+            { updated_at: updated_at }
         );
 
         if (response.questions) {
@@ -113,20 +105,13 @@
     });
 
     async function infiniteHandler({ detail: { loaded, complete } }) {
-        const jwt = getCookie("jwt");
-        let xsrf_token = null;
-        if (jwt) {
-            const jwt_decoded = parseJwt(jwt);
-            xsrf_token = jwt_decoded.xsrf_token;
-        }
         let updated_at = "";
         if (questions.length) {
             updated_at = questions[questions.length - 1].updated_at;
         }
         let response = await api.post(
             `questions/`,
-            { updated_at: updated_at },
-            xsrf_token
+            { updated_at: updated_at }
         );
         if (response.questions) {
             questions = response.questions;

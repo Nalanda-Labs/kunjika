@@ -36,6 +36,14 @@ CREATE TABLE posts (
     updated_by_id bigint NOT NULL
 );
 
+CREATE TABLE public.post_tags (
+    id bigserial NOT NULL,
+    post_id bigint NOT NULL,
+    tag_id bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
 ALTER TABLE ONLY public.posts
     ADD CONSTRAINT posts_posted_by_id_fkey FOREIGN KEY (posted_by_id) REFERENCES public.users(id) ON DELETE CASCADE;
 

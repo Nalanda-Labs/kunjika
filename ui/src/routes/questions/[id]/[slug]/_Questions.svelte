@@ -35,22 +35,21 @@
         `questions/${id}/${slug}`,
       );
   
-      if (response.question) {
-        title = response.title;
-        value = response.question.description;
-        taglist = response.tags.map((tag) => tag.name);
-        time = response.question.created_at;
-        votes = response.question.votes;
-        posted_by = response.question.posted_by;
-        username = response.question.username;
+      if (response.data.question) {
+        title = response.data.title;
+        value = response.data.question.description;
+        taglist = response.data.tags.map((tag) => tag.name);
+        time = response.data.question.created_at;
+        votes = response.data.question.votes;
+        posted_by = response.data.question.posted_by;
+        username = response.data.question.username;
         reply_to_id = posted_by;
         user_replied = username;
-        image_url = response.question.image_url;
+        image_url = response.data.question.image_url;
         if (image_url === "") {
           initials = username[0];
         }
         let asked_ts = Date.parse(time);
-        console.log(asked_ts);
         let now = Date.now();
         shown_ts = Math.floor((now - asked_ts) / 1000);
         if (shown_ts >= 259200) {
@@ -76,12 +75,11 @@
         localStorage.getItem("jwt")
       );
   
-      if (response.questions) {
-        questions = response.questions;
-        let now = Date.now();
+      if (response.data.questions) {
+        questions = response.data.questions;
         for (var i = 0; i < questions.length; i++) {
           if (questions[i].image_url === "") {
-            questions[i].initials = response.questions[i].username[0];
+            questions[i].initials = response.data.questions[i].username[0];
           }
           let asked_ts = Date.parse(questions[i].created_at);
           let now = Date.now();
@@ -107,8 +105,8 @@
         }
         console.log(questions);
         offset += limit;
-        if (response.questions.length) {
-          time = response.questions[response.questions.length - 1].created_at;
+        if (response.data.questions.length) {
+          time = response.data.questions[response.data.questions.length - 1].created_at;
         }
       }
     });

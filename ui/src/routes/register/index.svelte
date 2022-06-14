@@ -30,7 +30,7 @@
             });
             errors = response.erros;
 
-            if (response.code == 200) {
+            if (response.data.success) {
                 M.toast({ html: "Username available!" });
             } else {
                 M.toast({ html: "Username unavailable" });

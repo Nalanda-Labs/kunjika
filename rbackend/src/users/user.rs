@@ -1,5 +1,6 @@
 // PBKDF2 < bcrypt < scrypt < argon2
 use argon2::{self, Config};
+use chrono::Utc;
 use ring::digest;
 
 fn passhash(pass: &str) -> String {
@@ -17,7 +18,7 @@ fn passhash_verify(pass: &str, hash: &str) -> bool {
 #[cfg(any(feature = "postgres"))]
 type SqlID = i64;
 
-type SqlDateTime = chrono::NaiveDateTime;
+type SqlDateTime = chrono::DateTime<Utc>;
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct User {
@@ -55,7 +56,7 @@ pub struct Claims {
     pub email: String,
     pub username: String,
     pub id: i64,
-    pub xsrf_token: String
+    pub xsrf_token: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Validate)]
@@ -64,10 +65,10 @@ pub struct Register {
     pub username: String,
     #[validate(email)]
     pub email: String,
-    #[validate(length(min=16, max=64))]
+    #[validate(length(min = 16, max = 64))]
     pub password: String,
-    #[validate(length(min=16, max=64))]
-    pub confirm_password: String
+    #[validate(length(min = 16, max = 64))]
+    pub confirm_password: String,
 }
 
 use validator::ValidationError;
@@ -91,11 +92,21 @@ impl Register {
     pub fn passhash(&self) -> String {
         passhash(&self.password)
     }
-    pub fn match_password (&self) -> bool {
+    pub fn match_password(&self) -> bool {
         self.password == self.confirm_password
     }
 }
 
 pub fn first_char_is_number(s: &str) -> bool {
     s.get(0..1).and_then(|c| c.parse::<u8>().ok()).is_some()
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AvailabilityResponse {
+    pub success: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UserName {
+    pub username: String,
 }

@@ -1,11 +1,11 @@
 use super::dao::IUser;
-use super::user::{Claims, Login, Register};
+use super::user::{AvailabilityResponse, Claims, Login, Register, UserName};
 use crate::api::ApiResult;
 use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
 use crate::utils::security::sign;
 
-use actix_web::{cookie::Cookie, delete as del, get, post, web, Error, HttpResponse, Responder};
+use actix_web::{cookie::Cookie, get, post, web, Error, HttpResponse, Responder};
 use lettre::{
     transport::smtp::authentication::Credentials, AsyncSmtpTransport, AsyncTransport, Message,
     Tokio1Executor,
@@ -153,4 +153,32 @@ async fn login(form: web::Json<Login>, state: AppState) -> impl Responder {
             HttpResponse::BadRequest().finish()
         }
     }
+}
+
+#[post("/check-username-availability")]
+async fn check_username_availability(form: web::Json<UserName>, state: AppState) -> impl Responder {
+    match state.get_ref().user_query(&form.username).await {
+        Ok(_user) => {
+            debug!("User found, username unavailable");
+            let res = AvailabilityResponse { success: false };
+            ApiResult::new()
+                .code(200)
+                .with_msg("username unavailable")
+                .with_data(res)
+        }
+        Err(e) => {
+            debug!("{:?}", e.to_string());
+            let res = AvailabilityResponse { success: true };
+            ApiResult::new()
+                .code(200)
+                .with_msg("username available")
+                .with_data(res)
+        }
+    }
+}
+
+pub fn init(cfg: &mut web::ServiceConfig) {
+    cfg.service(login);
+    cfg.service(register);
+    cfg.service(check_username_availability);
 }

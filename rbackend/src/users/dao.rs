@@ -1,5 +1,6 @@
 use super::user::*;
 use crate::state::AppStateRaw;
+use md5::compute;
 
 #[async_trait]
 pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
@@ -8,7 +9,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
         let (column, placeholder) = column_placeholder(who);
 
         let sql = format!(
-            "SELECT id, name, email, pass, status, create_dt, update_dt
+            "SELECT id, username, email, pass, status, create_dt, update_dt
             FROM users
             where {} = {};",
             column, placeholder
@@ -33,15 +34,18 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
 impl IUser for &AppStateRaw {
     async fn user_add(&self, form: &Register) -> sqlx::Result<u64> {
         let passh = form.passhash();
-
+        let email_hash = compute(&form.email.as_bytes());
+        // TODO: move it to config
+        let image_url = "https://www.gravatar.com/avatar/".to_string() + &format!("{:x}", email_hash);
         sqlx::query!(
             r#"
-        INSERT INTO users (name, email, pass)
-        VALUES ($1 ,$2 ,$3)
+        INSERT INTO users (username, email, pass, image_url)
+        VALUES ($1 ,$2 ,$3, $4)
                 "#,
             form.username,
             form.email,
-            passh
+            passh,
+            image_url
         )
         .execute(&self.sql)
         .await

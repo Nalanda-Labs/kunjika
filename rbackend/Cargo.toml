@@ -8,7 +8,7 @@ edition = "2018"
 
 # https://docs.rs/vergen/4.1.0/vergen/
 [build-dependencies]
-vergen = { version = "=4.1.0", features = [ "git" ] }
+vergen = { version = "7.2.1", features = [ "git" ] }
 
 [features]
 default = [ "postgres" ]
@@ -17,37 +17,39 @@ postgres = [ "sqlx/postgres"]
 [dependencies.sqlx]
 version = "0.5.13"
 default-features = false
-features = [ "runtime-actix-rustls", "macros", "chrono", "decimal", "uuid", "json" ]
+features = [ "runtime-actix-rustls", "macros", "chrono", "decimal", "uuid", "json", "time" ]
 # git = "https://github.com/launchbadge/sqlx"
 # path = "../sqlx"
 
 [dependencies]
-clap =  { version = "3.0", features = [ "derive" ] }
+clap =  { version = "3.2.4", features = [ "derive" ] }
 lettre = { version = "0.10.0-rc.7", features = ["tokio1-native-tls", "hostname", "builder"] }
-tokio = { version = "1.15.0", features = ["full"] } # copy from actix-rt
+tokio = { version = "1.19.2", features = ["full"] } # copy from actix-rt
 nonblock-logger = { version = "0.1.6", default-features = false, features = ["color", "dbg"] }
-uuid = { version = "0.8.2", features = ["serde", "v4"] }
+uuid = { version = "1.1.2", features = ["serde", "v4"] }
 chrono =  { version = "0.4.19", features = ["serde"] }
-rust_decimal = { version = "1.10.3", features = [ "serde-float" ] }
-validator = { version = "0.15", features = ["derive"] }
-serde = { version = "1.0.123", features = ["derive"] }
-serde_qs = "0.8.2"
-serde_json = "1.0.63"
-json5 = "0.4.0"
+rust_decimal = { version = "1.25.0", features = [ "serde-float" ] }
+validator = { version = "0.15.0", features = ["derive"] }
+serde = { version = "1.0.137", features = ["derive"] }
+serde_qs = "0.9.2"
+serde_json = "1.0.81"
+json5 = "0.4.1"
 ring = "0.16.20"
-rust-argon2 = "1.0"
-hex = "0.4.2"
-jsonwebtoken = "7.2.0"
+rust-argon2 = "1.0.0"
+hex = "0.4.3"
+jsonwebtoken = "8.1.0"
 mobc-redis = "0.7.0"
-mobc = "0.7.0"
-actix-web = "4.0.1"
-actix-files = "0.6.0"
-actix-rt = "2.1.0"
+mobc = "0.7.3"
+actix-web = "4.1.0"
+actix-files = "0.6.1"
+actix-rt = "2.7.0"
 lazy_static = "1.4.0"
-async-trait = "0.1.42"
-futures = "0.3.13"
-thiserror = "1.0.24"
-anyhow = "1.0.38"
-url = "2.2.1"
+async-trait = "0.1.56"
+futures = "0.3.21"
+thiserror = "1.0.31"
+anyhow = "1.0.57"
+url = "2.2.2"
 cargo-watch = "8.1.1"
 itsdangerous = "0.4.1"
+md5 = "0.7.0"
+num_cpus = "1.13.1"

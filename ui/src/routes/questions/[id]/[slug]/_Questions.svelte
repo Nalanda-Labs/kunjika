@@ -23,8 +23,8 @@
     let bytemd = null;
     let posted_by;
     let username;
-    let image_url;
-    let initials;
+    let image_url = "";
+    let initials = "";
     let shown_ts;
   
     onMount(async () => {
@@ -35,17 +35,17 @@
         `questions/${id}/${slug}`,
       );
   
-      if (response.data.question) {
+      if (response.data) {
         title = response.data.title;
-        value = response.data.question.description;
-        taglist = response.data.tags.map((tag) => tag.name);
-        time = response.data.question.created_at;
-        votes = response.data.question.votes;
-        posted_by = response.data.question.posted_by;
-        username = response.data.question.username;
+        value = response.data.description;
+        taglist = response.data.tags.map((tag) => tag);
+        time = response.data.created_at;
+        votes = response.data.votes;
+        posted_by = response.data.posted_by;
+        username = response.data.username;
         reply_to_id = posted_by;
         user_replied = username;
-        image_url = response.data.question.image_url;
+        image_url = response.data.image_url;
         if (image_url === "") {
           initials = username[0];
         }

@@ -29,10 +29,10 @@
             document.getElementById("editor").style.display = "none";
         }
         // TODO: Fix scroll on showing editor
-        // var editorDiv = document.getElementById("container");
-        // console.log(editorDiv.scrollHeight, editorDiv.scrollTop);
-        // editorDiv.scrollTop = editorDiv.scrollHeight;
-        // console.log(editorDiv.scrollHeight, editorDiv.scrollTop);
+        var editorDiv = document.getElementById("container");
+        console.log(editorDiv.scrollHeight, editorDiv.scrollTop);
+        editorDiv.scrollTop = editorDiv.scrollHeight;
+        console.log(editorDiv.scrollHeight, editorDiv.scrollTop);
     }
     async function reply() {
         if ($session.user) {
@@ -49,7 +49,7 @@
             const response = await api.post(
                 `create-post?topic_id=${id}`,
                 { value, reply_to },
-                localStorage.getItem("jwt")
+                $session.user.xsrf_token
             );
 
             if (response.post_id) {

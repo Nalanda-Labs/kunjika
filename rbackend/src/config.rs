@@ -18,7 +18,8 @@ pub struct Config {
     pub from_name: String,
     pub host: String,
     pub secret_key: String,
-    pub email_verification_expiry_time: u64
+    pub email_verification_expiry_time: u64,
+    pub questions_per_page: i32
 }
 
 impl Config {
@@ -51,19 +52,19 @@ impl Config {
     }
 }
 
-pub fn version_with_gitif() -> &'static str {
-    concat!(
-        env!("CARGO_PKG_VERSION"),
-        " ",
-        env!("VERGEN_GIT_COMMIT_DATE"),
-        ": ",
-        env!("VERGEN_GIT_SHA_SHORT")
-    )
-}
+// pub fn version_with_gitif() -> &'static str {
+//     concat!(
+//         env!("CARGO_PKG_VERSION"),
+//         " ",
+//         env!("VERGEN_GIT_COMMIT_DATE"),
+//         ": ",
+//         env!("VERGEN_GIT_SHA_SHORT")
+//     )
+// }
 
 #[derive(clap::Parser, Debug)]
 // #[clap(name = "template")]
-#[clap(version = version_with_gitif())]
+// #[clap(version = version_with_gitif())]
 pub struct Opts {
     // The number of occurrences of the `v/verbose` flag
     /// Verbose mode (-v, -vv, -vvv, etc.)

@@ -10,6 +10,7 @@ extern crate sqlx;
 extern crate serde;
 
 use actix_web::{middleware, web, App, HttpServer};
+use num_cpus;
 
 pub mod api;
 pub mod config;
@@ -42,7 +43,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::scope(&apiv1).configure(users::routes::init)
             .service(web::scope(&apiv1)).configure(tags::routes::init)
             .service(web::scope(&apiv1)).configure(questions::routes::init))
-    })
+    }).workers(num_cpus::get())
     .keep_alive(std::time::Duration::from_secs(300))
     .bind(&state2.config.listen)?
     .run()

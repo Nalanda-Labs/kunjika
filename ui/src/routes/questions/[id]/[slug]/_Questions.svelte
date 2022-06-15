@@ -62,12 +62,12 @@
         } else if (86400 <= shown_ts && shown_ts < 172800) {
           shown_ts = "asked yesterday";
         } else if (3600 <= shown_ts && shown_ts < 8640000) {
-          shown_ts = 'asked ' + Math.floor(shown_ts / 3600) + " h ago";
+          shown_ts = 'asked ' + Math.floor(shown_ts / 3600) + "h ago";
         } else if (60 <= shown_ts && shown_ts < 3600) {
           console.log(shown_ts);
-          shown_ts = 'asked ' + Math.floor(shown_ts / 60) + " m ago";
+          shown_ts = 'asked ' + Math.floor(shown_ts / 60) + "m ago";
         } else {
-          shown_ts = 'asked ' + shown_ts + " s ago";
+          shown_ts = 'asked ' + shown_ts + "s ago";
         }
       }
       response = await api.get(
@@ -75,7 +75,7 @@
         localStorage.getItem("jwt")
       );
   
-      if (response.data.questions) {
+      if (response.data) {
         questions = response.data.questions;
         for (var i = 0; i < questions.length; i++) {
           if (questions[i].image_url === "") {
@@ -94,12 +94,12 @@
           } else if (86400 <= shown_ts && shown_ts < 172800) {
             shown_ts = "yesterday";
           } else if (3600 <= shown_ts && shown_ts < 8640000) {
-            shown_ts = Math.floor(shown_ts / 3600) + " h";
+            shown_ts = Math.floor(shown_ts / 3600) + "h";
           } else if (60 <= shown_ts && shown_ts < 3600) {
             console.log(shown_ts);
-            shown_ts = Math.floor(shown_ts / 60) + " m";
+            shown_ts = Math.floor(shown_ts / 60) + "m";
           } else {
-            shown_ts = shown_ts + " s";
+            shown_ts = shown_ts + "s";
           }
           questions[i].shown_ts = shown_ts;
         }
@@ -222,7 +222,7 @@
     </div>
     <div style="float:left; position:relative;width:calc(100% - 70px)">
       <span style="font-weight:bold;color:#888">{username}</span>
-      <span style="float:right">posted {shown_ts}</span>
+      <span style="float:right">{shown_ts}</span>
       <svelte:component this={Viewer} {value} />
       <TagList {taglist} />
       {#if $session.user}

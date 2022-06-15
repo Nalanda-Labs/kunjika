@@ -5,7 +5,7 @@ use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
 
 use actix_web::{get, post, web, Responder};
-use chrono::{*};
+use chrono::*;
 
 #[post("/create-question")]
 async fn insert_question(
@@ -69,12 +69,8 @@ async fn get_question(params: web::Path<(String, String)>, state: AppState) -> i
     let qid: i64 = (params.0).parse().unwrap();
     debug!("Question id is {}", qid);
     match state.get_ref().get_question(qid).await {
-        Ok(db_question) => {
-            ApiResult::new().with_msg("").with_data(db_question)
-        }
-        Err(e) => {
-            ApiResult::new().code(502).with_msg(e.to_string())
-        }
+        Ok(db_question) => ApiResult::new().with_msg("").with_data(db_question),
+        Err(e) => ApiResult::new().code(502).with_msg(e.to_string()),
     }
 }
 
@@ -82,20 +78,33 @@ async fn get_question(params: web::Path<(String, String)>, state: AppState) -> i
 async fn get_questions(ut: web::Json<QuestionsReq>, state: AppState) -> impl Responder {
     let updated_at = ut.into_inner();
     let up_at;
-    debug!("{:?}",&updated_at.updated_at);
+    debug!("{:?}", &updated_at.updated_at);
     if updated_at.updated_at == "" {
         up_at = chrono::offset::Utc::now();
-        debug!("{:?}",up_at);
+        debug!("{:?}", up_at);
     } else {
-        up_at = chrono::DateTime::parse_from_rfc3339(&updated_at.updated_at).unwrap().with_timezone(&Utc);
+        up_at = chrono::DateTime::parse_from_rfc3339(&updated_at.updated_at)
+            .unwrap()
+            .with_timezone(&Utc);
     }
     match state.get_ref().get_questions(&up_at).await {
-        Ok(db_questions) => {
-            ApiResult::new().with_msg("").with_data(db_questions)
-        }
-        Err(e) => {
-            ApiResult::new().code(502).with_msg(e.to_string())
-        }
+        Ok(db_questions) => ApiResult::new().with_msg("").with_data(db_questions),
+        Err(e) => ApiResult::new().code(502).with_msg(e.to_string()),
+    }
+}
+
+#[get("/question/get-answers/{id}/")]
+async fn get_answers(
+    params: web::Path<i64>,
+    q: web::Query<AnswersQuery>,
+    state: AppState,
+) -> impl Responder {
+    let qid = params.into_inner();
+    debug!("{:?}, {:?}, {:?}", &qid, q.time, q.limit);
+
+    match state.get_ref().get_answers(qid, &q.time, q.limit).await {
+        Ok(db_answers) => ApiResult::new().with_msg("").with_data(db_answers),
+        Err(e) => ApiResult::new().code(502).with_msg(e.to_string()),
     }
 }
 
@@ -103,4 +112,5 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(insert_question);
     cfg.service(get_question);
     cfg.service(get_questions);
+    cfg.service(get_answers);
 }

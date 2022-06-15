@@ -1,4 +1,4 @@
-use super::question::{DbQuestion, QuestionResponse, QuestionsResponse, QR};
+use super::question::{*};
 use crate::state::AppStateRaw;
 
 use chrono::*;
@@ -7,6 +7,7 @@ use chrono::*;
 pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
     async fn insert_question(&self, name: &DbQuestion) -> sqlx::Result<u64>;
     async fn get_question(&self, qid: i64) -> sqlx::Result<QuestionResponse>;
+    async fn get_answers(&self, qid: i64, updated_at: &chrono::DateTime<Utc>, limit: i64) -> sqlx::Result<AnswersResponse>;
     async fn get_questions(
         &self,
         updated_at: &chrono::DateTime<Utc>,
@@ -165,5 +166,40 @@ impl IQuestion for &AppStateRaw {
             qrs.questions.push(qr);
         }
         Ok(qrs)
+    }
+
+    async fn get_answers(&self, qid: i64, updated_at: &chrono::DateTime<Utc>, limit: i64) -> sqlx::Result<AnswersResponse> {
+        let questions = sqlx::query!(
+            r#"
+            select count(1) over(), t.id, t.description, t.visible, t.created_at, t.posted_by_id, t.updated_at,
+            t.votes, t.answer_accepted, users.username, users.image_url from posts t left join users on t.posted_by_id=users.id
+            where t.op_id=$1  and t.created_at > $2 order by t.created_at asc limit $3
+            "#, qid, updated_at, limit
+        ).fetch_all(&self.sql)
+        .await?;
+
+        let mut ars: AnswersResponse = AnswersResponse {
+            questions: Vec::new(),
+        };
+        for q in questions {
+            let image_url = match q.image_url {
+                Some(i) => i,
+                None => "".to_string(),
+            };
+            let qr = AR {
+                question_id: q.id,
+                description: q.description,
+                visible: q.visible,
+                votes: q.votes,
+                posted_by_id: q.posted_by_id,
+                created_at: q.created_at,
+                updated_at: q.updated_at,
+                username: q.username,
+                image_url,
+                answer_accepted: q.answer_accepted
+            };
+            ars.questions.push(qr);
+        }
+        Ok(ars)
     }
 }

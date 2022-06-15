@@ -1,5 +1,5 @@
 {
-    "sql":"postgres://user@password@localhost:5432/db_name",
+    "sql":"postgres://user:password@localhost:5432/db_name",
     "redis": "redis://127.0.0.1",
     "listen": "127.0.0.1:8000",
     "jwt_priv": "0xa06f853898a9dd4f32441a56879c52878f96c42730ed31c50e00 or some hex string",

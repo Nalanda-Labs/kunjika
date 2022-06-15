@@ -1,185 +1,182 @@
 <script>
-    import { onMount } from "svelte";
-    import * as api from "$lib/api.js";
-    import "bytemd/dist/index.min.css";
-    import TagList from "$lib/TagList.svelte";
-    import { session } from "$app/stores";
-  
-    export let id;
-    export let slug;
-    export let reply_to_id;
-    export let questions;
-    export let user_replied;
-    let value = "";
-  
-    let title = "";
-    let taglist = [];
-    let Viewer = null;
-    let offset = 0;
-    let limit = 50;
-    let count = 0;
-    let time = "";
-    let votes = 0;
-    let bytemd = null;
-    let posted_by;
-    let username;
-    let image_url = "";
-    let initials = "";
-    let shown_ts;
-  
-    onMount(async () => {
-      bytemd = await import("bytemd");
-      Viewer = bytemd.Viewer;
-  
-      let response = await api.get(
-        `questions/${id}/${slug}`,
-      );
-  
-      if (response.data) {
-        title = response.data.title;
-        value = response.data.description;
-        taglist = response.data.tags.map((tag) => tag);
-        time = response.data.created_at;
-        votes = response.data.votes;
-        posted_by = response.data.posted_by;
-        username = response.data.username;
-        reply_to_id = posted_by;
-        user_replied = username;
-        image_url = response.data.image_url;
-        if (image_url === "") {
-          initials = username[0];
+  import { onMount } from "svelte";
+  import * as api from "$lib/api.js";
+  import "bytemd/dist/index.min.css";
+  import TagList from "$lib/TagList.svelte";
+  import { session } from "$app/stores";
+
+  export let id;
+  export let slug;
+  export let reply_to_id;
+  export let questions;
+  export let user_replied;
+  let value = "";
+
+  let title = "";
+  let taglist = [];
+  let Viewer = null;
+  let offset = 0;
+  let limit = 50;
+  let count = 0;
+  let time = "";
+  let votes = 0;
+  let bytemd = null;
+  let posted_by;
+  let username;
+  let image_url = "";
+  let initials = "";
+  let shown_ts;
+
+  onMount(async () => {
+    bytemd = await import("bytemd");
+    Viewer = bytemd.Viewer;
+
+    let response = await api.get(`questions/${id}/${slug}`);
+
+    if (response.data) {
+      title = response.data.title;
+      value = response.data.description;
+      taglist = response.data.tags.map((tag) => tag);
+      time = response.data.created_at;
+      votes = response.data.votes;
+      posted_by = response.data.posted_by_id;
+      username = response.data.username;
+      reply_to_id = response.data.posted_by_id;
+      user_replied = username;
+      image_url = response.data.image_url;
+      if (image_url === "") {
+        initials = username[0];
+      }
+      let asked_ts = Date.parse(time);
+      let now = Date.now();
+      shown_ts = Math.floor((now - asked_ts) / 1000);
+      if (shown_ts >= 259200) {
+        asked_ts = new Date(time);
+        let year = asked_ts.getYear() + 1900;
+        let month = asked_ts.getMonth() + 1;
+        shown_ts = asked_ts.getDate() + "/" + month + "/" + year;
+      } else if (172800 <= shown_ts && shown_ts < 259200) {
+        shown_ts = "asked 2 days ago";
+      } else if (86400 <= shown_ts && shown_ts < 172800) {
+        shown_ts = "asked yesterday";
+      } else if (3600 <= shown_ts && shown_ts < 8640000) {
+        shown_ts = "asked " + Math.floor(shown_ts / 3600) + "h ago";
+      } else if (60 <= shown_ts && shown_ts < 3600) {
+        shown_ts = "asked " + Math.floor(shown_ts / 60) + "m ago";
+      } else {
+        shown_ts = "asked " + shown_ts + "s ago";
+      }
+    }
+    response = await api.get(
+      `question/get-answers/${id}/?time=${time}&limit=${limit}`,
+      localStorage.getItem("jwt")
+    );
+
+    if (response.data) {
+      questions = response.data.questions;
+      for (var i = 0; i < questions.length; i++) {
+        if (questions[i].image_url === "") {
+          questions[i].initials = response.data.questions[i].username[0];
         }
-        let asked_ts = Date.parse(time);
+        let asked_ts = Date.parse(questions[i].created_at);
         let now = Date.now();
-        shown_ts = Math.floor((now - asked_ts) / 1000);
+        let shown_ts = Math.floor((now - asked_ts) / 1000);
         if (shown_ts >= 259200) {
-          asked_ts = new Date(time);
+          asked_ts = new Date(questions[i].created_at);
           let year = asked_ts.getYear() + 1900;
           let month = asked_ts.getMonth() + 1;
           shown_ts = asked_ts.getDate() + "/" + month + "/" + year;
         } else if (172800 <= shown_ts && shown_ts < 259200) {
-          shown_ts = "asked 2 days ago";
+          shown_ts = "2 days ago";
         } else if (86400 <= shown_ts && shown_ts < 172800) {
-          shown_ts = "asked yesterday";
+          shown_ts = "yesterday";
         } else if (3600 <= shown_ts && shown_ts < 8640000) {
-          shown_ts = 'asked ' + Math.floor(shown_ts / 3600) + "h ago";
+          shown_ts = Math.floor(shown_ts / 3600) + "h";
         } else if (60 <= shown_ts && shown_ts < 3600) {
-          console.log(shown_ts);
-          shown_ts = 'asked ' + Math.floor(shown_ts / 60) + "m ago";
+          shown_ts = Math.floor(shown_ts / 60) + "m";
         } else {
-          shown_ts = 'asked ' + shown_ts + "s ago";
+          shown_ts = shown_ts + "s";
         }
+        questions[i].shown_ts = shown_ts;
       }
-      response = await api.get(
-        `question/get-answers/${id}/?time=${time}&limit=${limit}`,
-        localStorage.getItem("jwt")
-      );
-  
-      if (response.data) {
-        questions = response.data.questions;
-        for (var i = 0; i < questions.length; i++) {
-          if (questions[i].image_url === "") {
-            questions[i].initials = response.data.questions[i].username[0];
-          }
-          let asked_ts = Date.parse(questions[i].created_at);
-          let now = Date.now();
-          let shown_ts = Math.floor((now - asked_ts) / 1000);
-          if (shown_ts >= 259200) {
-            asked_ts = new Date(questions[i].created_at);
-            let year = asked_ts.getYear() + 1900;
-            let month = asked_ts.getMonth() + 1;
-            shown_ts = asked_ts.getDate() + "/" + month + "/" + year;
-          } else if (172800 <= shown_ts && shown_ts < 259200) {
-            shown_ts = "2 days ago";
-          } else if (86400 <= shown_ts && shown_ts < 172800) {
-            shown_ts = "yesterday";
-          } else if (3600 <= shown_ts && shown_ts < 8640000) {
-            shown_ts = Math.floor(shown_ts / 3600) + "h";
-          } else if (60 <= shown_ts && shown_ts < 3600) {
-            console.log(shown_ts);
-            shown_ts = Math.floor(shown_ts / 60) + "m";
-          } else {
-            shown_ts = shown_ts + "s";
-          }
-          questions[i].shown_ts = shown_ts;
-        }
-        console.log(questions);
-        offset += limit;
-        if (response.data.questions.length) {
-          time = response.data.questions[response.data.questions.length - 1].created_at;
-        }
-      }
-    });
-    function show_editor(reply_to, username) {
-      reply_to_id = reply_to;
-      user_replied = username;
-      if (document.getElementById("editor").style.display === "none") {
-        document.getElementById("editor").style.display = "block";
-      } else {
-        document.getElementById("editor").style.display = "none";
+      offset += limit;
+      if (response.data.questions.length) {
+        time =
+          response.data.questions[response.data.questions.length - 1]
+            .created_at;
       }
     }
-    async function vote(vote, elementID) {
-      if (!$session.user) {
-        M.toast({html: "You need to be logged in before voting."});
-        return;
-      }
-      let data = {};
-      data.vote = vote;
-      data.id = elementID;
-      const response = await api.post(
-        "votes/",
-        { data },
-        $session.user.xsrf_token
-      );
-  
-      if (response.data.code != 200) {
-        M.toast({html: response.data.msg});
-      } else {
-        if (elementID == id) {
-          votes = vote + parseInt(votes);
-        } else {
-          for (var i = 0; i < questions.length; i++) {
-            if (questions[i].question_id == elementID) {
-              questions[i].votes = vote + parseInt(questions[i].votes);
-              questions = questions;
-              break;
-            }
-          }
-        }
-      }
+  });
+  function show_editor(reply_to, username) {
+    reply_to_id = reply_to;
+    user_replied = username;
+    if (document.getElementById("editor").style.display === "none") {
+      document.getElementById("editor").style.display = "block";
+    } else {
+      document.getElementById("editor").style.display = "none";
     }
-    async function acceptAnswer(elementID) {
-      if (!$session.user) {
-        M.toast({html: "You need to be logged in before accepting answer."});
-        return;
-      }
-      if(parseInt(posted_by)!= $session.user.id) {
-        M.toast({html: "Only author of question can accept the answer."});
-      }
-      const response = await api.post(
-        `accept-answer/${id}/${elementID}/`,
-        {},
-        $session.user.xsrf_token
-      );
-  
-      if (response.data.code != 200) {
-        M.toast({html: response.data.msg});;
+  }
+  async function vote(vote, elementID) {
+    if (!$session.user) {
+      M.toast({ html: "You need to be logged in before voting." });
+      return;
+    }
+    let data = {};
+    data.vote = vote;
+    data.id = elementID;
+    const response = await api.post(
+      "votes/",
+      { data },
+      $session.user.xsrf_token
+    );
+
+    if (response.data.code != 200) {
+      M.toast({ html: response.data.msg });
+    } else {
+      if (elementID == id) {
+        votes = vote + parseInt(votes);
       } else {
         for (var i = 0; i < questions.length; i++) {
           if (questions[i].question_id == elementID) {
-            if (questions[i].answer_accepted == false) {
-              questions[i].answer_accepted = true;
-            } else {
-              questions[i].answer_accepted = false;
-            }
+            questions[i].votes = vote + parseInt(questions[i].votes);
+            questions = questions;
+            break;
+          }
+        }
+      }
+    }
+  }
+  async function acceptAnswer(elementID) {
+    if (!$session.user) {
+      M.toast({ html: "You need to be logged in before accepting answer." });
+      return;
+    }
+    if (parseInt(posted_by) != $session.user.id) {
+      M.toast({ html: "Only author of question can accept the answer." });
+    }
+    const response = await api.post(
+      `accept-answer/${id}/${elementID}/`,
+      {},
+      $session.user.xsrf_token
+    );
+
+    if (response.data.code != 200) {
+      M.toast({ html: response.data.msg });
+    } else {
+      for (var i = 0; i < questions.length; i++) {
+        if (questions[i].question_id == elementID) {
+          if (questions[i].answer_accepted == false) {
+            questions[i].answer_accepted = true;
           } else {
             questions[i].answer_accepted = false;
           }
+        } else {
+          questions[i].answer_accepted = false;
         }
-        questions = questions;
       }
+      questions = questions;
     }
+  }
 </script>
 
 <svelte:head>
@@ -278,16 +275,16 @@
     </div>
   </div>
   <div style="clear:both" />
-  {#each questions as { question_id, description, votes, posted_by, username, initials, image_url, shown_ts, answer_accepted }}
+  {#each questions as { question_id, description, votes, posted_by_id, username, initials, image_url, shown_ts, answer_accepted }}
     <hr style="border-bottom:1px solid;color:#eee" />
     <div>
       <div style="float:left;margin-right:10px">
         {#if image_url === "" || image_url === undefined}
-          <a href="/user/{posted_by}/{username}">
+          <a href="/user/{posted_by_id}/{username}">
             <p data-letters={initials.toUpperCase()} />
           </a>
         {:else}
-          <a href="/user/{posted_by}/{username}">
+          <a href="/user/{posted_by_id}/{username}">
             <img
               src={image_url}
               alt="profile pic"
@@ -315,17 +312,17 @@
             <i class="fas fa-angle-down" />
           </a>
           <br />
-          {#if posted_by == $session.user.id}
+          {#if posted_by_id == $session.user.id}
             {#if answer_accepted}
               <a
-                href="/vote-down"
+                href="/accept-answer"
                 on:click|preventDefault={acceptAnswer(question_id)}
               >
                 <i class="fas fa-check" style="color: #3DDC84" />
               </a>
             {:else}
               <a
-                href="/vote-down"
+                href="/accept-answer"
                 on:click|preventDefault={acceptAnswer(question_id)}
               >
                 <i class="fas fa-check" style="color: #ddd" />

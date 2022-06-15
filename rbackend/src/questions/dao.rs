@@ -1,4 +1,4 @@
-use super::question::{*};
+use super::question::*;
 use crate::state::AppStateRaw;
 
 use chrono::*;
@@ -7,11 +7,17 @@ use chrono::*;
 pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
     async fn insert_question(&self, name: &DbQuestion) -> sqlx::Result<u64>;
     async fn get_question(&self, qid: i64) -> sqlx::Result<QuestionResponse>;
-    async fn get_answers(&self, qid: i64, updated_at: &chrono::DateTime<Utc>, limit: i64) -> sqlx::Result<AnswersResponse>;
+    async fn get_answers(
+        &self,
+        qid: i64,
+        updated_at: &chrono::DateTime<Utc>,
+        limit: i64,
+    ) -> sqlx::Result<AnswersResponse>;
     async fn get_questions(
         &self,
         updated_at: &chrono::DateTime<Utc>,
     ) -> sqlx::Result<QuestionsResponse>;
+    async fn insert_answer(&self, answer: &AnswerReq, user_id: &i64) -> sqlx::Result<u64>;
 }
 
 #[cfg(any(feature = "postgres"))]
@@ -95,15 +101,15 @@ impl IQuestion for &AppStateRaw {
             None => "".to_owned(),
         };
         let qr = QuestionResponse {
-            id: qid as i64,
+            id: qid.to_string(),
             title: question.title,
             description: question.description,
             visible: question.visible,
             votes: question.votes,
             views: question.views,
-            op_id: question.op_id,
-            posted_by_id: question.posted_by_id,
-            updated_by_id: question.updated_by_id,
+            op_id: question.op_id.to_string(),
+            posted_by_id: question.posted_by_id.to_string(),
+            updated_by_id: question.updated_by_id.to_string(),
             created_at: question.created_at,
             updated_at: question.updated_at,
             username: question.username,
@@ -147,19 +153,19 @@ impl IQuestion for &AppStateRaw {
                 None => "".to_owned(),
             };
             let qr = QR {
-                id: q.id,
+                id: q.id.to_string(),
                 title: q.title,
                 visible: q.visible,
                 votes: q.votes,
                 views: q.views,
                 slug: q.slug,
-                posted_by_id: q.posted_by_id,
+                posted_by_id: q.posted_by_id.to_string(),
                 created_at: q.created_at,
                 updated_at: q.updated_at,
                 username: q.username,
                 image_url,
                 tags,
-                uid: q.uid,
+                uid: q.uid.to_string(),
                 tid,
                 answers: q.answer_count,
             };
@@ -168,7 +174,12 @@ impl IQuestion for &AppStateRaw {
         Ok(qrs)
     }
 
-    async fn get_answers(&self, qid: i64, updated_at: &chrono::DateTime<Utc>, limit: i64) -> sqlx::Result<AnswersResponse> {
+    async fn get_answers(
+        &self,
+        qid: i64,
+        updated_at: &chrono::DateTime<Utc>,
+        limit: i64,
+    ) -> sqlx::Result<AnswersResponse> {
         let questions = sqlx::query!(
             r#"
             select count(1) over(), t.id, t.description, t.visible, t.created_at, t.posted_by_id, t.updated_at,
@@ -187,19 +198,36 @@ impl IQuestion for &AppStateRaw {
                 None => "".to_string(),
             };
             let qr = AR {
-                question_id: q.id,
+                question_id: q.id.to_string(),
                 description: q.description,
                 visible: q.visible,
                 votes: q.votes,
-                posted_by_id: q.posted_by_id,
+                posted_by_id: q.posted_by_id.to_string(),
                 created_at: q.created_at,
                 updated_at: q.updated_at,
                 username: q.username,
                 image_url,
-                answer_accepted: q.answer_accepted
+                answer_accepted: q.answer_accepted,
             };
             ars.questions.push(qr);
         }
         Ok(ars)
+    }
+
+    async fn insert_answer(&self, answer: &AnswerReq, user_id: &i64) -> sqlx::Result<u64> {
+        let p = sqlx::query!(
+            r#"
+            insert into posts(description, posted_by_id, op_id, reply_to_id)
+            values ($1, $2, $3, $4) returning id
+            "#,
+            answer.value,
+            user_id,
+            answer.id.parse::<i64>().unwrap(),
+            answer.reply_to.parse::<i64>().unwrap()
+        )
+        .fetch_one(&self.sql)
+        .await?;
+
+        Ok(p.id as u64)
     }
 }

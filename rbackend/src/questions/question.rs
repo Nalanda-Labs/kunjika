@@ -53,15 +53,15 @@ pub struct AskResponse {
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct QuestionResponse {
-    pub id: SqlID,
+    pub id: String,
     pub title: String,
     pub description: String,
     pub visible: bool,
     pub votes: i64,
     pub views: i64,
-    pub op_id: SqlID,
-    pub posted_by_id: SqlID,
-    pub updated_by_id: SqlID,
+    pub op_id: String,
+    pub posted_by_id: String,
+    pub updated_by_id: String,
     pub created_at: SqlDateTime,
     pub updated_at: SqlDateTime,
     pub tags: Vec<String>,
@@ -76,18 +76,18 @@ pub struct QuestionsReq {
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct QR {
-    pub id: SqlID,
+    pub id: String,
     pub title: String,
     pub visible: bool,
     pub votes: i64,
     pub views: i64,
     pub slug: String,
-    pub posted_by_id: SqlID,
+    pub posted_by_id: String,
     pub created_at: SqlDateTime,
     pub updated_at: SqlDateTime,
     pub username: String,
     pub image_url: String,
-    pub uid: SqlID,
+    pub uid: String,
     pub tid: String,
     pub tags: String,
     pub answers: i64,
@@ -106,11 +106,11 @@ pub struct AnswersQuery {
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct AR {
-    pub question_id: SqlID,
+    pub question_id: String,
     pub description: String,
     pub visible: bool,
     pub votes: i64,
-    pub posted_by_id: SqlID,
+    pub posted_by_id: String,
     pub created_at: SqlDateTime,
     pub updated_at: SqlDateTime,
     pub username: String,
@@ -121,4 +121,11 @@ pub struct AR {
 #[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct AnswersResponse {
     pub questions: Vec<AR>
+}
+
+#[derive(Deserialize)]
+pub struct AnswerReq {
+    pub id: String,
+    pub value: String,
+    pub reply_to: String
 }

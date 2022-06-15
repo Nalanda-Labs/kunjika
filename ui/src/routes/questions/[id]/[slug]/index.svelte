@@ -15,6 +15,7 @@
     let Editor = null;
     let topic = {};
     let questions = [];
+    let inProgress = false;
     const id = $page.params.id;
     const slug = $page.params.slug;
 
@@ -30,9 +31,7 @@
         }
         // TODO: Fix scroll on showing editor
         var editorDiv = document.getElementById("container");
-        console.log(editorDiv.scrollHeight, editorDiv.scrollTop);
         editorDiv.scrollTop = editorDiv.scrollHeight;
-        console.log(editorDiv.scrollHeight, editorDiv.scrollTop);
     }
     async function reply() {
         if ($session.user) {
@@ -47,24 +46,26 @@
             let reply_to = reply_to_id;
 
             const response = await api.post(
-                `create-post?topic_id=${id}`,
-                { value, reply_to },
+                `answer`,
+                { id, value, reply_to },
                 $session.user.xsrf_token
             );
 
-            if (response.post_id) {
+            if (response.data) {
                 document.getElementById("editor").style.display = "none";
                 const l = questions.length;
                 questions[l] = {
-                    topic_id: response.post_id,
+                    question_id: response.data,
                     description: value,
                     votes: 0,
-                    posted_by: $session.user_id,
-                    username: $session.user,
-                    image_url: response.image_url,
+                    posted_by: $session.user.id,
+                    username: $session.user.username,
+                    image_url: "",
                     shown_ts: "0 s",
-                    initials: $session.user[0],
+                    initials: $session.user.username[0],
+                    answer_accepted: false
                 };
+                questions = questions;
             }
             inProgress = false;
         } else {
@@ -93,7 +94,6 @@
                 {slug}
                 bind:reply_to_id
                 bind:questions
-                bind:topic
                 bind:user_replied
             />
             <div id="questions-end" style="display:none" />

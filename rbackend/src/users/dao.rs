@@ -9,7 +9,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
         let (column, placeholder) = column_placeholder(who);
 
         let sql = format!(
-            "SELECT id, username, email, pass, status, create_dt, update_dt
+            "SELECT id, username, email, pass, status, image_url, create_dt, update_dt
             FROM users
             where {} = {};",
             column, placeholder

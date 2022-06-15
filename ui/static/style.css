@@ -1,5 +1,5 @@
 nav {
-    background-color: #0f9d58;
+    background-color: #fff;
 }
 
 .b-wrapper {
@@ -10,11 +10,14 @@ nav {
     justify-content: center;
 }
 a {
-    color: #4285F4;
+    /* color: #4285F4; */
     text-decoration: none;
 }
 .btn, .btn:hover {
     background-color: #4285F4;
+}
+.anchor {
+    color: #4285F4;
 }
 .wrapper {
     width: 100%;
@@ -29,4 +32,12 @@ a {
 
 .light-pagination-nav {
     margin-top: 20px;
+}
+
+html {
+    font-family: 'Roboto', sans-serif!important;
+}
+
+a.brand-logo, nav ul a {
+    color: #0f9d58!important;
 }

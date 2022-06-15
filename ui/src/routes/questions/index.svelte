@@ -149,7 +149,7 @@
             </div>
             <div style="width:85%;float:left;position:relative">
                 <a
-                    href="/t/{id}/{slug}"
+                    href="/questions/{id}/{slug}"
                     style="text-decoration:none; color: #4285F4; font-size:16px; font-weight:400"
                     >{title}</a
                 >

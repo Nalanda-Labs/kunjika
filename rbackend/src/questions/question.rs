@@ -90,10 +90,35 @@ pub struct QR {
     pub uid: SqlID,
     pub tid: String,
     pub tags: String,
-    pub answers: i32,
+    pub answers: i64,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct QuestionsResponse {
     pub questions: Vec<QR>
+}
+
+#[derive(Deserialize)]
+pub struct AnswersQuery {
+    pub time: chrono::DateTime<Utc>,
+    pub limit: i64
+}
+
+#[derive(FromRow, Serialize, Deserialize, Debug)]
+pub struct AR {
+    pub question_id: SqlID,
+    pub description: String,
+    pub visible: bool,
+    pub votes: i64,
+    pub posted_by_id: SqlID,
+    pub created_at: SqlDateTime,
+    pub updated_at: SqlDateTime,
+    pub username: String,
+    pub image_url: String,
+    pub answer_accepted: bool
+}
+
+#[derive(FromRow, Serialize, Deserialize, Debug)]
+pub struct AnswersResponse {
+    pub questions: Vec<AR>
 }

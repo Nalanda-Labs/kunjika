@@ -51,7 +51,7 @@ pub struct AskResponse {
     pub slug: String
 }
 
-#[derive(FromRow, Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct QuestionResponse {
     pub id: String,
     pub title: String,

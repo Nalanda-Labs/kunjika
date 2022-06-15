@@ -168,6 +168,7 @@
                     ></span
                 >
             </div>
+            <div style="clear:both"/>
         {/each}
         <InfiniteLoading on:infinite={infiniteHandler} />
         <hr

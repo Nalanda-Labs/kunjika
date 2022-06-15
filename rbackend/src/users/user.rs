@@ -58,6 +58,7 @@ pub struct Claims {
     pub username: String,
     pub id: i64,
     pub xsrf_token: String,
+    pub image_url: String
 }
 
 #[derive(Serialize, Deserialize, Debug, Validate)]

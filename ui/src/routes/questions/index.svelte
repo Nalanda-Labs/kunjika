@@ -57,7 +57,6 @@
                         shown_ts =
                             "asked " + Math.floor(shown_ts / 3600) + "h ago";
                     } else if (60 <= shown_ts && shown_ts < 3600) {
-                        console.log(shown_ts);
                         shown_ts =
                             "asked " + Math.floor(shown_ts / 60) + "m ago";
                     } else {
@@ -88,7 +87,6 @@
                         shown_ts =
                             "modified " + Math.floor(shown_ts / 3600) + "h ago";
                     } else if (60 <= shown_ts && shown_ts < 3600) {
-                        console.log(shown_ts);
                         shown_ts =
                             "modified " + Math.floor(shown_ts / 60) + "m ago";
                     } else {

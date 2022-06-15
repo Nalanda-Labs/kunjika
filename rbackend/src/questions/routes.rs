@@ -108,9 +108,25 @@ async fn get_answers(
     }
 }
 
+#[post("/answer")]
+async fn answer(
+    params: web::Json<AnswerReq>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let answer = params.into_inner();
+    debug!("{:?}, {:?}, {:?}", &answer.id, &answer.value, &answer.reply_to);
+
+    match state.get_ref().insert_answer(&answer, &auth.claims.id).await {
+        Ok(answer_res) => ApiResult::new().with_msg("").with_data(answer_res.to_string()),
+        Err(e) => ApiResult::new().code(502).with_msg(e.to_string()),
+    }
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(insert_question);
     cfg.service(get_question);
     cfg.service(get_questions);
     cfg.service(get_answers);
+    cfg.service(answer);
 }

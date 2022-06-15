@@ -100,16 +100,28 @@ impl IQuestion for &AppStateRaw {
             Some(i) => i,
             None => "".to_owned(),
         };
+        let title = match question.title {
+            Some(t) => t,
+            None => "".to_owned()
+        };
+        let op_id = match question.op_id {
+            Some(o) => o,
+            None => 0i64
+        };
+        let updated_by_id = match question.updated_by_id {
+            Some(o) => o,
+            None => 0i64
+        };
         let qr = QuestionResponse {
             id: qid.to_string(),
-            title: question.title,
+            title,
             description: question.description,
             visible: question.visible,
             votes: question.votes,
             views: question.views,
-            op_id: question.op_id.to_string(),
+            op_id: op_id.to_string(),
             posted_by_id: question.posted_by_id.to_string(),
-            updated_by_id: question.updated_by_id.to_string(),
+            updated_by_id: updated_by_id.to_string(),
             created_at: question.created_at,
             updated_at: question.updated_at,
             username: question.username,
@@ -152,13 +164,21 @@ impl IQuestion for &AppStateRaw {
                 Some(t) => t.iter().map(|&e| e.to_string() + ",").collect(),
                 None => "".to_owned(),
             };
+            let slug = match q.slug {
+                Some(s) => s,
+                None => "".to_owned(),
+            };
+            let title = match q.title {
+                Some(t) => t,
+                None => "".to_owned()
+            };
             let qr = QR {
                 id: q.id.to_string(),
-                title: q.title,
+                title,
                 visible: q.visible,
                 votes: q.votes,
                 views: q.views,
-                slug: q.slug,
+                slug,
                 posted_by_id: q.posted_by_id.to_string(),
                 created_at: q.created_at,
                 updated_at: q.updated_at,
@@ -215,6 +235,8 @@ impl IQuestion for &AppStateRaw {
     }
 
     async fn insert_answer(&self, answer: &AnswerReq, user_id: &i64) -> sqlx::Result<u64> {
+        let mut tx = self.sql.begin().await?;
+
         let p = sqlx::query!(
             r#"
             insert into posts(description, posted_by_id, op_id, reply_to_id)
@@ -225,9 +247,19 @@ impl IQuestion for &AppStateRaw {
             answer.id.parse::<i64>().unwrap(),
             answer.reply_to.parse::<i64>().unwrap()
         )
-        .fetch_one(&self.sql)
+        .fetch_one(&mut tx)
         .await?;
 
+        sqlx::query! {
+            r#"
+            update posts set answer_count = answer_count + 1 where id = $1
+            "#,
+            answer.id.parse::<i64>().unwrap()
+        }
+        .execute(&mut tx)
+        .await?;
+
+        tx.commit().await?;
         Ok(p.id as u64)
     }
 }

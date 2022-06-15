@@ -60,7 +60,7 @@
                     votes: 0,
                     posted_by: $session.user.id,
                     username: $session.user.username,
-                    image_url: "",
+                    image_url: $session.user.image_url,
                     shown_ts: "0 s",
                     initials: $session.user.username[0],
                     answer_accepted: false

@@ -120,6 +120,7 @@ async fn login(form: web::Json<Login>, state: AppState) -> impl Responder {
                     username: user.username.clone(),
                     id: user.id,
                     xsrf_token: uuid,
+                    image_url: user.image_url
                 };
                 let key = state.config.jwt_priv.as_bytes();
                 let token = encode(

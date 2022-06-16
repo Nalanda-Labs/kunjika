@@ -1,0 +1,1 @@
+Some <strong>homepage</strong> stuff

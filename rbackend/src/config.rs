@@ -19,7 +19,8 @@ pub struct Config {
     pub host: String,
     pub secret_key: String,
     pub email_verification_expiry_time: u64,
-    pub questions_per_page: i32
+    pub questions_per_page: i32,
+    pub users_per_page: i32
 }
 
 impl Config {

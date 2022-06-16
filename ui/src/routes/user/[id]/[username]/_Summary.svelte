@@ -1,0 +1,1 @@
+This app simply demonstrates one way to 'route' to different components/pages without changing the URL. If you are looking for URL specific routing then this is not for you, but in my opinion this is the cleanest way to route an Svelte app.

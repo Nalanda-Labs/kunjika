@@ -65,7 +65,7 @@ pub struct Claims {
 pub struct Register {
     #[validate(length(min = 3, max = 33), custom = "validate_username")]
     pub username: String,
-    #[validate(email)]
+    #[validate(length(min = 6, max = 256), email)]
     pub email: String,
     #[validate(length(min = 16, max = 64))]
     pub password: String,
@@ -111,4 +111,23 @@ pub struct AvailabilityResponse {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UserName {
     pub username: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UsersReq {
+    pub last_user: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UR {
+    pub id: String,
+    pub username: String,
+    pub name: String,
+    pub location: String,
+    pub image_url: String
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UserResponse {
+    pub users: Vec<UR>
 }

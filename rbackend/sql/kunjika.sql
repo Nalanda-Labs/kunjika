@@ -3,9 +3,12 @@
 create table users (
     id bigserial primary key,
     username varchar(10) UNIQUE not null,
+    name varchar(128),
     email varchar(256) UNIQUE not null,
     pass varchar(256) not null, -- 'passwd hash'
     image_url varchar(256) not null,
+    reputation bigint default 1,
+    location varchar(128),
     email_verified boolean default false,
     create_dt timestamp with time zone not null default current_timestamp, -- 'create datetime'
     update_dt timestamp with time zone not null default current_timestamp, -- 'udpate datetime'

@@ -1,10 +1,11 @@
 use super::user::*;
-use crate::state::AppStateRaw;
+use crate::state::{AppStateRaw, AppState};
 use md5::compute;
 
 #[async_trait]
 pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn user_add(&self, form: &Register) -> sqlx::Result<u64>;
+    async fn get_users(&self, form: &UsersReq) -> sqlx::Result<UserResponse>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 
@@ -36,7 +37,8 @@ impl IUser for &AppStateRaw {
         let passh = form.passhash();
         let email_hash = compute(&form.email.as_bytes());
         // TODO: move it to config
-        let image_url = "https://www.gravatar.com/avatar/".to_string() + &format!("{:x}", email_hash);
+        let image_url =
+            "https://www.gravatar.com/avatar/".to_string() + &format!("{:x}", email_hash);
         sqlx::query!(
             r#"
         INSERT INTO users (username, email, pass, image_url)
@@ -50,6 +52,45 @@ impl IUser for &AppStateRaw {
         .execute(&self.sql)
         .await
         .map(|d| d.rows_affected())
+    }
+
+    async fn get_users(&self, form: &UsersReq) -> sqlx::Result<UserResponse> {
+        let qr = sqlx::query!(
+            r#"
+        select id, username, name, location, image_url from users where
+        username > $1 order by karma desc, username limit $2
+        "#,
+            &form.last_user,
+            self.config.users_per_page as i64
+        )
+        .fetch_all(&self.sql)
+        .await?;
+
+        let mut urs: UserResponse = UserResponse { users: Vec::new() };
+        for q in qr {
+            let name = match q.name {
+                Some(n) => n,
+                None => "".to_owned()
+            };
+            let location = match q.location {
+                Some(n) => n,
+                None => "".to_owned()
+            };
+            let image_url = match q.image_url {
+                Some(n) => n,
+                None => "".to_owned()
+            };
+            let ur: UR = UR {
+                id: q.id.to_string(),
+                username: q.username,
+                name,
+                location,
+                image_url,
+            };
+            urs.users.push(ur);
+        }
+
+        Ok(urs)
     }
 }
 

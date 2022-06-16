@@ -1,5 +1,5 @@
 use super::dao::IUser;
-use super::user::{AvailabilityResponse, Claims, Login, Register, UserName};
+use super::user::*;
 use crate::api::ApiResult;
 use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
@@ -120,7 +120,7 @@ async fn login(form: web::Json<Login>, state: AppState) -> impl Responder {
                     username: user.username.clone(),
                     id: user.id,
                     xsrf_token: uuid,
-                    image_url: user.image_url
+                    image_url: user.image_url,
                 };
                 let key = state.config.jwt_priv.as_bytes();
                 let token = encode(
@@ -179,21 +179,19 @@ async fn check_username_availability(form: web::Json<UserName>, state: AppState)
 }
 
 #[get("/confirm-email/{token}")]
-async fn confirm_email(
-    form: web::Path<String>,
-    state: AppState,
-) -> impl Responder {
+async fn confirm_email(form: web::Path<String>, state: AppState) -> impl Responder {
     let token = form.into_inner();
     let email = check_signature(&token, &state).await;
     if &email == "Signature was expired" {
-        ApiResult::new().code(400).with_msg("Bad request").with_data("".to_string())
+        ApiResult::new()
+            .code(400)
+            .with_msg("Bad request")
+            .with_data("".to_string())
     } else {
         match state.get_ref().user_query(&email).await {
             Ok(_user) => {
                 debug!("User found, username unavailable");
-                ApiResult::new()
-                    .code(200)
-                    .with_msg("Email verified")
+                ApiResult::new().code(200).with_msg("Email verified")
             }
             Err(e) => {
                 debug!("{:?}", e.to_string());
@@ -205,9 +203,26 @@ async fn confirm_email(
     }
 }
 
+#[post("/users")]
+async fn get_users(form: web::Json<UsersReq>, state: AppState) -> impl Responder {
+    let last_user = form.into_inner();
+    match state.get_ref().get_users(&last_user).await {
+        Ok(user_res) => {
+            ApiResult::new().code(200).with_msg("").with_data(user_res)
+        }
+        Err(e) => {
+            debug!("{:?}", e.to_string());
+            ApiResult::new()
+                .code(400)
+                .with_msg("Bad request!")
+        }
+    }
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(login);
     cfg.service(register);
     cfg.service(check_username_availability);
     cfg.service(confirm_email);
+    cfg.service(get_users);
 }

@@ -162,7 +162,7 @@
                 <span style="float:right"
                     >{shown_ts}
                     <a
-                        href="/users/{uid}/{username}"
+                        href="/user/{uid}/{username}"
                         style="text-decoration:none; color:#4285F4;"
                         >{username}</a
                     ></span

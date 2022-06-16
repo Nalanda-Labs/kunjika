@@ -69,7 +69,6 @@
     }
     response = await api.get(
       `question/get-answers/${id}/?time=${time}&limit=${limit}`,
-      localStorage.getItem("jwt")
     );
 
     if (response.data) {
@@ -312,7 +311,7 @@
             <i class="fas fa-angle-down" />
           </a>
           <br />
-          {#if posted_by_id == $session.user.id}
+          {#if $session.user && posted_by_id == $session.user.id}
             {#if answer_accepted}
               <a
                 href="/accept-answer"

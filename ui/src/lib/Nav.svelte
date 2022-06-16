@@ -39,7 +39,7 @@
 							<li>
 								<a
 									rel="prefetch"
-									href="/users/{$session.user.id}/{$session
+									href="/user/{$session.user.id}/{$session
 										.user.username}"
 								>
 									{$session.user.username}

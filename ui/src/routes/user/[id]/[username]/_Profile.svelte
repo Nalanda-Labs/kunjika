@@ -20,7 +20,7 @@
     let website = "";
     let twitter = "";
     let response = {};
-    let reputation = "";
+    let karma = "";
 
     onMount(async () => {
         response = await api.get(`user/${id}/${username}`);
@@ -35,7 +35,7 @@
             git = response.git;
             website = response.website;
             twitter = response.twitter;
-            reputation = response.reputation;
+            karma = response.karma;
 
             if (response.image_url !== "") {
                 image_url = response.image_url;
@@ -273,8 +273,8 @@
             > to change it.
         </p>
         <span style="text-align: center"
-            ><span style="font-size:24px">{reputation}</span><span
-                style="position:relative;top:-5px">&nbsp;REPUTATION</span
+            ><span style="font-size:24px">{karma}</span><span
+                style="position:relative;top:-5px">&nbsp;Karma</span
             ></span
         >
     </div>

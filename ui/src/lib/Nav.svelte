@@ -20,7 +20,7 @@
 						href="#"
 						data-target="slide-out"
 						class="top-nav sidenav-trigger full hide-on-large-only"
-						><i class="material-icons">menu</i></a
+						><i class="material-icons green">menu</i></a
 					>
 					<a href="/" class="brand-logo">Kunjika</a>
 					<ul id="nav-mobile" class="right">

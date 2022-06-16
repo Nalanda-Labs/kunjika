@@ -1,11 +1,12 @@
 use super::user::*;
-use crate::state::{AppStateRaw, AppState};
+use crate::state::AppStateRaw;
 use md5::compute;
 
 #[async_trait]
 pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn user_add(&self, form: &Register) -> sqlx::Result<u64>;
     async fn get_users(&self, form: &UsersReq) -> sqlx::Result<UserResponse>;
+    async fn get_profile(&self, uid: &i64) -> sqlx::Result<ProfileResponse>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 
@@ -70,15 +71,15 @@ impl IUser for &AppStateRaw {
         for q in qr {
             let name = match q.name {
                 Some(n) => n,
-                None => "".to_owned()
+                None => "".to_owned(),
             };
             let location = match q.location {
                 Some(n) => n,
-                None => "".to_owned()
+                None => "".to_owned(),
             };
             let image_url = match q.image_url {
                 Some(n) => n,
-                None => "".to_owned()
+                None => "".to_owned(),
             };
             let ur: UR = UR {
                 id: q.id.to_string(),
@@ -91,6 +92,32 @@ impl IUser for &AppStateRaw {
         }
 
         Ok(urs)
+    }
+
+    async fn get_profile(&self, uid: &i64) -> sqlx::Result<ProfileResponse> {
+        let qr = sqlx::query!(
+            r#"
+            select username, name, title, designation, location, email, image_url, git, website, twitter, reputation from users
+            where id = $1
+            "#,
+            uid
+        )
+        .fetch_one(&self.sql)
+        .await;
+
+        let p = ProfileResponse {
+            username: qr.username,
+            name: qr.name,
+            title: qr.title,
+            designation: qr.designation,
+            location: qr.location,
+            image_url: qr.image_url,
+            git: qr.git,
+            website: qr.website,
+            twitter: qr.twitter,
+            karma: qr.karma,
+        };
+        Ok(p)
     }
 }
 

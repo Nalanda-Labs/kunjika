@@ -41,3 +41,13 @@ html {
 a.brand-logo, nav ul a {
     color: #0f9d58!important;
 }
+
+.green {
+    color: #0f9d58!important;
+    background-color: white!important;
+}
+
+.blue {
+    color: #4285F4!important;
+    background-color: white!important;
+}

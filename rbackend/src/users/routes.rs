@@ -219,6 +219,23 @@ async fn get_users(form: web::Json<UsersReq>, state: AppState) -> impl Responder
     }
 }
 
+#[get("/users/{id}/{username}")]
+async fn get_profile(params: web::Path<(String, String)>, state: AppState) -> impl Responder {
+    let uid = &params.0.parse::<i64>().unwrap();
+    match state.get_ref().get_profile(&uid).await {
+        Ok(profile) => {
+            ApiResult::new().code(200).with_msg("").with_data(profile)
+        }
+        Err(e) => {
+            debug!("{:?}", e.to_string());
+            ApiResult::new()
+                .code(400)
+                .with_msg("Bad request!")
+        }
+    }
+}
+
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(login);
     cfg.service(register);

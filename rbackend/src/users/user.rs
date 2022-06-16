@@ -131,3 +131,17 @@ pub struct UR {
 pub struct UserResponse {
     pub users: Vec<UR>
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ProfileResponse {
+    pub username: String,
+    pub name: String,
+    pub title: String,
+    pub designation: String,
+    pub location: String,
+    pub image_url: String,
+    pub git: String,
+    pub website: String,
+    pub twitter: String,
+    pub karma: String,
+}

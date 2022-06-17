@@ -261,7 +261,11 @@
 </script>
 
 <div class="row" style="margin-top:10px">
-    <a class="btn" href="/edit-profile" style="float: right;"><i class="fas fa-edit" /> Edit Profile</a>
+    {#if $session.user && $session.user.username == username}
+        <a class="btn" href="/edit-profile" style="float: right;"
+            ><i class="fas fa-edit" /> Edit Profile</a
+        >
+    {/if}
     <div class="col-12 col-sm-12 col-md-2" style="float:left;margin-right:10px">
         <img
             src="{image_url}?s=160"
@@ -282,7 +286,7 @@
     <div class="col-12 col-sm-12 col-md-5" style="float:left">
         <table style="display: inline;">
             <tr>
-                {#if $session.user.username == username}
+                {#if $session.user && $session.user.username == username}
                     <td
                         ><span
                             contenteditable="true"
@@ -296,7 +300,7 @@
                 {/if}
             </tr>
             <tr>
-                {#if $session.user.username == username}
+                {#if $session.user && $session.user.username == username}
                     <td
                         ><span
                             contenteditable="true"
@@ -309,7 +313,7 @@
                 {/if}
             </tr>
             <tr>
-                {#if $session.user.username == username}
+                {#if $session.user && $session.user.username == username}
                     <td><span contenteditable="true" id="name">{name}</span></td
                     >
                 {:else}
@@ -317,7 +321,7 @@
                 {/if}
             </tr>
             <tr>
-                {#if $session.user.username == username}
+                {#if $session.user && $session.user.username == username}
                     <td
                         ><span contenteditable="true" id="designation"
                             >{designation}</span
@@ -332,7 +336,7 @@
     <div class="col12 sm12 md4" style="float:left;margin-left:200px">
         <table>
             <tr>
-                {#if $session.user.username == username}
+                {#if $session.user && $session.user.username == username}
                     <td>
                         <i class="fas fa-map-marker-alt" style="color:#666" />
                         <span
@@ -353,7 +357,7 @@
                 {/if}
             </tr>
             <tr>
-                {#if $session.user.username == username}
+                {#if $session.user && $session.user.username == username}
                     <td>
                         <i class="fab fa-github" style="color:#666" />
                         <a
@@ -375,7 +379,7 @@
                 {/if}
             </tr>
             <tr>
-                {#if $session.user.username == username}
+                {#if $session.user && $session.user.username == username}
                     <td>
                         <i class="fas fa-link" style="color:#666" />
                         <a
@@ -397,7 +401,7 @@
                 {/if}
             </tr>
             <tr>
-                {#if $session.user.username == username}
+                {#if $session.user && $session.user.username == username}
                     <td>
                         <i class="fab fa-twitter" style="color:#666" />
                         <a

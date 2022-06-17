@@ -35,7 +35,7 @@
 
                 if (asked_ts == updated_ts) {
                     var offset = new Date().getTimezoneOffset();
-                    let shown_ts = -Math.floor(
+                    let shown_ts = Math.floor(
                         (now - asked_ts) / 1000 + offset * 60
                     );
                     if (shown_ts >= 259200) {

@@ -49,6 +49,10 @@
 		document.addEventListener('DOMContentLoaded', function () {
 			var elems = document.querySelectorAll('.sidenav');
 			M.Sidenav.init(elems);
+			elems = document.querySelectorAll('.modal');
+			M.Modal.init(elems);
+			elems = document.querySelectorAll('.tooltipped');
+			M.Tooltip.init(elems);
 		});
 	</script>
 </body>

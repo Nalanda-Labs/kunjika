@@ -10,6 +10,7 @@
 
     let questions = [];
     let data = [];
+    let noMore = "";
 
     async function infiniteHandler({ detail: { loaded, complete } }) {
         let updated_at = "";
@@ -170,7 +171,7 @@
             </div>
             <div style="clear:both"/>
         {/each}
-        <InfiniteLoading on:infinite={infiniteHandler} />
+        <InfiniteLoading on:infinite={infiniteHandler} {noMore} />
         <hr
             style="border-bottom:1px solid;color:#eee;display:block;min-width:100%;margin-top:20px"
         />

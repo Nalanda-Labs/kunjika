@@ -80,7 +80,9 @@
                     );
                     if (response.code !== 200) {
                         M.toast({ html: response.msg });
-                    } else if (response.jwt) {
+                    } else if (response.data) {
+                        let e = document.getElementById('#username-change');
+                        e.open();
                         if (
                             confirm(
                                 "You will be logged out for username change"
@@ -189,74 +191,6 @@
             },
             false
         );
-
-        let git_elem = document.getElementById("git");
-
-        git_elem.addEventListener(
-            "blur",
-            async function () {
-                if (git != git_elem.innerHTML) {
-                    let git1 = git_elem.innerHTML;
-
-                    response = await api.post(
-                        `profile/${id}/git/`,
-                        { git: git1.trim() },
-                        $session.user.xsrf_token
-                    );
-                    if (response.code !== 200) {
-                        M.toast({ html: response.msg });
-                    } else {
-                        git = git_elem.innerHTML;
-                    }
-                }
-            },
-            false
-        );
-
-        let website_elem = document.getElementById("website");
-
-        website_elem.addEventListener(
-            "blur",
-            async function () {
-                if (website != website_elem.innerHTML) {
-                    let website1 = website_elem.innerHTML;
-
-                    response = await api.post(
-                        `profile/${id}/website/`,
-                        { website: website1.trim() },
-                        $session.user.xsrf_token
-                    );
-                    if (response.code !== 200) {
-                        M.toast({ html: response.msg });
-                    } else {
-                        website = website_elem.innerHTML;
-                    }
-                }
-            },
-            false
-        );
-        let twitter_elem = document.getElementById("twitter");
-
-        twitter_elem.addEventListener(
-            "blur",
-            async function () {
-                if (twitter != twitter_elem.innerHTML) {
-                    let twitter1 = twitter_elem.innerHTML;
-
-                    response = await api.post(
-                        `profile/${id}/twitter/`,
-                        { twitter: twitter1.trim() },
-                        $session.user.xsrf_token
-                    );
-                    if (response.code !== 200) {
-                        M.toast({ html: response.msg });
-                    } else {
-                        twitter = twitter_elem.innerHTML;
-                    }
-                }
-            },
-            false
-        );
     });
 </script>
 
@@ -273,9 +207,8 @@
             width="160px"
         />
         <p>
-            Your gravatar, <a href="https://en.gravatar.com/site/signup/"
-                >update gravatar</a
-            > to change it.
+            <a href="https://en.gravatar.com/site/signup/">Update gravatar</a> to
+            change it.
         </p>
         <span style="text-align: center"
             ><span style="font-size:24px">{karma}</span><span
@@ -423,5 +356,16 @@
                 {/if}
             </tr>
         </table>
+    </div>
+    <div class="modal" id="username-change">
+        <div class="modal-content">
+            <h4>Username Change</h4>
+            <p>Changing Username Will log you out.</p>
+        </div>
+        <div class="modal-footer">
+            <a href="#!" class="modal-close waves-effect waves-green btn-flat"
+                >Agree</a
+            >
+        </div>
     </div>
 </div>

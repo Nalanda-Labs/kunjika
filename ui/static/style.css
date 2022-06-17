@@ -9,16 +9,21 @@ nav {
     align-items: center;
     justify-content: center;
 }
+
 a {
-    /* color: #4285F4; */
+    color: #4285F4 !important;
     text-decoration: none;
 }
-.btn, .btn:hover {
+
+.btn,
+.btn:hover {
     background-color: #4285F4;
 }
+
 .anchor {
     color: #4285F4;
 }
+
 .wrapper {
     width: 100%;
     height: 600px;
@@ -35,19 +40,24 @@ a {
 }
 
 html {
-    font-family: 'Roboto', sans-serif!important;
+    font-family: 'Roboto', sans-serif !important;
 }
 
-a.brand-logo, nav ul a {
-    color: #0f9d58!important;
+a.brand-logo,
+nav ul a {
+    color: #0f9d58 !important;
 }
 
 .green {
-    color: #0f9d58!important;
-    background-color: white!important;
+    color: #0f9d58 !important;
+    background-color: white !important;
 }
 
 .blue {
-    color: #4285F4!important;
-    background-color: white!important;
+    color: #4285F4 !important;
+    background-color: white !important;
+}
+
+.card .card-content, .card .card-action {
+    padding: 10px !important;
 }

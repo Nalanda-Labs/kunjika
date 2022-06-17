@@ -10,13 +10,14 @@ pub struct Tag {
     pub id: SqlID,
     #[validate(length(min = 1, max = 32))]
     pub name: String,
+    pub post_count: Option<i64>,
     pub info: Option<String>,
-    pub create_dt: Option<SqlDateTime>,
-    pub update_dt: Option<SqlDateTime>,
+    pub create_dt: SqlDateTime,
+    pub update_dt: SqlDateTime,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug, Validate)]
-pub struct  TagRequest {
+pub struct TagRequest {
     // #[validate(length(min = 1, max = 32))]
     pub tag: String,
 }

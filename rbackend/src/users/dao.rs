@@ -97,25 +97,61 @@ impl IUser for &AppStateRaw {
     async fn get_profile(&self, uid: &i64) -> sqlx::Result<ProfileResponse> {
         let qr = sqlx::query!(
             r#"
-            select username, name, title, designation, location, email, image_url, git, website, twitter, reputation from users
+            select username, name, title, designation, location, email, image_url, git, website, twitter, karma from users
             where id = $1
             "#,
             uid
         )
         .fetch_one(&self.sql)
-        .await;
+        .await?;
 
+        let name = match qr.name {
+            Some(s) => s,
+            None => "".to_owned()
+        };
+        let title = match qr.title {
+            Some(s) => s,
+            None => "".to_owned()
+        };
+        let designation = match qr.designation {
+            Some(s) => s,
+            None => "".to_owned()
+        };
+        let location = match qr.location {
+            Some(s) => s,
+            None => "".to_owned()
+        };
+        let image_url = match qr.image_url {
+            Some(s) => s,
+            None => "".to_owned()
+        };
+        let git = match qr.git {
+            Some(s) => s,
+            None => "".to_owned()
+        };
+        let website = match qr.website {
+            Some(s) => s,
+            None => "".to_owned()
+        };
+        let twitter = match qr.twitter {
+            Some(s) => s,
+            None => "".to_owned()
+        };
+        let karma = match qr.karma {
+            Some(s) => s.to_string(),
+            None => 1.to_string()
+        };
         let p = ProfileResponse {
             username: qr.username,
-            name: qr.name,
-            title: qr.title,
-            designation: qr.designation,
-            location: qr.location,
-            image_url: qr.image_url,
-            git: qr.git,
-            website: qr.website,
-            twitter: qr.twitter,
-            karma: qr.karma,
+            name,
+            title,
+            designation,
+            location,
+            image_url,
+            git,
+            website,
+            twitter,
+            karma,
         };
         Ok(p)
     }

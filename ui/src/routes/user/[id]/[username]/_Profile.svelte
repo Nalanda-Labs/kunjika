@@ -135,7 +135,7 @@
                         $session.user.xsrf_token
                     );
                     if (response.code !== 200) {
-                        M.toast({html: response.msg});
+                        M.toast({ html: response.msg });
                     } else {
                         name = name_elem.innerHTML;
                     }
@@ -158,7 +158,7 @@
                         $session.user.xsrf_token
                     );
                     if (response.code !== 200) {
-                        M.toast({html: response.msg});
+                        M.toast({ html: response.msg });
                     } else {
                         designation = d_elem.innerHTML;
                     }
@@ -176,12 +176,12 @@
                     let location1 = location_elem.innerHTML;
 
                     response = await api.post(
-                        `profile/${id}/location/${d1}/`,
+                        `profile/${id}/location/location/`,
                         location1.trim(),
                         $session.user.xsrf_token
                     );
                     if (response.code !== 200) {
-                        M.toast({html: response.msg});
+                        M.toast({ html: response.msg });
                     } else {
                         location = location_elem.innerHTML;
                     }
@@ -204,7 +204,7 @@
                         $session.user.xsrf_token
                     );
                     if (response.code !== 200) {
-                        M.toast({html: response.msg});
+                        M.toast({ html: response.msg });
                     } else {
                         git = git_elem.innerHTML;
                     }
@@ -227,7 +227,7 @@
                         $session.user.xsrf_token
                     );
                     if (response.code !== 200) {
-                        M.toast({html: response.msg});
+                        M.toast({ html: response.msg });
                     } else {
                         website = website_elem.innerHTML;
                     }
@@ -249,7 +249,7 @@
                         $session.user.xsrf_token
                     );
                     if (response.code !== 200) {
-                        Swal.fire(response.msg);
+                        M.toast({ html: response.msg });
                     } else {
                         twitter = twitter_elem.innerHTML;
                     }
@@ -261,6 +261,7 @@
 </script>
 
 <div class="row" style="margin-top:10px">
+    <a class="btn" href="/edit-profile" style="float: right;"><i class="fas fa-edit" /> Edit Profile</a>
     <div class="col-12 col-sm-12 col-md-2" style="float:left;margin-right:10px">
         <img
             src="{image_url}?s=160"
@@ -279,9 +280,9 @@
         >
     </div>
     <div class="col-12 col-sm-12 col-md-5" style="float:left">
-        <table>
+        <table style="display: inline;">
             <tr>
-                {#if $session.user == username}
+                {#if $session.user.username == username}
                     <td
                         ><span
                             contenteditable="true"
@@ -295,7 +296,7 @@
                 {/if}
             </tr>
             <tr>
-                {#if $session.user == username}
+                {#if $session.user.username == username}
                     <td
                         ><span
                             contenteditable="true"
@@ -308,7 +309,7 @@
                 {/if}
             </tr>
             <tr>
-                {#if $session.user == username}
+                {#if $session.user.username == username}
                     <td><span contenteditable="true" id="name">{name}</span></td
                     >
                 {:else}
@@ -316,7 +317,7 @@
                 {/if}
             </tr>
             <tr>
-                {#if $session.user == username}
+                {#if $session.user.username == username}
                     <td
                         ><span contenteditable="true" id="designation"
                             >{designation}</span
@@ -328,13 +329,17 @@
             </tr>
         </table>
     </div>
-    <div class="col-12 col-sm-12 col-md-4" style="display:inline">
+    <div class="col12 sm12 md4" style="float:left;margin-left:200px">
         <table>
             <tr>
-                {#if $session.user == username}
+                {#if $session.user.username == username}
                     <td>
                         <i class="fas fa-map-marker-alt" style="color:#666" />
-                        <span contenteditable="true" id="location">
+                        <span
+                            contenteditable="true"
+                            id="location"
+                            style="display: inline-block;min-width: 100px;"
+                        >
                             {location}
                         </span>
                     </td>
@@ -348,14 +353,14 @@
                 {/if}
             </tr>
             <tr>
-                {#if $session.user == username}
+                {#if $session.user.username == username}
                     <td>
                         <i class="fab fa-github" style="color:#666" />
                         <a
                             class="anchor"
-                            contenteditable="true"
                             id="git"
                             href={git}
+                            style="display: inline-block;min-width: 100px;"
                         >
                             {git}
                         </a>
@@ -370,14 +375,14 @@
                 {/if}
             </tr>
             <tr>
-                {#if $session.user == username}
+                {#if $session.user.username == username}
                     <td>
                         <i class="fas fa-link" style="color:#666" />
                         <a
                             class="anchor"
-                            contenteditable="true"
                             id="website"
                             href={website}
+                            style="display: inline-block;min-width: 100px;"
                         >
                             {website}
                         </a>
@@ -392,14 +397,14 @@
                 {/if}
             </tr>
             <tr>
-                {#if $session.user == username}
+                {#if $session.user.username == username}
                     <td>
                         <i class="fab fa-twitter" style="color:#666" />
                         <a
                             class="anchor"
-                            contenteditable="true"
                             id="twitter"
                             href={twitter}
+                            style="display: inline-block;min-width: 100px;"
                         >
                             {twitter}
                         </a>

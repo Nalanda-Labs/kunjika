@@ -219,7 +219,7 @@ async fn get_users(form: web::Json<UsersReq>, state: AppState) -> impl Responder
     }
 }
 
-#[get("/users/{id}/{username}")]
+#[get("/user/{id}/{username}")]
 async fn get_profile(params: web::Path<(String, String)>, state: AppState) -> impl Responder {
     let uid = &params.0.parse::<i64>().unwrap();
     match state.get_ref().get_profile(&uid).await {
@@ -235,11 +235,11 @@ async fn get_profile(params: web::Path<(String, String)>, state: AppState) -> im
     }
 }
 
-
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(login);
     cfg.service(register);
     cfg.service(check_username_availability);
     cfg.service(confirm_email);
     cfg.service(get_users);
+    cfg.service(get_profile);
 }

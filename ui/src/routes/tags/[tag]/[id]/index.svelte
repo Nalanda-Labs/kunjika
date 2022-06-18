@@ -1,38 +1,28 @@
-<script context="module">
-    export function preload({ params }, { user }) {
-        let [tag] = [params.tag];
-        return { tag };
-    }
-</script>
-
 <script>
+    import {goto} from "$app/navigation";
     import { onMount } from "svelte";
-    import * as api from "api.js";
+    import { session, page } from "$app/stores";
+    import * as api from "$lib/api.js";
     import "bytemd/dist/index.min.css";
-    import "../../_utils.scss";
-    import { stores, goto } from "@sapper/app";
-    import Button, { Label } from "@smui/button";
 
-    export let tag;
-    export let slug;
+    let tag = $page.params.tag;
+    let id = $page.params.id;
     let value = "";
 
     let Viewer = null;
-
-    const { session } = stores();
 
     onMount(async () => {
         const bytemd = await import("bytemd");
         Viewer = bytemd.Viewer;
 
-        let response = await api.get(`tags/edit/${tag}`);
+        let response = await api.get(`tags/edit/${tag}/${id}`, $session.user.xsrf_token);
 
-        if (response.info) {
-            value = response.info;
+        if (response.code === 200) {
+            value = response.data;
         }
     });
     function onClick() {
-        goto(`tags/edit/${tag}`);
+        goto(`/tags/edit/${tag}/${id}`);
     }
 </script>
 
@@ -46,9 +36,10 @@
         <svelte:component this={Viewer} {value} />
     </div>
     <div class="b-wrapper">
-        <Button variant="raised" on:click={onClick}>
-            <Label>Edit</Label>
-        </Button>
+        <div class="b-wrapper">
+            <!-- svelte-ignore a11y-invalid-attribute -->
+            <button class="btn" on:click="{onClick}">Edit</button>
+        </div>
     </div>
 </div>
 

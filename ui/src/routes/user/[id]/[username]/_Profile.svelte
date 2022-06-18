@@ -81,7 +81,7 @@
                     if (response.code !== 200) {
                         M.toast({ html: response.msg });
                     } else if (response.data) {
-                        let e = document.getElementById('#username-change');
+                        let e = document.getElementById("#username-change");
                         e.open();
                         if (
                             confirm(
@@ -197,7 +197,7 @@
 <div class="row" style="margin-top:10px">
     {#if $session.user && $session.user.username == username}
         <a class="btn" href="/edit-profile" style="float: right;"
-            ><i class="fas fa-edit" /> Edit Profile</a
+            >Edit Profile</a
         >
     {/if}
     <div class="col-12 col-sm-12 col-md-2" style="float:left;margin-right:10px">
@@ -224,8 +224,7 @@
                         ><span
                             contenteditable="true"
                             id="username"
-                            style="font-size:20px;font-weight: 500;"
-                            title="Click to edit">{username}</span
+                            style="font-size:20px;font-weight: 500;">{username}</span
                         ></td
                     >
                 {:else}
@@ -238,7 +237,7 @@
                         ><span
                             contenteditable="true"
                             id="title"
-                            title="Click to edit">{title}</span
+                            data-placeholder="title; click to edit">{title}</span
                         ></td
                     >
                 {:else}
@@ -247,7 +246,7 @@
             </tr>
             <tr>
                 {#if $session.user && $session.user.username == username}
-                    <td><span contenteditable="true" id="name">{name}</span></td
+                    <td><span contenteditable="true" id="name" data-placeholder="name; click  edit">{name}</span></td
                     >
                 {:else}
                     <td><span id="name">{name}</span></td>
@@ -256,7 +255,7 @@
             <tr>
                 {#if $session.user && $session.user.username == username}
                     <td
-                        ><span contenteditable="true" id="designation"
+                        ><span contenteditable="true" id="designation" data-placeholder="designation; click to edit"
                             >{designation}</span
                         ></td
                     >
@@ -276,6 +275,7 @@
                             contenteditable="true"
                             id="location"
                             style="display: inline-block;min-width: 100px;"
+                            data-placeholder="location; click to edit"
                         >
                             {location}
                         </span>
@@ -369,3 +369,16 @@
         </div>
     </div>
 </div>
+
+<style>
+    span[contenteditable] {
+        display: inline-block;
+    }
+    span[contenteditable]:empty::before {
+        content: attr(data-placeholder);
+        display: inline-block;
+    }
+    span[contenteditable]:empty:focus::before {
+        content: "Start typing";
+    }
+</style>

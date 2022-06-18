@@ -20,4 +20,11 @@ pub struct Tag {
 pub struct TagRequest {
     // #[validate(length(min = 1, max = 32))]
     pub tag: String,
+    pub post_count: SqlID
+}
+
+#[derive(FromRow, Serialize, Deserialize, Debug, Validate)]
+pub struct TagInfoRequest {
+    // #[validate(length(min = 20, max = 1000000))]
+    pub tag_info: String
 }

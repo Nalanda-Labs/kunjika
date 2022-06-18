@@ -24,7 +24,7 @@
 	<title>All about {username}</title>
 </svelte:head>
 
-<div class="sm-topic" style="top:50px;position:relative">
+<div class="sm-topic" style="top:20px;position:relative">
 	<div class="row">
 		<div class="col s12">
 			<ul class="tabs">

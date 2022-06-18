@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from "svelte";
+	import { session } from "$app/stores";
 	import * as api from "$lib/api.js";
 	import InfiniteLoading from "svelte-infinite-loading";
 
@@ -8,11 +8,14 @@
 
 	async function infiniteHandler({ detail: { loaded, complete } }) {
 		let last_tag = "";
+		let post_count = Number.MAX_SAFE_INTEGER;
 		if (tags.length) {
 			last_tag = tags[tags.length - 1].name;
+			post_count = tags[tags.length - 1].post_count;
 		}
 		let response = await api.post(`tags`, {
 			tag: last_tag,
+			post_count: post_count,
 		});
 		if (response.code === 200 && response.data) {
 			tags = response.data;
@@ -44,14 +47,24 @@
 				style="min-width:250px;max-width:250px;float:left;margin-right:10px"
 			>
 				<div class="card-content">
-					<a class="card-title" style="display:inline" href="/topics/tagged/{name}">{name}</a
+					<a
+						class="card-title"
+						style="display:inline"
+						href="/questions/tagged/{name}">{name}</a
 					>
 					<p>
 						{#if info}
 							{info.slice(0, 50)}...
 						{/if}
 					</p>
-					<p style="color: #777;">{post_count} questions <a style="float:right" href="/tag/edit/{id}">Edit</p>
+					<p style="color: #777;">
+						{post_count} questions
+						{#if $session.user}
+							<a style="float:right" href="/tags/edit/{name}/{id}"
+								>Edit</a
+							>
+						{/if}
+					</p>
 				</div>
 			</div>
 		{/each}

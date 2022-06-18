@@ -150,8 +150,8 @@ async fn login(form: web::Json<Login>, state: AppState) -> impl Responder {
             }
         }
         Err(e) => {
-            error!("find user {:?} error: {:?}", form, e);
-            HttpResponse::BadRequest().finish()
+            debug!("find user {:?} error: {:?}", form, e);
+            HttpResponse::Unauthorized().finish()
         }
     }
 }

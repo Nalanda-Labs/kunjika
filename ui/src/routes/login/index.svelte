@@ -24,10 +24,10 @@
     async function submit() {
         const response = await api.post(`login`, { email, password });
 
-        errors = response.errors;
-
         if (response.success) {
             window.location.replace('/questions');
+        } else {
+            M.toast({html: 'Email or password not correct!'});
         }
     }
 </script>
@@ -71,7 +71,7 @@
                     </div>
                 </div>
                 <div class="b-wrapper">
-                    <button class="btn" type="submit" name="action"
+                    <button class="btn" type="submit"
                         >Submit
                         <i class="material-icons right">send</i>
                     </button>

@@ -4,6 +4,7 @@ use crate::api::ApiResult;
 use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
 use crate::utils::security::{check_signature, sign};
+use crate::utils::verify_user::verify_profile_user;
 
 use actix_web::{cookie::Cookie, get, post, web, Error, HttpResponse, Responder};
 use lettre::{
@@ -207,14 +208,10 @@ async fn confirm_email(form: web::Path<String>, state: AppState) -> impl Respond
 async fn get_users(form: web::Json<UsersReq>, state: AppState) -> impl Responder {
     let last_user = form.into_inner();
     match state.get_ref().get_users(&last_user).await {
-        Ok(user_res) => {
-            ApiResult::new().code(200).with_msg("").with_data(user_res)
-        }
+        Ok(user_res) => ApiResult::new().code(200).with_msg("").with_data(user_res),
         Err(e) => {
             debug!("{:?}", e.to_string());
-            ApiResult::new()
-                .code(400)
-                .with_msg("Bad request!")
+            ApiResult::new().code(400).with_msg("Bad request!")
         }
     }
 }
@@ -223,15 +220,33 @@ async fn get_users(form: web::Json<UsersReq>, state: AppState) -> impl Responder
 async fn get_profile(params: web::Path<(String, String)>, state: AppState) -> impl Responder {
     let uid = &params.0.parse::<i64>().unwrap();
     match state.get_ref().get_profile(&uid).await {
-        Ok(profile) => {
-            ApiResult::new().code(200).with_msg("").with_data(profile)
-        }
+        Ok(profile) => ApiResult::new().code(200).with_msg("").with_data(profile),
         Err(e) => {
             debug!("{:?}", e.to_string());
-            ApiResult::new()
-                .code(400)
-                .with_msg("Bad request!")
+            ApiResult::new().code(400).with_msg("Bad request!")
         }
+    }
+}
+
+#[get("/profile/{id}/username/{username}")]
+async fn update_username(
+    params: web::Path<(String, String)>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let uid = params.0.parse::<i64>().unwrap();
+    let username = params.1.parse().unwrap();
+    let user = verify_profile_user(uid, &auth).await;
+    if user {
+        match state.get_ref().update_username(uid, &username).await {
+            Ok(success) => ApiResult::new().code(200).with_msg("").with_data(success),
+            Err(e) => {
+                debug!("{:?}", e.to_string());
+                ApiResult::new().code(500).with_msg(e.to_string())
+            }
+        }
+    } else {
+        ApiResult::new().code(401)
     }
 }
 
@@ -242,4 +257,5 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(confirm_email);
     cfg.service(get_users);
     cfg.service(get_profile);
+    cfg.service(update_username);
 }

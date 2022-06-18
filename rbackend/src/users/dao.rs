@@ -7,6 +7,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn user_add(&self, form: &Register) -> sqlx::Result<u64>;
     async fn get_users(&self, form: &UsersReq) -> sqlx::Result<UserResponse>;
     async fn get_profile(&self, uid: &i64) -> sqlx::Result<ProfileResponse>;
+    async fn update_username(&self, uid: i64, username: &String) -> sqlx::Result<bool>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 
@@ -154,6 +155,37 @@ impl IUser for &AppStateRaw {
             karma,
         };
         Ok(p)
+    }
+
+    async fn update_username(&self, uid: i64, username: &String) -> sqlx::Result<bool> {
+        let r = sqlx::query!(
+            r#"
+            select * from users where username=$1
+            "#,
+            username
+        )
+        .fetch_one(&self.sql)
+        .await;
+
+        let id = match r {
+            Ok(u) => u.id,
+            Err(_e) => 0
+        };
+
+        if id != 0 {
+            return Ok(false);
+        }
+
+        sqlx::query!(
+            r#"
+            update users set username=$1 where id=$2
+            "#,
+            username, uid
+        )
+        .execute(&self.sql)
+        .await?;
+
+        Ok(true)
     }
 }
 

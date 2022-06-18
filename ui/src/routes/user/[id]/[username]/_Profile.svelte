@@ -22,6 +22,30 @@
     let response = {};
     let karma = "";
 
+    async function changeUsername() {
+        let username_elem = document.getElementById("username");
+        let username1 = username_elem.innerHTML;
+        response = await api.get(
+            `profile/${id}/username/${username1}`,
+            $session.user.xsrf_token
+        );
+        if (response.code !== 200) {
+            M.toast({ html: response.msg });
+        } else if (response.data) {
+            await post("/logout");
+            $session.user = null;
+            goto("/login");
+        } else {
+            M.toast({ html: "Username taken!" });
+        }
+    }
+    async function closeModal() {
+        const elem = document.getElementById("modal1");
+        M.Modal.init(elem);
+        const m = M.Modal.getInstance(elem);
+        m.destroy();
+    }
+
     onMount(async () => {
         response = await api.get(`user/${id}/${username}`);
 
@@ -72,29 +96,14 @@
             "blur",
             async function () {
                 if (username != username_elem.innerHTML) {
-                    let username1 = username_elem.innerHTML;
-                    response = await api.post(
-                        `profile/${id}/username/${username1}/`,
-                        username1,
-                        $session.user.xsrf_token
-                    );
-                    if (response.code !== 200) {
-                        M.toast({ html: response.msg });
-                    } else if (response.data) {
-                        let e = document.getElementById("#username-change");
-                        e.open();
-                        if (
-                            confirm(
-                                "You will be logged out for username change"
-                            ) == true
-                        ) {
-                            await post("/logout");
-                            $session.user = null;
-                            goto("/login");
-                        } else {
-                            return;
-                        }
-                    }
+                    // if (
+                    //     confirm("You will be logged out for username change") ===
+                    //     true
+                    // )
+                    const elem = document.getElementById("modal1");
+                    M.Modal.init(elem);
+                    const m = M.Modal.getInstance(elem);
+                    m.open();
                 }
             },
             false
@@ -108,9 +117,8 @@
                 if (title != title_elem.innerHTML) {
                     let title1 = title_elem.innerHTML;
 
-                    response = await api.post(
+                    response = await api.get(
                         `profile/${id}/title/${title1}/`,
-                        title1.trim(),
                         $session.user.xsrf_token
                     );
                     if (response.code !== 200) {
@@ -131,9 +139,8 @@
                 if (name != name_elem.innerHTML) {
                     let name1 = name_elem.innerHTML;
 
-                    response = await api.post(
+                    response = await api.get(
                         `profile/${id}/name/${name1}/`,
-                        name1.trim(),
                         $session.user.xsrf_token
                     );
                     if (response.code !== 200) {
@@ -154,9 +161,8 @@
                 if (designation != d_elem.innerHTML) {
                     let d1 = d_elem.innerHTML;
 
-                    response = await api.post(
+                    response = await api.get(
                         `profile/${id}/designation/${d1}/`,
-                        d1.trim(),
                         $session.user.xsrf_token
                     );
                     if (response.code !== 200) {
@@ -177,9 +183,8 @@
                 if (location != location_elem.innerHTML) {
                     let location1 = location_elem.innerHTML;
 
-                    response = await api.post(
-                        `profile/${id}/location/location/`,
-                        location1.trim(),
+                    response = await api.get(
+                        `profile/${id}/location/${location1}/`,
                         $session.user.xsrf_token
                     );
                     if (response.code !== 200) {
@@ -224,7 +229,8 @@
                         ><span
                             contenteditable="true"
                             id="username"
-                            style="font-size:20px;font-weight: 500;">{username}</span
+                            style="font-size:20px;font-weight: 500;"
+                            >{username}</span
                         ></td
                     >
                 {:else}
@@ -237,7 +243,8 @@
                         ><span
                             contenteditable="true"
                             id="title"
-                            data-placeholder="title; click to edit">{title}</span
+                            data-placeholder="title; click to edit"
+                            >{title}</span
                         ></td
                     >
                 {:else}
@@ -246,7 +253,12 @@
             </tr>
             <tr>
                 {#if $session.user && $session.user.username == username}
-                    <td><span contenteditable="true" id="name" data-placeholder="name; click  edit">{name}</span></td
+                    <td
+                        ><span
+                            contenteditable="true"
+                            id="name"
+                            data-placeholder="name; click  edit">{name}</span
+                        ></td
                     >
                 {:else}
                     <td><span id="name">{name}</span></td>
@@ -255,7 +267,10 @@
             <tr>
                 {#if $session.user && $session.user.username == username}
                     <td
-                        ><span contenteditable="true" id="designation" data-placeholder="designation; click to edit"
+                        ><span
+                            contenteditable="true"
+                            id="designation"
+                            data-placeholder="designation; click to edit"
                             >{designation}</span
                         ></td
                     >
@@ -365,6 +380,26 @@
         <div class="modal-footer">
             <a href="#!" class="modal-close waves-effect waves-green btn-flat"
                 >Agree</a
+            >
+        </div>
+    </div>
+    <div id="modal1" class="modal" style="max-width: 400px;">
+        <div class="modal-content">
+            <h4>Changing Username</h4>
+            <p>You will be logged out for a username change!</p>
+        </div>
+        <div class="modal-footer">
+            <a
+                href="#!"
+                class="modal-close waves-effect waves-green btn-flat"
+                id="ok"
+                on:click={changeUsername}>OK</a
+            >
+            <a
+                href="#!"
+                class="modal-close waves-effect waves-green btn-flat"
+                id="cancel"
+                on:click={closeModal}>Cancel</a
             >
         </div>
     </div>

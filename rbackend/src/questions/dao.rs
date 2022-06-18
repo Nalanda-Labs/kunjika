@@ -20,8 +20,9 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
     async fn get_questions_by_tag(
         &self,
         updated_at: &chrono::DateTime<Utc>,
-        tag: &String
-    ) -> sqlx::Result<QuestionsResponse>;    
+        tag: &String,
+    ) -> sqlx::Result<QuestionsResponse>;
+    async fn get_post(&self, pid: i64) -> sqlx::Result<PostResponse>;
     async fn insert_answer(&self, answer: &AnswerReq, user_id: &i64) -> sqlx::Result<u64>;
 }
 
@@ -107,15 +108,15 @@ impl IQuestion for &AppStateRaw {
         };
         let title = match question.title {
             Some(t) => t,
-            None => "".to_owned()
+            None => "".to_owned(),
         };
         let op_id = match question.op_id {
             Some(o) => o,
-            None => 0i64
+            None => 0i64,
         };
         let updated_by_id = match question.updated_by_id {
             Some(o) => o,
-            None => 0i64
+            None => 0i64,
         };
         let qr = QuestionResponse {
             id: qid.to_string(),
@@ -175,7 +176,7 @@ impl IQuestion for &AppStateRaw {
             };
             let title = match q.title {
                 Some(t) => t,
-                None => "".to_owned()
+                None => "".to_owned(),
             };
             let qr = QR {
                 id: q.id.to_string(),
@@ -202,7 +203,7 @@ impl IQuestion for &AppStateRaw {
     async fn get_questions_by_tag(
         &self,
         updated_at: &chrono::DateTime<Utc>,
-        tag: &String
+        tag: &String,
     ) -> sqlx::Result<QuestionsResponse> {
         let questions = sqlx::query!(
             r#"
@@ -239,7 +240,7 @@ impl IQuestion for &AppStateRaw {
             };
             let title = match q.title {
                 Some(t) => t,
-                None => "".to_owned()
+                None => "".to_owned(),
             };
             let qr = QR {
                 id: q.id.to_string(),
@@ -330,5 +331,47 @@ impl IQuestion for &AppStateRaw {
 
         tx.commit().await?;
         Ok(p.id as u64)
+    }
+
+    async fn get_post(&self, pid: i64) -> sqlx::Result<PostResponse> {
+        let r = sqlx::query!(
+            r#"
+            select t.title, t.description from posts t where t.id=$1
+            "#,
+            pid
+        )
+        .fetch_one(&self.sql)
+        .await?;
+
+        let mut tags = Vec::new();
+        let mut tags1= "".to_owned();
+
+        let title = match r.title {
+            Some(t) => t,
+            None => "".to_owned(),
+        };
+        if title != "" {
+            let ts = sqlx::query!(
+                r#"
+                select name from tags left join post_tags on post_tags.tag_id=tags.id where post_tags.post_id=$1
+                "#,
+                pid
+            )
+            .fetch_all(&self.sql)
+            .await?;
+            for t in ts {
+                tags.push(t.name);
+            }
+
+            tags1 = tags.iter().map(|e| e.to_string() + ",").collect();
+        }
+
+        let pr = PostResponse {
+            title,
+            description: r.description,
+            tags: tags1,
+        };
+
+        Ok(pr)
     }
 }

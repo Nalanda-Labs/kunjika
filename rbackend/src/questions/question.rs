@@ -129,3 +129,19 @@ pub struct AnswerReq {
     pub value: String,
     pub reply_to: String
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PostResponse {
+    pub title: String,
+    pub description: String,
+    pub tags: String,
+}
+
+#[derive(FromRow, Serialize, Deserialize, Debug, Validate)]
+pub struct EditRequest {
+    #[validate(length(min = 6, max = 256))]
+    pub title: Option<String>,
+    #[validate(length(min = 20, max = 100000))]
+    pub description: String,
+    pub tag_list: Option<Vec<String>>,
+}

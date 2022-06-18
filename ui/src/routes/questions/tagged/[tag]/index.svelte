@@ -119,7 +119,7 @@
         {/if}
     </h3>
     <div class="row" style="width:100%">
-        {#each data as { id, slug, title, tags, shown_ts, uid, username, answers, views }}
+        {#each data as { id, title, tags, shown_ts, uid, username, answers, views }}
             <hr
                 style="border-bottom:1px solid;color:#eee;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
             />

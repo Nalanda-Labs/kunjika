@@ -224,7 +224,7 @@
       {#if $session.user}
         <div style="float:right">
           <a
-            href="/edit/{id}/{slug}"
+            href="/edit/{id}"
             class="anchor"
             title="Edit your post"
             style="margin-right:5px"
@@ -332,12 +332,12 @@
       </div>
       <div style="float:left; position:relative;width:calc(100% - 70px)">
         <span style="font-weight:bold;color:#888">{username}</span>
-        <span style="float:right">posted {shown_ts}</span>
+        <span style="float:right">posted {shown_ts} ago</span>
         <svelte:component this={Viewer} value={description} />
         {#if $session.user}
           <div style="float:right">
             <a
-              href="/edit/{question_id}/{slug}"
+              href="/edit/{question_id}"
               class="anchor"
               title="Edit your post"
               style="margin-right:5px"

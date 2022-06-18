@@ -11,5 +11,8 @@
     "from_name": "from name",
     "email_verification_expiry_time": 86400,
     "host": "localhost",
-    "secret_key": "some super secret key"
+    "secret_key": "some super secret key",
+    "questions_per_page": 30,
+    "users_per_page": 18,
+    "tags_per_page": 18
 }

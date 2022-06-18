@@ -100,7 +100,7 @@
             <hr style="border-bottom:1px solidl;color:#eee" />
             {#if $session.user}
                 <a
-                    href="/edit/{id}/{slug}"
+                    href="/edit/{id}"
                     class="anchor"
                     title="Edit your post"
                     style="margin-right:5px"

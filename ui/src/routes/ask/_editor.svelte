@@ -39,7 +39,7 @@
 
             if (response.data.id && response.data.slug) {
                 id = response.data.id;
-                await goto(`/questions/${id}/${response.data.slug}`);
+                await goto(`/questions/${id}`);
             }
         } else {
             M.toast({ html: "You are not logged in." });
@@ -56,7 +56,7 @@
             Editor = bytemd.Editor;
             Tags = (await import("$lib/Tags.svelte")).default;
         } else {
-            goto("/questions");
+            goto("/login");
         }
     });
 

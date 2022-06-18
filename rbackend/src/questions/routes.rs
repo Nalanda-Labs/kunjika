@@ -3,6 +3,7 @@ use super::question::*;
 use crate::api::ApiResult;
 use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
+use crate::utils::slug::create_slug;
 
 use actix_web::{get, post, web, Responder};
 use chrono::*;
@@ -20,23 +21,7 @@ async fn insert_question(
             .with_msg("At least one tag must be supplied!");
     }
 
-    let mut slug = "".to_string();
-    let mut prev_dash = false;
-    for c in r.title.chars() {
-        if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') {
-            slug.push(c);
-            prev_dash = false;
-        } else if c == ' ' || c == ',' || c == '.' || c == '/' || c == '\\' || c == '_' || c == '='
-        {
-            if (!prev_dash) && (slug.len() > 0) {
-                slug.push('-');
-                prev_dash = true;
-            }
-        }
-    }
-    if prev_dash {
-        slug = (&slug[0..slug.len() - 1]).to_string();
-    }
+    let slug = create_slug(&r.title).await;
 
     let q = DbQuestion {
         title: r.title,
@@ -94,7 +79,11 @@ async fn get_questions(ut: web::Json<QuestionsReq>, state: AppState) -> impl Res
 }
 
 #[post("/questions/tagged/{tag}")]
-async fn get_questions_by_tag(params: web::Path<String>, ut: web::Json<QuestionsReq>, state: AppState) -> impl Responder {
+async fn get_questions_by_tag(
+    params: web::Path<String>,
+    ut: web::Json<QuestionsReq>,
+    state: AppState,
+) -> impl Responder {
     let tag = params.parse().unwrap();
     let updated_at = ut.into_inner();
     let up_at;
@@ -135,10 +124,35 @@ async fn answer(
     state: AppState,
 ) -> impl Responder {
     let answer = params.into_inner();
-    debug!("{:?}, {:?}, {:?}", &answer.id, &answer.value, &answer.reply_to);
+    debug!(
+        "answer request is {:?}, {:?}, {:?}",
+        &answer.id, &answer.value, &answer.reply_to
+    );
 
-    match state.get_ref().insert_answer(&answer, &auth.claims.id).await {
-        Ok(answer_res) => ApiResult::new().with_msg("").with_data(answer_res.to_string()),
+    match state
+        .get_ref()
+        .insert_answer(&answer, &auth.claims.id)
+        .await
+    {
+        Ok(answer_res) => ApiResult::new()
+            .with_msg("")
+            .with_data(answer_res.to_string()),
+        Err(e) => ApiResult::new().code(502).with_msg(e.to_string()),
+    }
+}
+
+#[get("edit/question/{id}")]
+async fn get_edit_post(
+    params: web::Path<i64>,
+    _auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let pid = params.into_inner();
+
+    debug!("post id to be edited is {:?}", pid);
+
+    match state.get_ref().get_post(pid).await {
+        Ok(post) => ApiResult::new().with_msg("").with_data(post),
         Err(e) => ApiResult::new().code(502).with_msg(e.to_string()),
     }
 }
@@ -150,4 +164,5 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(get_answers);
     cfg.service(answer);
     cfg.service(get_questions_by_tag);
+    cfg.service(get_edit_post);
 }

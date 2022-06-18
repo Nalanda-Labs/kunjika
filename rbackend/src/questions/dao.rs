@@ -24,6 +24,14 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
     ) -> sqlx::Result<QuestionsResponse>;
     async fn get_post(&self, pid: i64) -> sqlx::Result<PostResponse>;
     async fn insert_answer(&self, answer: &AnswerReq, user_id: &i64) -> sqlx::Result<u64>;
+    async fn update_post(
+        &self,
+        pid: i64,
+        description: &String,
+        tag_list: &Option<Vec<String>>,
+        title: &String,
+        slug: &String,
+    ) -> sqlx::Result<u64>;
 }
 
 #[cfg(any(feature = "postgres"))]
@@ -136,6 +144,46 @@ impl IQuestion for &AppStateRaw {
         };
 
         Ok(qr)
+    }
+
+    async fn get_answers(
+        &self,
+        qid: i64,
+        updated_at: &chrono::DateTime<Utc>,
+        limit: i64,
+    ) -> sqlx::Result<AnswersResponse> {
+        let questions = sqlx::query!(
+            r#"
+            select count(1) over(), t.id, t.description, t.visible, t.created_at, t.posted_by_id, t.updated_at,
+            t.votes, t.answer_accepted, users.username, users.image_url from posts t left join users on t.posted_by_id=users.id
+            where t.op_id=$1  and t.created_at > $2 order by t.created_at asc limit $3
+            "#, qid, updated_at, limit
+        ).fetch_all(&self.sql)
+        .await?;
+
+        let mut ars: AnswersResponse = AnswersResponse {
+            questions: Vec::new(),
+        };
+        for q in questions {
+            let image_url = match q.image_url {
+                Some(i) => i,
+                None => "".to_string(),
+            };
+            let qr = AR {
+                question_id: q.id.to_string(),
+                description: q.description,
+                visible: q.visible,
+                votes: q.votes,
+                posted_by_id: q.posted_by_id.to_string(),
+                created_at: q.created_at,
+                updated_at: q.updated_at,
+                username: q.username,
+                image_url,
+                answer_accepted: q.answer_accepted,
+            };
+            ars.questions.push(qr);
+        }
+        Ok(ars)
     }
 
     async fn get_questions(
@@ -264,44 +312,46 @@ impl IQuestion for &AppStateRaw {
         Ok(qrs)
     }
 
-    async fn get_answers(
-        &self,
-        qid: i64,
-        updated_at: &chrono::DateTime<Utc>,
-        limit: i64,
-    ) -> sqlx::Result<AnswersResponse> {
-        let questions = sqlx::query!(
+    async fn get_post(&self, pid: i64) -> sqlx::Result<PostResponse> {
+        let r = sqlx::query!(
             r#"
-            select count(1) over(), t.id, t.description, t.visible, t.created_at, t.posted_by_id, t.updated_at,
-            t.votes, t.answer_accepted, users.username, users.image_url from posts t left join users on t.posted_by_id=users.id
-            where t.op_id=$1  and t.created_at > $2 order by t.created_at asc limit $3
-            "#, qid, updated_at, limit
-        ).fetch_all(&self.sql)
+            select t.title, t.description from posts t where t.id=$1
+            "#,
+            pid
+        )
+        .fetch_one(&self.sql)
         .await?;
 
-        let mut ars: AnswersResponse = AnswersResponse {
-            questions: Vec::new(),
+        let mut tags = Vec::new();
+        let mut tags1 = "".to_owned();
+
+        let title = match r.title {
+            Some(t) => t,
+            None => "".to_owned(),
         };
-        for q in questions {
-            let image_url = match q.image_url {
-                Some(i) => i,
-                None => "".to_string(),
-            };
-            let qr = AR {
-                question_id: q.id.to_string(),
-                description: q.description,
-                visible: q.visible,
-                votes: q.votes,
-                posted_by_id: q.posted_by_id.to_string(),
-                created_at: q.created_at,
-                updated_at: q.updated_at,
-                username: q.username,
-                image_url,
-                answer_accepted: q.answer_accepted,
-            };
-            ars.questions.push(qr);
+        if title != "" {
+            let ts = sqlx::query!(
+                r#"
+                select name from tags left join post_tags on post_tags.tag_id=tags.id where post_tags.post_id=$1
+                "#,
+                pid
+            )
+            .fetch_all(&self.sql)
+            .await?;
+            for t in ts {
+                tags.push(t.name);
+            }
+
+            tags1 = tags.iter().map(|e| e.to_string() + ",").collect();
         }
-        Ok(ars)
+
+        let pr = PostResponse {
+            title,
+            description: r.description,
+            tags: tags1,
+        };
+
+        Ok(pr)
     }
 
     async fn insert_answer(&self, answer: &AnswerReq, user_id: &i64) -> sqlx::Result<u64> {
@@ -333,45 +383,143 @@ impl IQuestion for &AppStateRaw {
         Ok(p.id as u64)
     }
 
-    async fn get_post(&self, pid: i64) -> sqlx::Result<PostResponse> {
-        let r = sqlx::query!(
+    async fn update_post(
+        &self,
+        pid: i64,
+        description: &String,
+        tag_list: &Option<Vec<String>>,
+        title: &String,
+        slug: &String,
+    ) -> sqlx::Result<u64> {
+        let t_tags = Vec::new();
+        let tags = match tag_list {
+            Some(tl) => tl,
+            None => &t_tags,
+        };
+
+        let mut tx = self.sql.begin().await?;
+
+        sqlx::query!(
             r#"
-            select t.title, t.description from posts t where t.id=$1
+            update posts set description=$1 where id=$2
             "#,
+            description,
             pid
         )
-        .fetch_one(&self.sql)
+        .execute(&mut tx)
         .await?;
 
-        let mut tags = Vec::new();
-        let mut tags1= "".to_owned();
-
-        let title = match r.title {
-            Some(t) => t,
-            None => "".to_owned(),
-        };
+        // this will hold the result to be returned
+        let pr;
+        let pr1;
+        let mut id;
+        // if title is not empty then it is a question
         if title != "" {
+            let tags1 = sqlx::query!(
+                r#"
+                select id, name from tags where name = ANY($1)
+                "#,
+                tags
+            )
+            .fetch_all(&mut tx)
+            .await?;
             let ts = sqlx::query!(
                 r#"
-                select name from tags left join post_tags on post_tags.tag_id=tags.id where post_tags.post_id=$1
+                select id, name from tags where id in (select tag_id from post_tags where post_id=$1)
                 "#,
                 pid
             )
-            .fetch_all(&self.sql)
+            .fetch_all(&mut tx)
             .await?;
-            for t in ts {
-                tags.push(t.name);
+
+            for t in &ts {
+                if !tags.contains(&t.name) {
+                    let _ = &tx.rollback().await?;
+                    return Ok(0);
+                }
             }
 
-            tags1 = tags.iter().map(|e| e.to_string() + ",").collect();
+            for t in ts {
+                sqlx::query!(
+                    r#"
+                    update tags set post_count=post_count - 1 where name=$1
+                    "#,
+                    t.name
+                )
+                .execute(&mut tx)
+                .await?;
+                sqlx::query!(
+                    r#"
+                    delete from post_tags where post_id=$1 and tag_id=$2
+                    "#,
+                    pid,
+                    t.id
+                )
+                .execute(&mut tx)
+                .await?;
+            }
+
+            for t in tags1 {
+                sqlx::query!(
+                    r#"
+                    update tags set post_count=post_count + 1 where name=$1
+                    "#,
+                    t.name
+                )
+                .execute(&mut tx)
+                .await?;
+                sqlx::query!(
+                    r#"
+                    insert into post_tags(post_id, tag_id) values($1, $2)
+                    "#,
+                    pid,
+                    t.id
+                )
+                .execute(&mut tx)
+                .await?;
+            }
+
+            sqlx::query!(
+                r#"
+                update posts set title=$1, slug=$2 where id=$3
+                "#,
+                title,
+                slug,
+                pid
+            )
+            .execute(&mut tx)
+            .await?;
         }
 
-        let pr = PostResponse {
-            title,
-            description: r.description,
-            tags: tags1,
+        pr = sqlx::query!(
+            r#"
+            select id from posts where op_id=0 and id=$1
+            "#,
+            pid
+        )
+        .fetch_one(&mut tx)
+        .await;
+
+        id = match pr {
+            Ok(p) => p.id,
+            Err(_e) => 0,
         };
 
-        Ok(pr)
+        debug!("id is {}", id);
+        if id == 0 {
+            pr1 = sqlx::query!(
+                r#"
+            select id from posts where id in (select op_id from posts where op_id!=0 and id=$1)
+            "#,
+                pid
+            )
+            .fetch_one(&mut tx)
+            .await?;
+            id = pr1.id;
+        }
+
+        tx.commit().await?;
+
+        Ok(id as u64)
     }
 }

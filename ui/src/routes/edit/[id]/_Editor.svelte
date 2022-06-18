@@ -34,23 +34,22 @@
 				return;
 			}
 
-			topic.body = value;
+			topic.description = value;
 			if (topic.title && topic.taglist.length == 0) {
 				M.toast({ html: "At least one tag should be supplied." });
 			}
 
 			const response = await api.post(
 				`edit-post/${id}`,
-				{ topic },
+				{ title: topic.title, description:topic.description, tag_list: topic.taglist },
 				$session.user.xsrf_token
 			);
 
 			if (response.code !== 200) {
 				M.toast({ html: response.msg });
 			}
-			if (response.id && response.slug) {
-				id = response.id;
-				await goto(`/questions/${id}`);
+			if (response.data) {
+				await goto(`/questions/${response.data}`);
 			}
 
 			inProgress = false;
@@ -112,7 +111,7 @@
 			if (response.data) {
 				let tags = [];
 				for (let i = 0; i < response.data.length; i++) {
-					tags.push(response.tags[i]["name"]);
+					tags.push(response.data[i].name);
 				}
 				return tags;
 			} else {
@@ -166,7 +165,7 @@
 				allowBlur={true}
 				disable={false}
 				id={"tags"}
-				minChars={3}
+				minChars={1}
 				autoComplete={ts}
 			/>
 		{/if}

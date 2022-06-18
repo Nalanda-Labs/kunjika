@@ -11,7 +11,7 @@
     import Editor from "./_Editor.svelte";
 
     export let id = $page.params.id;
-    let topic = { title: "", body: "", taglist: [] };
+    let topic = { title: "", description: "", taglist: [] };
 </script>
 
 <svelte:head>

@@ -157,6 +157,27 @@ async fn get_edit_post(
     }
 }
 
+#[post("/edit-post/{id}")]
+async fn update_post(
+    params: web::Path<i64>,
+    form: web::Json<EditRequest>,
+    _auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let pid = params.into_inner();
+    let er = form.into_inner();
+    let title = match er.title {
+        Some(t) => t,
+        None => "".to_owned()
+    };
+    let slug = create_slug(&title.to_string()).await;
+
+    match state.get_ref().update_post(pid, &er.description, &er.tag_list, &title, &slug).await {
+        Ok(post) => ApiResult::new().code(200).with_msg("".to_owned()).with_data(post),
+        Err(e) => ApiResult::new().code(502).with_msg(e.to_string()).with_data(0)
+    }
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(insert_question);
     cfg.service(get_question);
@@ -165,4 +186,5 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(answer);
     cfg.service(get_questions_by_tag);
     cfg.service(get_edit_post);
+    cfg.service(update_post);
 }

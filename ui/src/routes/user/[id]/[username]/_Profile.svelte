@@ -96,10 +96,6 @@
             "blur",
             async function () {
                 if (username != username_elem.innerHTML) {
-                    // if (
-                    //     confirm("You will be logged out for username change") ===
-                    //     true
-                    // )
                     const elem = document.getElementById("modal1");
                     M.Modal.init(elem);
                     const m = M.Modal.getInstance(elem);

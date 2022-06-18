@@ -1,5 +1,5 @@
 import { apiUrl } from "./constants";
-const base = 'http://localhost/api/v1';
+
 
 async function send({ method, path, data, xsrf_token }) {
 	const opts = { method, headers: {} };
@@ -14,7 +14,7 @@ async function send({ method, path, data, xsrf_token }) {
 	}
 	opts.credentials = 'include';
 
-	return fetch(`${base}/${path}`, opts)
+	return fetch(`${apiUrl}/${path}`, opts)
 		.then((r) => r.text())
 		.then((json) => {
 			try {

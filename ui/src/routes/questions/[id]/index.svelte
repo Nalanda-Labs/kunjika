@@ -4,7 +4,7 @@
 
 <script>
     import Questions from "./_Questions.svelte";
-    import { stores, page } from "$app/stores";
+    import { session, page } from "$app/stores";
     import { onMount } from "svelte";
     import * as api from "$lib/api.js";
 
@@ -19,7 +19,6 @@
     const id = $page.params.id;
     const slug = $page.params.slug;
 
-    const { session } = stores();
 
     function show_editor(reply_to, username) {
         reply_to_id = reply_to;

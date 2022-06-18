@@ -1,5 +1,8 @@
-<script context="module">
-	export async function preload({ params }) {
-		this.redirect(302, "/questions");
-	}
+<script>
+	import { onMount } from "svelte";
+	import { goto } from "$app/navigation";
+
+	onMount(async () => {
+		goto("/questions");
+	});
 </script>

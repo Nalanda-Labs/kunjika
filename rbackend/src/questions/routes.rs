@@ -93,6 +93,26 @@ async fn get_questions(ut: web::Json<QuestionsReq>, state: AppState) -> impl Res
     }
 }
 
+#[post("/questions/tagged/{tag}")]
+async fn get_questions_by_tag(params: web::Path<String>, ut: web::Json<QuestionsReq>, state: AppState) -> impl Responder {
+    let tag = params.parse().unwrap();
+    let updated_at = ut.into_inner();
+    let up_at;
+    debug!("{:?}", &updated_at.updated_at);
+    if updated_at.updated_at == "" {
+        up_at = chrono::offset::Utc::now();
+        debug!("{:?}", up_at);
+    } else {
+        up_at = chrono::DateTime::parse_from_rfc3339(&updated_at.updated_at)
+            .unwrap()
+            .with_timezone(&Utc);
+    }
+    match state.get_ref().get_questions_by_tag(&up_at, &tag).await {
+        Ok(db_questions) => ApiResult::new().with_msg("").with_data(db_questions),
+        Err(e) => ApiResult::new().code(502).with_msg(e.to_string()),
+    }
+}
+
 #[get("/question/get-answers/{id}/")]
 async fn get_answers(
     params: web::Path<i64>,
@@ -129,4 +149,5 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(get_questions);
     cfg.service(get_answers);
     cfg.service(answer);
+    cfg.service(get_questions_by_tag);
 }

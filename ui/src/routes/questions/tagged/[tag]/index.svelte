@@ -1,16 +1,13 @@
-<script context="module">
-    export function preload({ params }, { user }) {}
-</script>
-
 <script>
     import { goto } from "$app/navigation";
-    import { session } from "$app/stores";
+    import { session, page } from "$app/stores";
     import * as api from "$lib/api.js";
     import InfiniteLoading from "svelte-infinite-loading";
 
     let questions = [];
     let data = [];
     let noMore = "";
+    let tag = $page.params.tag;
 
     async function infiniteHandler({ detail: { loaded, complete } }) {
         let updated_at = "";
@@ -18,7 +15,7 @@
             updated_at = questions[questions.length - 1].updated_at;
         }
         let response = await api.post(
-            `questions/`,
+            `questions/tagged/${tag}`,
             { updated_at }
         );
         if (response.data.questions) {

@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 14.3
--- Dumped by pg_dump version 14.3
+-- Dumped from database version 14.3 (Ubuntu 14.3-0ubuntu0.22.04.1)
+-- Dumped by pg_dump version 14.3 (Ubuntu 14.3-0ubuntu0.22.04.1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -155,12 +155,12 @@ CREATE TABLE public.users (
     location character varying(128),
     name character varying(128),
     karma bigint DEFAULT 1,
-    email_verified boolean DEFAULT false,
     title character varying(64),
     designation character varying(64),
     website character varying(256),
     git character varying(256),
-    twitter character varying(256)
+    twitter character varying(256),
+    email_verified boolean DEFAULT false
 );
 
 
@@ -261,6 +261,48 @@ ALTER TABLE ONLY public.users
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: post_tags_post_id_idx; Type: INDEX; Schema: public; Owner: shiv
+--
+
+CREATE INDEX post_tags_post_id_idx ON public.post_tags USING btree (post_id);
+
+
+--
+-- Name: post_tags_tag_id_idx; Type: INDEX; Schema: public; Owner: shiv
+--
+
+CREATE INDEX post_tags_tag_id_idx ON public.post_tags USING btree (tag_id);
+
+
+--
+-- Name: posts_op_id_idx; Type: INDEX; Schema: public; Owner: shiv
+--
+
+CREATE INDEX posts_op_id_idx ON public.posts USING btree (op_id);
+
+
+--
+-- Name: posts_updated_at_idx; Type: INDEX; Schema: public; Owner: shiv
+--
+
+CREATE INDEX posts_updated_at_idx ON public.posts USING btree (updated_at);
+
+
+--
+-- Name: tags_post_count_idx; Type: INDEX; Schema: public; Owner: shiv
+--
+
+CREATE INDEX tags_post_count_idx ON public.tags USING btree (post_count);
+
+
+--
+-- Name: users_karma_idx; Type: INDEX; Schema: public; Owner: shiv
+--
+
+CREATE INDEX users_karma_idx ON public.users USING btree (karma);
 
 
 --

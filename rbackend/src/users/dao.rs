@@ -12,6 +12,8 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn update_name(&self, uid: i64, name: &String) -> sqlx::Result<bool>;
     async fn update_designation(&self, uid: i64, designation: &String) -> sqlx::Result<bool>;
     async fn update_location(&self, uid: i64, location: &String) -> sqlx::Result<bool>;
+    async fn get_links(&self, uid: i64) -> sqlx::Result<LinksResponse>;
+    async fn update_links(&self, uid: i64, form: &LinksResponse) -> sqlx::Result<bool>;
     async fn verify_email(&self, who: &str) -> sqlx::Result<bool>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
@@ -113,39 +115,39 @@ impl IUser for &AppStateRaw {
 
         let name = match qr.name {
             Some(s) => s,
-            None => "".to_owned()
+            None => "".to_owned(),
         };
         let title = match qr.title {
             Some(s) => s,
-            None => "".to_owned()
+            None => "".to_owned(),
         };
         let designation = match qr.designation {
             Some(s) => s,
-            None => "".to_owned()
+            None => "".to_owned(),
         };
         let location = match qr.location {
             Some(s) => s,
-            None => "".to_owned()
+            None => "".to_owned(),
         };
         let image_url = match qr.image_url {
             Some(s) => s,
-            None => "".to_owned()
+            None => "".to_owned(),
         };
         let git = match qr.git {
             Some(s) => s,
-            None => "".to_owned()
+            None => "".to_owned(),
         };
         let website = match qr.website {
             Some(s) => s,
-            None => "".to_owned()
+            None => "".to_owned(),
         };
         let twitter = match qr.twitter {
             Some(s) => s,
-            None => "".to_owned()
+            None => "".to_owned(),
         };
         let karma = match qr.karma {
             Some(s) => s.to_string(),
-            None => 1.to_string()
+            None => 1.to_string(),
         };
         let p = ProfileResponse {
             username: qr.username,
@@ -174,7 +176,7 @@ impl IUser for &AppStateRaw {
 
         let id = match r {
             Ok(u) => u.id,
-            Err(_e) => 0
+            Err(_e) => 0,
         };
 
         if id != 0 {
@@ -185,7 +187,8 @@ impl IUser for &AppStateRaw {
             r#"
             update users set username=$1 where id=$2
             "#,
-            username, uid
+            username,
+            uid
         )
         .execute(&self.sql)
         .await?;
@@ -211,7 +214,8 @@ impl IUser for &AppStateRaw {
             r#"
             update users set title=$1 where id=$2
             "#,
-            title, uid
+            title,
+            uid
         )
         .execute(&self.sql)
         .await?;
@@ -224,7 +228,8 @@ impl IUser for &AppStateRaw {
             r#"
             update users set name=$1 where id=$2
             "#,
-            name, uid
+            name,
+            uid
         )
         .execute(&self.sql)
         .await?;
@@ -237,7 +242,8 @@ impl IUser for &AppStateRaw {
             r#"
             update users set designation=$1 where id=$2
             "#,
-            designation, uid
+            designation,
+            uid
         )
         .execute(&self.sql)
         .await?;
@@ -250,7 +256,53 @@ impl IUser for &AppStateRaw {
             r#"
             update users set location=$1 where id=$2
             "#,
-            location, uid
+            location,
+            uid
+        )
+        .execute(&self.sql)
+        .await?;
+
+        Ok(true)
+    }
+
+    async fn get_links(&self, uid: i64) -> sqlx::Result<LinksResponse> {
+        let r = sqlx::query!(
+            r#"
+            select website, git, twitter from users where id=$1
+            "#,
+            uid
+        )
+        .fetch_one(&self.sql)
+        .await?;
+
+        let website = match r.website {
+            Some(s) => s,
+            None => "".to_owned(),
+        };
+        let git = match r.git {
+            Some(s) => s,
+            None => "".to_owned(),
+        };
+        let twitter = match r.twitter {
+            Some(s) => s,
+            None => "".to_owned(),
+        };
+
+        let lr = LinksResponse {
+            website,
+            git,
+            twitter,
+        };
+
+        Ok(lr)
+    }
+
+    async fn update_links(&self, uid: i64, form: &LinksResponse) -> sqlx::Result<bool> {
+        sqlx::query!(
+            r#"
+            update users set website=$1, git=$2, twitter=$3 where id=$4
+            "#,
+            form.website, form.git, form.twitter, uid
         )
         .execute(&self.sql)
         .await?;

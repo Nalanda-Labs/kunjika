@@ -197,7 +197,7 @@
 
 <div class="row" style="margin-top:10px">
     {#if $session.user && $session.user.username == username}
-        <a class="btn" href="/edit-links" style="float: right;"
+        <a class="btn" href="/edit-links/{$session.user.id}/{username}" style="float: right;"
             >Edit Links</a
         >
     {/if}

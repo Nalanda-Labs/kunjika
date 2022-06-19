@@ -146,3 +146,10 @@ pub struct ProfileResponse {
     pub twitter: String,
     pub karma: String,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LinksResponse {
+    pub website: String,
+    pub git: String,
+    pub twitter: String
+}

@@ -342,6 +342,50 @@ async fn update_location(
     }
 }
 
+#[get("/edit-links/{uid}")]
+async fn get_links(
+    params: web::Path<String>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let uid = params.parse::<i64>().unwrap();
+    let user = verify_profile_user(uid, &auth).await;
+    if user {
+        match state.get_ref().get_links(uid).await {
+            Ok(r) => ApiResult::new().code(200).with_msg("").with_data(r),
+            Err(e) => {
+                debug!("{:?}", e.to_string());
+                ApiResult::new().code(500).with_msg(e.to_string())
+            }
+        }
+    } else {
+        ApiResult::new().code(401)
+    }
+}
+
+#[post("/edit-links/{uid}")]
+async fn update_links(
+    params: web::Path<String>,
+    form: web::Json<LinksResponse>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let uid = params.parse::<i64>().unwrap();
+    let data = form.into_inner();
+    let user = verify_profile_user(uid, &auth).await;
+    if user {
+        match state.get_ref().update_links(uid, &data).await {
+            Ok(r) => ApiResult::new().code(200).with_msg("").with_data(r),
+            Err(e) => {
+                debug!("{:?}", e.to_string());
+                ApiResult::new().code(500).with_msg(e.to_string())
+            }
+        }
+    } else {
+        ApiResult::new().code(401)
+    }
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(login);
     cfg.service(register);
@@ -354,4 +398,6 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(update_name);
     cfg.service(update_designation);
     cfg.service(update_location);
+    cfg.service(get_links);
+    cfg.service(update_links);
 }

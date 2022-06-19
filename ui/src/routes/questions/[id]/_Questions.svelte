@@ -244,7 +244,7 @@
               >report</span
             >Report</a
           >
-          <a
+          <!-- <a
             href="/share/{id}"
             class="anchor"
             title="Share a link to this post"
@@ -252,7 +252,7 @@
             ><span class="material-icons" style="vertical-align:bottom"
               >share</span
             >Share</a
-          >
+          -->
           <a
             href="/bookmark/{id}"
             class="anchor"
@@ -367,7 +367,7 @@
                 >reply</span
               >Reply</a
             >
-            <a
+            <!-- <a
               href="/share/{question_id}"
               class="anchor"
               title="Share a link to this post"
@@ -375,7 +375,7 @@
               ><span class="material-icons" style="vertical-align:bottom"
                 >share</span
               >Share</a
-            >
+            > -->
             <a
               href="/bookmark/{question_id}"
               class="anchor"

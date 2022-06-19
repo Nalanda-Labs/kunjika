@@ -37,9 +37,11 @@
                 $session.user.xsrf_token
             );
 
-            if (response.data.id && response.data.slug) {
+            if (response.code === 200 && response.data.id && response.data.slug) {
                 id = response.data.id;
                 await goto(`/questions/${id}`);
+            } else if(response.code === 400) {
+                M.toast({html: response.msg});
             }
         } else {
             M.toast({ html: "You are not logged in." });

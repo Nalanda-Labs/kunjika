@@ -40,6 +40,20 @@ impl IQuestion for &AppStateRaw {
     async fn insert_question(&self, q: &DbQuestion) -> sqlx::Result<u64> {
         let mut tx = self.sql.begin().await?;
 
+        let tag_ids = sqlx::query!(
+            r#"SELECT id
+            FROM tags
+            where name = ANY($1);"#,
+            &q.tag_list[..]
+        )
+        .fetch_all(&mut tx)
+        .await?;
+
+        if tag_ids.len() != q.tag_list.len() {
+            let _ = &tx.rollback().await?;
+            return Ok(0);
+        }
+
         sqlx::query!(
             r#"
             UPDATE tags set post_count=post_count + 1 where name = ANY($1)
@@ -61,15 +75,6 @@ impl IQuestion for &AppStateRaw {
             q.updated_by_id
         )
         .fetch_one(&mut tx)
-        .await?;
-
-        let tag_ids = sqlx::query!(
-            r#"SELECT id
-            FROM tags
-            where name = ANY($1);"#,
-            &q.tag_list[..]
-        )
-        .fetch_all(&mut tx)
         .await?;
 
         for t in tag_ids {

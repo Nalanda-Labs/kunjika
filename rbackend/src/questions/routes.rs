@@ -33,6 +33,9 @@ async fn insert_question(
     };
 
     match state.get_ref().insert_question(&q).await {
+        Ok(0) => {
+            ApiResult::new().code(400).with_msg("All tags were not found")
+        }
         Ok(t) => {
             debug!("insert question {:?} ", t);
             let res = AskResponse {

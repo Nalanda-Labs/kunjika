@@ -104,7 +104,7 @@
 </script>
 
 <svelte:head>
-    <title>All questions ❤ Arth</title>
+    <title>All questions ❤ Kunjika</title>
 </svelte:head>
 <div class="topic container">
     <h3>

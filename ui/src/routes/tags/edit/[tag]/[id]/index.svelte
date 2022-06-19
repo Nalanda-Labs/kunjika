@@ -18,7 +18,7 @@
 </script>
 
 <svelte:head>
-    <title>Edit Tag • Arth</title>
+    <title>Edit Tag ❤ Kunjika</title>
 </svelte:head>
 
 <Editor {info} {tag} {id} />

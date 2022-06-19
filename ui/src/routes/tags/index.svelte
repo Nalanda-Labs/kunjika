@@ -30,7 +30,7 @@
 </script>
 
 <svelte:head>
-	<title>Tags • Arth</title>
+	<title>Tags ❤ Kunjika</title>
 </svelte:head>
 
 <div class="tags">

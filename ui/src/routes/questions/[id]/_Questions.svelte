@@ -120,8 +120,6 @@
         }
     }
     async function vote(vote, elementID) {
-        M.toast({html: 'Not implemented yet!'});
-        return;
         if (!$session.user) {
             M.toast({ html: "You need to be logged in before voting." });
             return;
@@ -130,13 +128,13 @@
         data.vote = vote;
         data.id = elementID;
         const response = await api.post(
-            "votes/",
-            { data },
+            "votes",
+            { vote, id },
             $session.user.xsrf_token
         );
 
-        if (response.data.code != 200) {
-            M.toast({ html: response.data.msg });
+        if (response.code != 200) {
+            M.toast({ html: response.msg });
         } else {
             if (elementID == id) {
                 votes = vote + parseInt(votes);

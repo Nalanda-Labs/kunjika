@@ -29,7 +29,7 @@
 </script>
 
 <svelte:head>
-	<title>Users • Arth</title>
+	<title>Users ❤ Kunjika</title>
 </svelte:head>
 
 <div class="users">

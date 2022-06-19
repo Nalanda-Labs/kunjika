@@ -14,6 +14,7 @@
 <script>
     import { post } from "$lib/api.js";
     import ListErrors from "$lib/ListErrors.svelte";
+    import Pagination from "$lib/Pagination.svelte";
 
     let username = "";
     let email = "";
@@ -38,12 +39,17 @@
         }
     }
     async function submit() {
-        if(username.length < 3) {
-            M.toast({html: "Username must be at least 3 character."});
+        if (username.length < 3) {
+            M.toast({ html: "Username must be at least 3 character." });
             return;
         }
-        if (password !== confirm_password && (password.length < 16 || confirm_password.length)) {
-            M.toast({html: "Passphrases must be at least 16 characters and be same."});
+        if (
+            password !== confirm_password &&
+            (password.length < 16 || confirm_password.length)
+        ) {
+            M.toast({
+                html: "Passphrases must be at least 16 characters and be same.",
+            });
             return;
         }
         const response = await post(`register`, {
@@ -53,11 +59,13 @@
             confirm_password,
         });
 
-        errors = response.errors;
-
-        if (response.data) {
+        if (response.code === 200) {
             M.toast({
                 html: "You have been sent a confirmation email. Please verify!",
+            });
+        } else {
+            M.toast({
+                html: response.msg,
             });
         }
     }

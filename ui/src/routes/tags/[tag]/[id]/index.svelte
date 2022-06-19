@@ -27,7 +27,7 @@
 </script>
 
 <svelte:head>
-    <title>Info for tag {tag}</title>
+    <title>Info for tag {tag} ❤ Kunjika</title>
 </svelte:head>
 <div class="topic" id="container">
     <h3>{tag} Info</h3>

@@ -21,6 +21,7 @@ pub mod state;
 pub mod users;
 pub mod tags;
 pub mod questions;
+pub mod votes;
 pub mod utils;
 
 use config::{Config, Opts};
@@ -42,6 +43,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::default())
             .service(web::scope(&apiv1).configure(users::routes::init)
             .service(web::scope(&apiv1)).configure(tags::routes::init)
+            .service(web::scope(&apiv1)).configure(votes::routes::init)
             .service(web::scope(&apiv1)).configure(questions::routes::init))
     }).workers(num_cpus::get())
     .keep_alive(std::time::Duration::from_secs(300))

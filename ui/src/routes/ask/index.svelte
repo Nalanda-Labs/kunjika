@@ -13,7 +13,7 @@
 </script>
 
 <svelte:head>
-    <title>Create Topic ❤ Arth</title>
+    <title>Create Topic ❤ Kunjika</title>
 </svelte:head>
 
 <Editor {question}/>

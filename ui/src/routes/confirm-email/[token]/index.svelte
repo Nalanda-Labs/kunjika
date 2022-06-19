@@ -18,7 +18,7 @@
 </script>
 
 <svelte:head>
-    <title>Confirm Email ❤ Arth</title>
+    <title>Confirm Email ❤ Kunjika</title>
 </svelte:head>
 
 <main>

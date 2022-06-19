@@ -31,6 +31,7 @@ pub struct User {
     pub pass: String,
     pub status: String,
     pub image_url: String,
+    pub email_verified: bool,
     pub create_dt: SqlDateTime,
     pub update_dt: SqlDateTime,
 }

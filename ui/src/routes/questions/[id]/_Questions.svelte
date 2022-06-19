@@ -1,4 +1,5 @@
 <script>
+  import {goto} from "$app/navigation";
   import { onMount } from "svelte";
   import * as api from "$lib/api.js";
   import "bytemd/dist/index.min.css";
@@ -33,7 +34,7 @@
 
     let response = await api.get(`questions/${id}/${slug}`);
 
-    if (response.data) {
+    if (response.code === 200 && response.data) {
       title = response.data.title;
       value = response.data.description;
       taglist = response.data.tags.map((tag) => tag);
@@ -66,6 +67,8 @@
       } else {
         shown_ts = "asked " + shown_ts + "s ago";
       }
+    } else {
+      goto("/404");
     }
     response = await api.get(
       `question/get-answers/${id}/?time=${time}&limit=${limit}`,

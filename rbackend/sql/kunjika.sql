@@ -155,6 +155,7 @@ CREATE TABLE public.users (
     location character varying(128),
     name character varying(128),
     karma bigint DEFAULT 1,
+    email_verified boolean DEFAULT false,
     title character varying(64),
     designation character varying(64),
     website character varying(256),

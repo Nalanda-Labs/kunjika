@@ -105,6 +105,10 @@ async fn login(form: web::Json<Login>, state: AppState) -> impl Responder {
         Ok(user) => {
             info!("find user {:?} ok: {:?}", form, user);
 
+            if user.email_verified == false {
+                return HttpResponse::Unauthorized().finish();
+            }
+
             if form.verify(&user.pass) {
                 let exp: DateTime<Utc> = Utc::now()
                     + if form.rememberme {
@@ -189,7 +193,7 @@ async fn confirm_email(form: web::Path<String>, state: AppState) -> impl Respond
             .with_msg("Bad request")
             .with_data("".to_string())
     } else {
-        match state.get_ref().user_query(&email).await {
+        match state.get_ref().verify_email(&email).await {
             Ok(_user) => {
                 debug!("User found, username unavailable");
                 ApiResult::new().code(200).with_msg("Email verified")

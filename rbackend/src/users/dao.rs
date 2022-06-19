@@ -8,11 +8,12 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn get_users(&self, form: &UsersReq) -> sqlx::Result<UserResponse>;
     async fn get_profile(&self, uid: &i64) -> sqlx::Result<ProfileResponse>;
     async fn update_username(&self, uid: i64, username: &String) -> sqlx::Result<bool>;
+    async fn verify_email(&self, who: &str) -> sqlx::Result<bool>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 
         let sql = format!(
-            "SELECT id, username, email, pass, status, image_url, create_dt, update_dt
+            "SELECT id, username, email, pass, status, email_verified, image_url, create_dt, update_dt
             FROM users
             where {} = {};",
             column, placeholder
@@ -181,6 +182,19 @@ impl IUser for &AppStateRaw {
             update users set username=$1 where id=$2
             "#,
             username, uid
+        )
+        .execute(&self.sql)
+        .await?;
+
+        Ok(true)
+    }
+
+    async fn verify_email(&self, email: &str) -> sqlx::Result<bool> {
+        sqlx::query!(
+            r#"
+            update users set email_verified=true where email=$1
+            "#,
+            email
         )
         .execute(&self.sql)
         .await?;

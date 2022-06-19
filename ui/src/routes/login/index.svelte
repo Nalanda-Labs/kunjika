@@ -12,8 +12,6 @@
 </script>
 
 <script>
-    import { session } from "$app/stores";
-    import { goto } from "$app/navigation";
     import * as api from "$lib/api.js";
     import ListErrors from "$lib/ListErrors.svelte";
 
@@ -27,7 +25,7 @@
         if (response.success) {
             window.location.replace('/questions');
         } else {
-            M.toast({html: 'Email or password not correct!'});
+            M.toast({html: 'Email or password not correct or you have not verified your email!'});
         }
     }
 </script>

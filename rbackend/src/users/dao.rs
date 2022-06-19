@@ -8,6 +8,10 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn get_users(&self, form: &UsersReq) -> sqlx::Result<UserResponse>;
     async fn get_profile(&self, uid: &i64) -> sqlx::Result<ProfileResponse>;
     async fn update_username(&self, uid: i64, username: &String) -> sqlx::Result<bool>;
+    async fn update_title(&self, uid: i64, title: &String) -> sqlx::Result<bool>;
+    async fn update_name(&self, uid: i64, name: &String) -> sqlx::Result<bool>;
+    async fn update_designation(&self, uid: i64, designation: &String) -> sqlx::Result<bool>;
+    async fn update_location(&self, uid: i64, location: &String) -> sqlx::Result<bool>;
     async fn verify_email(&self, who: &str) -> sqlx::Result<bool>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
@@ -195,6 +199,58 @@ impl IUser for &AppStateRaw {
             update users set email_verified=true where email=$1
             "#,
             email
+        )
+        .execute(&self.sql)
+        .await?;
+
+        Ok(true)
+    }
+
+    async fn update_title(&self, uid: i64, title: &String) -> sqlx::Result<bool> {
+        sqlx::query!(
+            r#"
+            update users set title=$1 where id=$2
+            "#,
+            title, uid
+        )
+        .execute(&self.sql)
+        .await?;
+
+        Ok(true)
+    }
+
+    async fn update_name(&self, uid: i64, name: &String) -> sqlx::Result<bool> {
+        sqlx::query!(
+            r#"
+            update users set name=$1 where id=$2
+            "#,
+            name, uid
+        )
+        .execute(&self.sql)
+        .await?;
+
+        Ok(true)
+    }
+
+    async fn update_designation(&self, uid: i64, designation: &String) -> sqlx::Result<bool> {
+        sqlx::query!(
+            r#"
+            update users set designation=$1 where id=$2
+            "#,
+            designation, uid
+        )
+        .execute(&self.sql)
+        .await?;
+
+        Ok(true)
+    }
+
+    async fn update_location(&self, uid: i64, location: &String) -> sqlx::Result<bool> {
+        sqlx::query!(
+            r#"
+            update users set location=$1 where id=$2
+            "#,
+            location, uid
         )
         .execute(&self.sql)
         .await?;

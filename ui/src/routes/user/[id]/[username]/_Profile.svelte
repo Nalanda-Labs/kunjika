@@ -114,7 +114,7 @@
                     let title1 = title_elem.innerHTML;
 
                     response = await api.get(
-                        `profile/${id}/title/${title1}/`,
+                        `profile/${id}/title/${title1}`,
                         $session.user.xsrf_token
                     );
                     if (response.code !== 200) {
@@ -136,7 +136,7 @@
                     let name1 = name_elem.innerHTML;
 
                     response = await api.get(
-                        `profile/${id}/name/${name1}/`,
+                        `profile/${id}/name/${name1}`,
                         $session.user.xsrf_token
                     );
                     if (response.code !== 200) {
@@ -158,7 +158,7 @@
                     let d1 = d_elem.innerHTML;
 
                     response = await api.get(
-                        `profile/${id}/designation/${d1}/`,
+                        `profile/${id}/designation/${d1}`,
                         $session.user.xsrf_token
                     );
                     if (response.code !== 200) {
@@ -180,7 +180,7 @@
                     let location1 = location_elem.innerHTML;
 
                     response = await api.get(
-                        `profile/${id}/location/${location1}/`,
+                        `profile/${id}/location/${location1}`,
                         $session.user.xsrf_token
                     );
                     if (response.code !== 200) {
@@ -197,8 +197,8 @@
 
 <div class="row" style="margin-top:10px">
     {#if $session.user && $session.user.username == username}
-        <a class="btn" href="/edit-profile" style="float: right;"
-            >Edit Profile</a
+        <a class="btn" href="/edit-links" style="float: right;"
+            >Edit Links</a
         >
     {/if}
     <div class="col-12 col-sm-12 col-md-2" style="float:left;margin-right:10px">

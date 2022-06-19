@@ -254,6 +254,94 @@ async fn update_username(
     }
 }
 
+#[get("/profile/{id}/title/{title}")]
+async fn update_title(
+    params: web::Path<(String, String)>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let uid = params.0.parse::<i64>().unwrap();
+    let title = params.1.parse().unwrap();
+    let user = verify_profile_user(uid, &auth).await;
+    if user {
+        match state.get_ref().update_title(uid, &title).await {
+            Ok(success) => ApiResult::new().code(200).with_msg("").with_data(success),
+            Err(e) => {
+                debug!("{:?}", e.to_string());
+                ApiResult::new().code(500).with_msg(e.to_string())
+            }
+        }
+    } else {
+        ApiResult::new().code(401)
+    }
+}
+
+#[get("/profile/{id}/name/{name}")]
+async fn update_name(
+    params: web::Path<(String, String)>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let uid = params.0.parse::<i64>().unwrap();
+    let name = params.1.parse().unwrap();
+    let user = verify_profile_user(uid, &auth).await;
+    if user {
+        match state.get_ref().update_name(uid, &name).await {
+            Ok(success) => ApiResult::new().code(200).with_msg("").with_data(success),
+            Err(e) => {
+                debug!("{:?}", e.to_string());
+                ApiResult::new().code(500).with_msg(e.to_string())
+            }
+        }
+    } else {
+        ApiResult::new().code(401)
+    }
+}
+
+#[get("/profile/{id}/designation/{designation}")]
+async fn update_designation(
+    params: web::Path<(String, String)>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let uid = params.0.parse::<i64>().unwrap();
+    let designation = params.1.parse().unwrap();
+    let user = verify_profile_user(uid, &auth).await;
+    if user {
+        match state.get_ref().update_designation(uid, &designation).await {
+            Ok(success) => ApiResult::new().code(200).with_msg("").with_data(success),
+            Err(e) => {
+                debug!("{:?}", e.to_string());
+                ApiResult::new().code(500).with_msg(e.to_string())
+            }
+        }
+    } else {
+        ApiResult::new().code(401)
+    }
+}
+
+#[get("/profile/{id}/location/{location}")]
+async fn update_location(
+    params: web::Path<(String, String)>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let uid = params.0.parse::<i64>().unwrap();
+    let location = params.1.parse().unwrap();
+    let user = verify_profile_user(uid, &auth).await;
+    if user {
+        match state.get_ref().update_location(uid, &location).await {
+            Ok(success) => ApiResult::new().code(200).with_msg("").with_data(success),
+            Err(e) => {
+                debug!("{:?}", e.to_string());
+                ApiResult::new().code(500).with_msg(e.to_string())
+            }
+        }
+    } else {
+        ApiResult::new().code(401)
+    }
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(login);
     cfg.service(register);
@@ -262,4 +350,8 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(get_users);
     cfg.service(get_profile);
     cfg.service(update_username);
+    cfg.service(update_title);
+    cfg.service(update_name);
+    cfg.service(update_designation);
+    cfg.service(update_location);
 }

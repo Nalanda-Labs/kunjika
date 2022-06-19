@@ -107,16 +107,17 @@
                         >edit</span
                     > Edit</a
                 >
-                <a
+                <!-- <a
                     href="/report/{id}"
                     class="anchor danger"
                     title="Report abusive or inappropriate content"
                     style="margin-right:5px"
+                    on:click="{notImplemented}"
                     ><span class="material-icons" style="vertical-align:bottom"
                         >report</span
                     >Report</a
-                >
-                <a
+                > -->
+                <!-- <a
                     href="/share/{id}"
                     class="anchor"
                     title="Share a link to this post"
@@ -124,16 +125,17 @@
                     ><span class="material-icons" style="vertical-align:bottom"
                         >share</span
                     >Share</a
-                >
-                <a
+                > -->
+                <!-- <a
                     href="/bookmark/{id}"
                     class="anchor"
                     title="Bookmark this post"
                     style="margin-right:5px"
+                    on:click="{notImplemented}"
                     ><span class="material-icons" style="vertical-align:bottom"
                         >bookmark</span
                     >Bookmark</a
-                >
+                > -->
                 <a
                     href="/reply"
                     on:click|preventDefault={show_editor(

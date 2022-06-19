@@ -3,7 +3,7 @@ import { parseJwt } from '$lib/utils';
 
 export async function handle({ event, resolve }) {
 	const cookies = cookie.parse(event.request.headers.get('cookie') || '');
-	jwt_decoded = parseJwt(cookies.jwt);
+	const jwt_decoded = parseJwt(cookies.jwt);
 
 	if (jwt_decoded !== '') {
 		event.locals.email = jwt_decoded.email;

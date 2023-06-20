@@ -1,0 +1,19 @@
+user www-data;
+events {
+  worker_connections 768;
+}
+http {
+  gzip on;
+  server {
+    name ${NAME};
+    listen ${PORT};
+    location /api/v1/ {
+      proxy_pass http://backend:8000/api/v1/;
+    }
+
+    location /{
+      proxy_pass http://frontend:3000/;
+    }
+
+  }
+}

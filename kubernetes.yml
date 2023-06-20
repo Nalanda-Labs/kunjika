@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kunjika-deployment
+  labels:
+    app: kunjika
+spec:
+  template:
+    metadata:
+      labels:
+        app: kunjika
+    spec:
+      containers:
+        - name: backend
+          image: kunjika-backend:nightly
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              value: postgres://postgres:devadmin@postgres.default.svc.cluster.local
+            - name: REDIS_URL
+              value: ""
+            - name: HOST
+              value: "localhost"
+            - name: PORT
+              value: "8000"
+            - name: JWT_SECRET
+              value: "0xa06f853898a9dd4f32441a56879c52878f96c42730ed31c50e00 or some hex string"
+            - name: SMTP_HOST
+              value: ""
+            - name: SMTP_PORT
+              value: "587"
+            - name: SMTP_USER
+              value: ""
+            - name: SMTP_PASSWD
+              value: ""
+            - name: SMTP_SENDER_MAIL
+              value: ""
+            - name: SMPT_SENDER_NAME
+              value: ""
+            - name: MAIL_VERIFICATION_TIMEOUT
+              value: "86400"
+            - name: HOST_NAME
+              value: "localhost:8080"
+            - name: SECRET_KEY
+              value: "some super secret key"
+            - name: QUESTION_PER_PAGE
+              value: "30"
+            - name: USER_PER_PAGE
+              value: "18"
+            - name: TAGS_PER_PAG
+              value: "18"
+        - name: frontend
+          image: kunjika-frontend:nightly
+          ports:
+            - containerPort: 3000
+  selector:
+    matchLabels:
+      app: kunjika
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kunjika-backend-service
+spec:
+  selector:
+    app: kunjika
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+      name: backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kunjika-frontend-service
+spec:
+  selector:
+    app: kunjika
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+      name: backend
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-nginx-custom
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: '*.mydomain.com'
+      http:
+        paths:
+          - path: /
+            backend:
+              service:
+                name: kunjika-frontend-service
+                port:
+                  number: 3000
+            pathType: Prefix
+          - path: /api/v1
+            backend:
+              service:
+                name: kunjika-backend-service
+                port:
+                  number: 8000
+            pathType: Prefix

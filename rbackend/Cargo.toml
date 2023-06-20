@@ -52,3 +52,5 @@ url = "2.2.2"
 itsdangerous = "0.4.1"
 md5 = "0.7.0"
 num_cpus = "1.13.1"
+# Needed for Postgres.
+openssl = "*"

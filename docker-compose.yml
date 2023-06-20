@@ -1,0 +1,25 @@
+version: "3"
+services:
+  proxy:
+    image: nginx
+    volumes:
+      - docker/nginx/nginx.conf.template:/etc/nginx/nginx.conf.template
+    ports:
+      - "8080:8080"
+    env_file: proxy.env
+    command: /bin/bash -c "envsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
+  backend:
+    image: kunjika-backend:nightly
+    build:
+      dockerfile: docker/backend/Dockerfile
+      context: .
+    env_file: backend.env
+  frontend:
+    image: kunjika-frontend:nightly
+    build:
+      dockerfile: docker/frontend/Dockerfile
+      context: .
+    env_file: frontend.env
+  database:
+    image: postgres:15.3-alpine3.17
+    env_file: postgres.env

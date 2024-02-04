@@ -2,53 +2,56 @@
 name = "kunjika"
 version = "0.0.1"
 authors = ["Shiv Shankar Dayal <shivshankar.dayal@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 # https://docs.rs/vergen/4.1.0/vergen/
 [build-dependencies]
-vergen = { version = "7.2.1", features = [ "git" ] }
+vergen = { version = "9.0.0-beta.1"}
 
 [features]
 default = [ "postgres" ]
 postgres = [ "sqlx/postgres"]
 
 [dependencies.sqlx]
-version = "0.5.13"
+version = "0.7.3"
 default-features = false
-features = [ "runtime-actix-rustls", "macros", "chrono", "decimal", "uuid", "json", "time" ]
+features = ["macros", "chrono", "uuid", "json", "time", "runtime-tokio" ]
 # git = "https://github.com/launchbadge/sqlx"
 # path = "../sqlx"
 
 [dependencies]
-clap =  { version = "3.2.4", features = [ "derive" ] }
-lettre = { version = "0.10.0-rc.7", features = ["tokio1-native-tls", "hostname", "builder"] }
-tokio = { version = "1.19.2", features = ["full"] } # copy from actix-rt
-nonblock-logger = { version = "0.1.6", default-features = false, features = ["color", "dbg"] }
-uuid = { version = "1.1.2", features = ["serde", "v4"] }
-chrono =  { version = "0.4.19", features = ["serde"] }
-rust_decimal = { version = "1.25.0", features = [ "serde-float" ] }
-validator = { version = "0.15.0", features = ["derive"] }
-serde = { version = "1.0.137", features = ["derive"] }
-serde_qs = "0.9.2"
-serde_json = "1.0.81"
+ntex = { version = "1.0", features = ["tokio", "cookie", "compress"]}
+ntex-cors = { version = "0.5.0" }
+clap =  { version = "4.4.18", features = [ "derive" ] }
+lettre = { version = "0.11.3", features = ["tokio1-native-tls", "hostname", "builder"] }
+nonblock-logger = { version = "0.2.2", default-features = false, features = ["color", "dbg"] }
+uuid = { version = "1.6.1", features = ["serde", "v4"] }
+chrono =  { version = "0.4.31", features = ["serde"] }
+rust_decimal = { version = "1.33.1", features = [ "serde-float" ] }
+validator = { version = "0.16.1", features = ["derive"] }
+serde = { version = "1.0.195", features = ["derive"] }
+serde_qs = "0.12"
+serde_json = "1.0.111"	
 json5 = "0.4.1"
-ring = "0.16.20"
-rust-argon2 = "1.0.0"
+rust-argon2 = "2.1.0"
+ring = "0.17.7"
+rand = "0.8.5"
 hex = "0.4.3"
-jsonwebtoken = "8.1.0"
-mobc-redis = "0.7.0"
-mobc = "0.7.3"
-actix-web = "4.1.0"
-actix-files = "0.6.1"
-actix-rt = "2.7.0"
+jsonwebtoken = "8.3.0"
 lazy_static = "1.4.0"
-async-trait = "0.1.56"
-futures = "0.3.21"
-thiserror = "1.0.31"
-anyhow = "1.0.57"
-url = "2.2.2"
+futures = "0.3.28"
+thiserror = "1.0.44"
+anyhow = "1.0.72"
+url = "2.4.0"
 itsdangerous = "0.4.1"
+num_cpus = "1.16.0"
+cargo-watch = "8.4.0"
+cookie = "0.17.0"
+rust-analyzer = "0.0.1"
+async-trait = "0.1.73"
+mobc = "0.8.2"
+mobc-redis = "0.8.0"
+base64 = "0.21.3"
 md5 = "0.7.0"
-num_cpus = "1.13.1"

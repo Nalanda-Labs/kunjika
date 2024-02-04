@@ -21,7 +21,14 @@ pub struct Config {
     pub email_verification_expiry_time: u64,
     pub questions_per_page: i32,
     pub users_per_page: i32,
-    pub tags_per_page: i64
+    pub tags_per_page: i64,
+    pub access_token_private_key: String,
+    pub access_token_public_key: String,
+    pub access_token_max_age: i64,
+    pub refresh_token_private_key: String,
+    pub refresh_token_public_key: String,
+    pub refresh_token_max_age: i64,
+    pub results_per_page: u8,
 }
 
 impl Config {
@@ -70,14 +77,14 @@ impl Config {
 pub struct Opts {
     // The number of occurrences of the `v/verbose` flag
     /// Verbose mode (-v, -vv, -vvv, etc.)
-    #[clap(short, long, parse(from_occurrences))]
+    #[clap(short, long)]
     pub verbose: u8,
 
     /// Config file
     #[clap(
         short = 'c',
         long = "config",
-        parse(from_os_str),
+        // parse(from_os_str),
         default_value = "template.json"
     )]
     pub config: PathBuf,
@@ -143,9 +150,9 @@ pub fn format(base: &BaseFormater, record: &Record) -> String {
         chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f"),
         level,
         record.module_path().unwrap_or("*"),
-        // record.file().unwrap_or("*"),
+        record.file().unwrap_or("*"),
         record.line().unwrap_or(0),
-        nonblock_logger::current_thread_name(),
+        // nonblock_logger::current_thread_name(),
         record.args()
     )
 }

@@ -50,7 +50,7 @@ impl IUser for &AppStateRaw {
             "https://www.gravatar.com/avatar/".to_string() + &format!("{:x}", email_hash);
         sqlx::query!(
             r#"
-        INSERT INTO users (username, email, pass, image_url)
+        INSERT INTO users (username, email, password_hash, image_url)
         VALUES ($1 ,$2 ,$3, $4)
                 "#,
             form.username,
@@ -85,10 +85,7 @@ impl IUser for &AppStateRaw {
                 Some(n) => n,
                 None => "".to_owned(),
             };
-            let image_url = match q.image_url {
-                Some(n) => n,
-                None => "".to_owned(),
-            };
+            let image_url = q.image_url;
             let ur: UR = UR {
                 id: q.id.to_string(),
                 username: q.username,
@@ -129,10 +126,7 @@ impl IUser for &AppStateRaw {
             Some(s) => s,
             None => "".to_owned(),
         };
-        let image_url = match qr.image_url {
-            Some(s) => s,
-            None => "".to_owned(),
-        };
+        let image_url = qr.image_url;
         let git = match qr.git {
             Some(s) => s,
             None => "".to_owned(),

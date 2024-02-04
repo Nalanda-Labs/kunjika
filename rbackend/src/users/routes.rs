@@ -1,30 +1,31 @@
 use super::dao::IUser;
 use super::user::*;
-use crate::api::ApiResult;
 use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
 use crate::utils::security::{check_signature, sign};
 use crate::utils::verify_user::verify_profile_user;
 
-use actix_web::{cookie::Cookie, get, post, web, Error, HttpResponse, Responder};
 use lettre::{
     transport::smtp::authentication::Credentials, AsyncSmtpTransport, AsyncTransport, Message,
     Tokio1Executor,
 };
+use ntex::web::{self, get, post, HttpResponse, Responder, Error};
+use cookie::Cookie;
+use serde_json::json;
 use uuid::Uuid;
 use validator::Validate;
 
 // curl -v --data '{"name": "Bob", "email": "Bob@google.com", "password": "Bobpass"}' -H "Content-Type: application/json" -X POST localhost:8080/user/register
 #[post("/register")]
-async fn register(form: web::Json<Register>, state: AppState) -> impl Responder {
+async fn register(form: web::types::Json<Register>, state: AppState) -> impl Responder {
     let form = form.into_inner();
 
     if let Err(e) = form.validate() {
         error!("regitser {:?} error: {:?}", form, e);
-        return ApiResult::new().code(400).with_msg(e.to_string());
+        return HttpResponse::BadRequest().json(&json!({"status": "fail", "message": e.to_string()}));
     }
     if !form.match_password() {
-        return ApiResult::new().code(400).with_msg("Passwords are bad!");
+        return HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": "Passwords are bad!"}));
     }
     match state.get_ref().user_add(&form).await {
         Ok(res) => {
@@ -70,19 +71,17 @@ Shiv",
             match mailer.send(email).await {
                 Ok(_r) => {
                     debug!("{:?}", _r);
-                    ApiResult::new().with_msg("ok").with_data(res)
+                    HttpResponse::Ok().json(&json!({"data": res}))
                 }
                 Err(_e) => {
                     debug!("{:?}", _e);
-                    ApiResult::new().code(502).with_msg("ok").with_data(0)
+                    HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": "Passwords are bad!"}))
                 }
             }
         }
         Err(e) => {
             error!("regitser {:?} error: {:?}", form, e);
-            ApiResult::new()
-                .code(409)
-                .with_msg("Either email or username is taken.")
+            HttpResponse::Conflict().json(&json!({"status": "fail", "message": "Either email or username is taken"}))
         }
     }
 }
@@ -94,7 +93,7 @@ pub struct LoginResponse {
 
 // curl -v --data '{"name": "Bob", "email": "Bob@google.com", "password": "Bobpass"}' -H "Content-Type: application/json" -X POST localhost:8080/user/login
 #[post("/login")]
-async fn login(form: web::Json<Login>, state: AppState) -> impl Responder {
+async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder {
     let form = form.into_inner();
 
     use chrono::{DateTime, Duration, Utc};
@@ -105,11 +104,11 @@ async fn login(form: web::Json<Login>, state: AppState) -> impl Responder {
         Ok(user) => {
             info!("find user {:?} ok: {:?}", form, user);
 
-            if user.email_verified == false {
+            if user.email_verified == Some(false) {
                 return HttpResponse::Unauthorized().finish();
             }
 
-            if form.verify(&user.pass) {
+            if form.verify(&user.password_hash) {
                 let exp: DateTime<Utc> = Utc::now()
                     + if form.rememberme {
                         Duration::days(30)
@@ -138,12 +137,12 @@ async fn login(form: web::Json<Login>, state: AppState) -> impl Responder {
                 let resp = match serde_json::to_string(&r) {
                     Ok(json) => HttpResponse::Ok()
                         .cookie(
-                            Cookie::build("jwt", token)
+                            Cookie::build("jwt", token.clone())
                                 .domain("localhost")
                                 .path("/")
                                 .secure(true)
                                 .http_only(true)
-                                .finish(),
+                                .finish().to_string()
                         )
                         .content_type("application/json")
                         .body(json),
@@ -162,79 +161,67 @@ async fn login(form: web::Json<Login>, state: AppState) -> impl Responder {
 }
 
 #[post("/check-username-availability")]
-async fn check_username_availability(form: web::Json<UserName>, state: AppState) -> impl Responder {
+async fn check_username_availability(form: web::types::Json<UserName>, state: AppState) -> impl Responder {
     match state.get_ref().user_query(&form.username).await {
         Ok(_user) => {
             debug!("User found, username unavailable");
             let res = AvailabilityResponse { success: false };
-            ApiResult::new()
-                .code(200)
-                .with_msg("username unavailable")
-                .with_data(res)
+            HttpResponse::Ok().json(&json!({"data": res, "message": "username available"}))
         }
         Err(e) => {
             debug!("{:?}", e.to_string());
-            let res = AvailabilityResponse { success: true };
-            ApiResult::new()
-                .code(200)
-                .with_msg("username available")
-                .with_data(res)
+            HttpResponse::Ok().json(&json!({"status": "fail", "message": "username unavailable"}))
         }
     }
 }
 
 #[get("/confirm-email/{token}")]
-async fn confirm_email(form: web::Path<String>, state: AppState) -> impl Responder {
+async fn confirm_email(form: web::types::Path<String>, state: AppState) -> impl Responder {
     let token = form.into_inner();
     let email = check_signature(&token, &state).await;
     if &email == "Signature was expired" {
-        ApiResult::new()
-            .code(400)
-            .with_msg("Bad request")
-            .with_data("".to_string())
+        HttpResponse::BadRequest().json(&json!({"status": "fail", "message": "Signature has expired!"}))
     } else {
         match state.get_ref().verify_email(&email).await {
             Ok(_user) => {
                 debug!("User found, username unavailable");
-                ApiResult::new().code(200).with_msg("Email verified")
+                HttpResponse::Ok().json(&json!({"message": "username available"}))
             }
             Err(e) => {
                 debug!("{:?}", e.to_string());
-                ApiResult::new()
-                    .code(400)
-                    .with_msg("Your email is not registered with us!")
+                HttpResponse::BadRequest().json(&json!({"status": "fail", "message": "Your email is not registered with us!"}))
             }
         }
     }
 }
 
 #[post("/users")]
-async fn get_users(form: web::Json<UsersReq>, state: AppState) -> impl Responder {
+async fn get_users(form: web::types::Json<UsersReq>, state: AppState) -> impl Responder {
     let last_user = form.into_inner();
     match state.get_ref().get_users(&last_user).await {
-        Ok(user_res) => ApiResult::new().code(200).with_msg("").with_data(user_res),
+        Ok(user_res) => HttpResponse::Ok().json(&json!({"message": "", "data": user_res})),
         Err(e) => {
             debug!("{:?}", e.to_string());
-            ApiResult::new().code(400).with_msg("Bad request!")
+            HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": e.to_string()}))
         }
     }
 }
 
 #[get("/user/{id}/{username}")]
-async fn get_profile(params: web::Path<(String, String)>, state: AppState) -> impl Responder {
+async fn get_profile(params: web::types::Path<(String, String)>, state: AppState) -> impl Responder {
     let uid = &params.0.parse::<i64>().unwrap();
     match state.get_ref().get_profile(&uid).await {
-        Ok(profile) => ApiResult::new().code(200).with_msg("").with_data(profile),
+        Ok(profile) => HttpResponse::Ok().json(&json!({"message": "", "data": profile})),
         Err(e) => {
             debug!("{:?}", e.to_string());
-            ApiResult::new().code(400).with_msg("Bad request!")
+            HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": e.to_string()}))
         }
     }
 }
 
 #[get("/profile/{id}/username/{username}")]
 async fn update_username(
-    params: web::Path<(String, String)>,
+    params: web::types::Path<(String, String)>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -243,20 +230,20 @@ async fn update_username(
     let user = verify_profile_user(uid, &auth).await;
     if user {
         match state.get_ref().update_username(uid, &username).await {
-            Ok(success) => ApiResult::new().code(200).with_msg("").with_data(success),
+            Ok(r) => HttpResponse::Ok().json(&json!({"message": "", "data": r})),
             Err(e) => {
                 debug!("{:?}", e.to_string());
-                ApiResult::new().code(500).with_msg(e.to_string())
+                HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": e.to_string()}))
             }
         }
     } else {
-        ApiResult::new().code(401)
+        HttpResponse::Unauthorized().finish()
     }
 }
 
 #[get("/profile/{id}/title/{title}")]
 async fn update_title(
-    params: web::Path<(String, String)>,
+    params: web::types::Path<(String, String)>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -265,20 +252,20 @@ async fn update_title(
     let user = verify_profile_user(uid, &auth).await;
     if user {
         match state.get_ref().update_title(uid, &title).await {
-            Ok(success) => ApiResult::new().code(200).with_msg("").with_data(success),
+            Ok(r) => HttpResponse::Ok().json(&json!({"message": "", "data": r})),
             Err(e) => {
                 debug!("{:?}", e.to_string());
-                ApiResult::new().code(500).with_msg(e.to_string())
+                HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": e.to_string()}))
             }
         }
     } else {
-        ApiResult::new().code(401)
+        HttpResponse::Unauthorized().finish()
     }
 }
 
 #[get("/profile/{id}/name/{name}")]
 async fn update_name(
-    params: web::Path<(String, String)>,
+    params: web::types::Path<(String, String)>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -287,20 +274,20 @@ async fn update_name(
     let user = verify_profile_user(uid, &auth).await;
     if user {
         match state.get_ref().update_name(uid, &name).await {
-            Ok(success) => ApiResult::new().code(200).with_msg("").with_data(success),
+            Ok(r) => HttpResponse::Ok().json(&json!({"message": "", "data": r})),
             Err(e) => {
                 debug!("{:?}", e.to_string());
-                ApiResult::new().code(500).with_msg(e.to_string())
+                HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": e.to_string()}))
             }
         }
     } else {
-        ApiResult::new().code(401)
+        HttpResponse::Unauthorized().finish()
     }
 }
 
 #[get("/profile/{id}/designation/{designation}")]
 async fn update_designation(
-    params: web::Path<(String, String)>,
+    params: web::types::Path<(String, String)>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -309,20 +296,20 @@ async fn update_designation(
     let user = verify_profile_user(uid, &auth).await;
     if user {
         match state.get_ref().update_designation(uid, &designation).await {
-            Ok(success) => ApiResult::new().code(200).with_msg("").with_data(success),
+            Ok(r) => HttpResponse::Ok().json(&json!({"message": "", "data": r})),
             Err(e) => {
                 debug!("{:?}", e.to_string());
-                ApiResult::new().code(500).with_msg(e.to_string())
+                HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": e.to_string()}))
             }
         }
     } else {
-        ApiResult::new().code(401)
+        HttpResponse::Unauthorized().finish()
     }
 }
 
 #[get("/profile/{id}/location/{location}")]
 async fn update_location(
-    params: web::Path<(String, String)>,
+    params: web::types::Path<(String, String)>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -331,20 +318,20 @@ async fn update_location(
     let user = verify_profile_user(uid, &auth).await;
     if user {
         match state.get_ref().update_location(uid, &location).await {
-            Ok(success) => ApiResult::new().code(200).with_msg("").with_data(success),
+            Ok(r) => HttpResponse::Ok().json(&json!({"message": "", "data": r})),
             Err(e) => {
                 debug!("{:?}", e.to_string());
-                ApiResult::new().code(500).with_msg(e.to_string())
+                HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": e.to_string()}))
             }
         }
     } else {
-        ApiResult::new().code(401)
+        HttpResponse::Unauthorized().finish()
     }
 }
 
 #[get("/edit-links/{uid}")]
 async fn get_links(
-    params: web::Path<String>,
+    params: web::types::Path<String>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -352,21 +339,21 @@ async fn get_links(
     let user = verify_profile_user(uid, &auth).await;
     if user {
         match state.get_ref().get_links(uid).await {
-            Ok(r) => ApiResult::new().code(200).with_msg("").with_data(r),
+            Ok(r) => HttpResponse::Ok().json(&json!({"message": "", "data": r})),
             Err(e) => {
                 debug!("{:?}", e.to_string());
-                ApiResult::new().code(500).with_msg(e.to_string())
+                HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": e.to_string()}))
             }
         }
     } else {
-        ApiResult::new().code(401)
+        HttpResponse::Unauthorized().finish()
     }
 }
 
 #[post("/edit-links/{uid}")]
 async fn update_links(
-    params: web::Path<String>,
-    form: web::Json<LinksResponse>,
+    params: web::types::Path<String>,
+    form: web::types::Json<LinksResponse>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -375,14 +362,14 @@ async fn update_links(
     let user = verify_profile_user(uid, &auth).await;
     if user {
         match state.get_ref().update_links(uid, &data).await {
-            Ok(r) => ApiResult::new().code(200).with_msg("").with_data(r),
+            Ok(r) => HttpResponse::Ok().json(&json!({"message": "", "data": r})),
             Err(e) => {
                 debug!("{:?}", e.to_string());
-                ApiResult::new().code(500).with_msg(e.to_string())
+                HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": e.to_string()}))
             }
         }
     } else {
-        ApiResult::new().code(401)
+        HttpResponse::Unauthorized().finish()
     }
 }
 

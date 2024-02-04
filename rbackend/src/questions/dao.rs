@@ -46,7 +46,7 @@ impl IQuestion for &AppStateRaw {
             where name = ANY($1);"#,
             &q.tag_list[..]
         )
-        .fetch_all(&mut tx)
+        .fetch_all(&mut *tx)
         .await?;
 
         if tag_ids.len() != q.tag_list.len() {
@@ -60,7 +60,7 @@ impl IQuestion for &AppStateRaw {
             "#,
             &q.tag_list[..]
         )
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
         let p = sqlx::query!(
@@ -74,7 +74,7 @@ impl IQuestion for &AppStateRaw {
             q.posted_by_id,
             q.updated_by_id
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *tx)
         .await?;
 
         for t in tag_ids {
@@ -86,7 +86,7 @@ impl IQuestion for &AppStateRaw {
                 p.id as i64,
                 t.id
             )
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
         }
         tx.commit().await?;
@@ -115,10 +115,7 @@ impl IQuestion for &AppStateRaw {
         for t in tags {
             trs.push(t.name);
         }
-        let image_url = match question.image_url {
-            Some(i) => i,
-            None => "".to_owned(),
-        };
+        let image_url = question.image_url;
         let title = match question.title {
             Some(t) => t,
             None => "".to_owned(),
@@ -170,10 +167,7 @@ impl IQuestion for &AppStateRaw {
             questions: Vec::new(),
         };
         for q in questions {
-            let image_url = match q.image_url {
-                Some(i) => i,
-                None => "".to_string(),
-            };
+            let image_url = q.image_url;
             let qr = AR {
                 question_id: q.id.to_string(),
                 description: q.description,
@@ -211,10 +205,7 @@ impl IQuestion for &AppStateRaw {
         };
 
         for q in questions {
-            let image_url = match q.image_url {
-                Some(i) => i,
-                None => "".to_string(),
-            };
+            let image_url = q.image_url;
             let tags = match q.tags {
                 Some(t) => t.join(","),
                 None => "".to_owned(),
@@ -275,10 +266,7 @@ impl IQuestion for &AppStateRaw {
         };
 
         for q in questions {
-            let image_url = match q.image_url {
-                Some(i) => i,
-                None => "".to_string(),
-            };
+            let image_url = q.image_url;
             let tags = match q.tags {
                 Some(t) => t.join(","),
                 None => "".to_owned(),
@@ -372,7 +360,7 @@ impl IQuestion for &AppStateRaw {
             answer.id.parse::<i64>().unwrap(),
             answer.reply_to.parse::<i64>().unwrap()
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *tx)
         .await?;
 
         sqlx::query! {
@@ -381,7 +369,7 @@ impl IQuestion for &AppStateRaw {
             "#,
             answer.id.parse::<i64>().unwrap()
         }
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
         tx.commit().await?;
@@ -411,7 +399,7 @@ impl IQuestion for &AppStateRaw {
             description,
             pid
         )
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
         // this will hold the result to be returned
@@ -426,7 +414,7 @@ impl IQuestion for &AppStateRaw {
                 "#,
                 tags
             )
-            .fetch_all(&mut tx)
+            .fetch_all(&mut *tx)
             .await?;
             let ts = sqlx::query!(
                 r#"
@@ -434,7 +422,7 @@ impl IQuestion for &AppStateRaw {
                 "#,
                 pid
             )
-            .fetch_all(&mut tx)
+            .fetch_all(&mut *tx)
             .await?;
 
             for t in &ts {
@@ -451,7 +439,7 @@ impl IQuestion for &AppStateRaw {
                     "#,
                     t.name
                 )
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
                 sqlx::query!(
                     r#"
@@ -460,7 +448,7 @@ impl IQuestion for &AppStateRaw {
                     pid,
                     t.id
                 )
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
             }
 
@@ -471,7 +459,7 @@ impl IQuestion for &AppStateRaw {
                     "#,
                     t.name
                 )
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
                 sqlx::query!(
                     r#"
@@ -480,7 +468,7 @@ impl IQuestion for &AppStateRaw {
                     pid,
                     t.id
                 )
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
             }
 
@@ -492,7 +480,7 @@ impl IQuestion for &AppStateRaw {
                 slug,
                 pid
             )
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
         }
 
@@ -502,7 +490,7 @@ impl IQuestion for &AppStateRaw {
             "#,
             pid
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *tx)
         .await;
 
         id = match pr {
@@ -518,7 +506,7 @@ impl IQuestion for &AppStateRaw {
             "#,
                 pid
             )
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await?;
             id = pr1.id;
         }

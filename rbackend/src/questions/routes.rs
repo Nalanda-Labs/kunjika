@@ -1,24 +1,23 @@
 use super::dao::IQuestion;
 use super::question::*;
-use crate::api::ApiResult;
 use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
 use crate::utils::slug::create_slug;
 
-use actix_web::{get, post, web, Responder};
 use chrono::*;
+use ntex::web::{get, post, HttpResponse, Responder};
+use serde_json::json;
 
 #[post("/create-question")]
 async fn insert_question(
-    form: web::Json<QuestionRequest>,
+    form: ntex::web::types::Json<QuestionRequest>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
     let r = form.into_inner();
     if r.tag_list.len() == 0 {
-        return ApiResult::new()
-            .code(422)
-            .with_msg("At least one tag must be supplied!");
+        HttpResponse::UnprocessableEntity()
+            .json(&json!({"status": "fail", "message": "All tags were not found"}));
     }
 
     let slug = create_slug(&r.title).await;
@@ -26,15 +25,16 @@ async fn insert_question(
     let q = DbQuestion {
         title: r.title,
         description: r.description,
-        posted_by_id: auth.claims.id,
+        posted_by_id: auth.user.id,
         slug: slug.clone(),
-        updated_by_id: auth.claims.id,
+        updated_by_id: auth.user.id,
         tag_list: r.tag_list,
     };
 
     match state.get_ref().insert_question(&q).await {
         Ok(0) => {
-            ApiResult::new().code(400).with_msg("All tags were not found")
+            return HttpResponse::BadRequest()
+                .json(&json!({"status": "fail", "message": "All tags were not found"}))
         }
         Ok(t) => {
             debug!("insert question {:?} ", t);
@@ -42,28 +42,35 @@ async fn insert_question(
                 id: t.to_string(),
                 slug,
             };
-
-            ApiResult::new().with_msg("ok").with_data(res)
+            HttpResponse::Ok().json(&json!({"data": res}))
         }
         Err(e) => {
             error!("insert question error: {:?}", e);
-            ApiResult::new().code(502).with_msg(e.to_string())
+            HttpResponse::InternalServerError()
+                .json(&json!({"status": "fail", "message": e.to_string()}))
         }
     }
 }
 
 #[get("/questions/{id}/{slug}")]
-async fn get_question(params: web::Path<(String, String)>, state: AppState) -> impl Responder {
+async fn get_question(
+    params: ntex::web::types::Path<(String, String)>,
+    state: AppState,
+) -> impl Responder {
     let qid: i64 = (params.0).parse().unwrap();
     debug!("Question id is {}", qid);
     match state.get_ref().get_question(qid).await {
-        Ok(db_question) => ApiResult::new().with_msg("").with_data(db_question),
-        Err(e) => ApiResult::new().code(502).with_msg(e.to_string()),
+        Ok(db_question) => HttpResponse::Ok().json(&json!({"data": db_question})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
     }
 }
 
 #[post("/questions/")]
-async fn get_questions(ut: web::Json<QuestionsReq>, state: AppState) -> impl Responder {
+async fn get_questions(
+    ut: ntex::web::types::Json<QuestionsReq>,
+    state: AppState,
+) -> impl Responder {
     let updated_at = ut.into_inner();
     let up_at;
     debug!("{:?}", &updated_at.updated_at);
@@ -76,15 +83,16 @@ async fn get_questions(ut: web::Json<QuestionsReq>, state: AppState) -> impl Res
             .with_timezone(&Utc);
     }
     match state.get_ref().get_questions(&up_at).await {
-        Ok(db_questions) => ApiResult::new().with_msg("").with_data(db_questions),
-        Err(e) => ApiResult::new().code(502).with_msg(e.to_string()),
+        Ok(db_questions) => HttpResponse::Ok().json(&json!({"data": db_questions})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
     }
 }
 
 #[post("/questions/tagged/{tag}")]
 async fn get_questions_by_tag(
-    params: web::Path<String>,
-    ut: web::Json<QuestionsReq>,
+    params: ntex::web::types::Path<String>,
+    ut: ntex::web::types::Json<QuestionsReq>,
     state: AppState,
 ) -> impl Responder {
     let tag = params.parse().unwrap();
@@ -100,29 +108,31 @@ async fn get_questions_by_tag(
             .with_timezone(&Utc);
     }
     match state.get_ref().get_questions_by_tag(&up_at, &tag).await {
-        Ok(db_questions) => ApiResult::new().with_msg("").with_data(db_questions),
-        Err(e) => ApiResult::new().code(502).with_msg(e.to_string()),
+        Ok(db_questions) => HttpResponse::Ok().json(&json!({"data": db_questions})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
     }
 }
 
 #[get("/question/get-answers/{id}/")]
 async fn get_answers(
-    params: web::Path<i64>,
-    q: web::Query<AnswersQuery>,
+    params: ntex::web::types::Path<i64>,
+    q: ntex::web::types::Query<AnswersQuery>,
     state: AppState,
 ) -> impl Responder {
     let qid = params.into_inner();
     debug!("{:?}, {:?}, {:?}", &qid, q.time, q.limit);
 
     match state.get_ref().get_answers(qid, &q.time, q.limit).await {
-        Ok(db_answers) => ApiResult::new().with_msg("").with_data(db_answers),
-        Err(e) => ApiResult::new().code(502).with_msg(e.to_string()),
+        Ok(db_answers) => HttpResponse::Ok().json(&json!({"data": db_answers})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
     }
 }
 
 #[post("/answer")]
 async fn answer(
-    params: web::Json<AnswerReq>,
+    params: ntex::web::types::Json<AnswerReq>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -134,19 +144,18 @@ async fn answer(
 
     match state
         .get_ref()
-        .insert_answer(&answer, &auth.claims.id)
+        .insert_answer(&answer, &auth.user.id)
         .await
     {
-        Ok(answer_res) => ApiResult::new()
-            .with_msg("")
-            .with_data(answer_res.to_string()),
-        Err(e) => ApiResult::new().code(502).with_msg(e.to_string()),
+        Ok(answer_res) => HttpResponse::Ok().json(&json!({"data": answer_res.to_string()})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
     }
 }
 
 #[get("edit/question/{id}")]
 async fn get_edit_post(
-    params: web::Path<i64>,
+    params: ntex::web::types::Path<i64>,
     _auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -155,15 +164,16 @@ async fn get_edit_post(
     debug!("post id to be edited is {:?}", pid);
 
     match state.get_ref().get_post(pid).await {
-        Ok(post) => ApiResult::new().with_msg("").with_data(post),
-        Err(e) => ApiResult::new().code(502).with_msg(e.to_string()),
+        Ok(post) => HttpResponse::Ok().json(&json!({"data": post})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
     }
 }
 
 #[post("/edit-post/{id}")]
 async fn update_post(
-    params: web::Path<i64>,
-    form: web::Json<EditRequest>,
+    params: ntex::web::types::Path<i64>,
+    form: ntex::web::types::Json<EditRequest>,
     _auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -171,17 +181,22 @@ async fn update_post(
     let er = form.into_inner();
     let title = match er.title {
         Some(t) => t,
-        None => "".to_owned()
+        None => "".to_owned(),
     };
     let slug = create_slug(&title.to_string()).await;
 
-    match state.get_ref().update_post(pid, &er.description, &er.tag_list, &title, &slug).await {
-        Ok(post) => ApiResult::new().code(200).with_msg("".to_owned()).with_data(post),
-        Err(e) => ApiResult::new().code(502).with_msg(e.to_string()).with_data(0)
+    match state
+        .get_ref()
+        .update_post(pid, &er.description, &er.tag_list, &title, &slug)
+        .await
+    {
+        Ok(post) => HttpResponse::Ok().json(&json!({"data": post})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
     }
 }
 
-pub fn init(cfg: &mut web::ServiceConfig) {
+pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(insert_question);
     cfg.service(get_question);
     cfg.service(get_questions);

@@ -148,7 +148,7 @@ CREATE TABLE public.users (
     id bigint NOT NULL,
     username character varying(10) NOT NULL,
     email character varying(256) NOT NULL,
-    pass character varying(256) NOT NULL,
+    password_hash character varying(256) NOT NULL,
     create_dt timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     update_dt timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     status character varying(10) DEFAULT 'normal'::character varying NOT NULL,
@@ -161,7 +161,7 @@ CREATE TABLE public.users (
     website character varying(256),
     git character varying(256),
     twitter character varying(256),
-    email_verified boolean DEFAULT false
+    email_verified boolean DEFAULT false not null
 );
 
 

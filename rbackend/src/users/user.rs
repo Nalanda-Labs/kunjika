@@ -28,12 +28,12 @@ pub struct User {
     pub email: String,
     // not return password
     #[serde(skip_serializing)]
-    pub pass: String,
+    pub password_hash: String,
     pub status: String,
     pub image_url: String,
-    pub email_verified: bool,
-    pub create_dt: SqlDateTime,
-    pub update_dt: SqlDateTime,
+    pub email_verified: Option<bool>,
+    pub created_date: SqlDateTime,
+    pub modified_date: SqlDateTime,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

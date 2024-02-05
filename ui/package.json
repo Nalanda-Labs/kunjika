@@ -10,8 +10,6 @@
 		"preview": "svelte-kit preview"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-netlify": "next",
-		"@sveltejs/adapter-vercel": "next",
 		"@sveltejs/kit": "next",
 		"bytemd": "^1.15.0",
 		"cookie": "^0.5.0",

@@ -40,8 +40,6 @@ pub struct User {
 pub struct Login {
     pub email: String,
     pub password: String,
-    #[serde(default)]
-    pub rememberme: bool,
 }
 
 impl Login {
@@ -152,4 +150,10 @@ pub struct LinksResponse {
     pub website: String,
     pub git: String,
     pub twitter: String
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LoginResponse {
+    pub user: User,
+    pub success: bool,
 }

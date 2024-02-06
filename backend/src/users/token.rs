@@ -7,7 +7,7 @@ use uuid::Uuid;
 pub struct TokenDetails {
     pub token: Option<String>,
     pub token_uuid: uuid::Uuid,
-    pub user_id: uuid::Uuid,
+    pub user_id: i64,
     pub expires_in: Option<i64>,
 }
 
@@ -22,7 +22,7 @@ pub struct TokenClaims {
 }
 
 pub fn generate_jwt_token(
-    user_id: uuid::Uuid,
+    user_id: i64,
     ttl: i64,
     private_key: String,
 ) -> Result<TokenDetails, jsonwebtoken::errors::Error> {
@@ -70,7 +70,7 @@ pub fn verify_jwt_token(
         &validation,
     )?;
 
-    let user_id = Uuid::parse_str(decoded.claims.sub.as_str()).unwrap();
+    let user_id = decoded.claims.sub.as_str().parse::<i64>().unwrap();
     let token_uuid = Uuid::parse_str(decoded.claims.token_uuid.as_str()).unwrap();
 
     Ok(TokenDetails {

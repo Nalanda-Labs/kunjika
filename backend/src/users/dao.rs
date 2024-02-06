@@ -19,7 +19,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
         let (column, placeholder) = column_placeholder(who);
 
         let sql = format!(
-            "SELECT id, username, email, pass, status, email_verified, image_url, create_dt, update_dt
+            "SELECT id, username, email, password_hash, status, email_verified, image_url, created_date, modified_date
             FROM users
             where {} = {};",
             column, placeholder
@@ -311,7 +311,7 @@ fn column_placeholder(id_or_name_or_email: &str) -> (&'static str, &'static str)
     if id_or_name_or_email.contains("@") {
         column = "email";
     } else if first_char_is_number(id_or_name_or_email) {
-        column = "id";
+        column = "username";
     }
 
     // postgres: $1, $2 ..

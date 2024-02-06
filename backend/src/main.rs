@@ -18,15 +18,15 @@ pub mod config;
 // pub mod how;
 pub mod middlewares;
 // pub mod models;
-pub mod state;
-pub mod users;
-pub mod tags;
 pub mod questions;
-pub mod votes;
+pub mod state;
+pub mod tags;
+pub mod users;
 pub mod utils;
+pub mod votes;
 
 use config::{Config, Opts};
-    
+
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
     // Config::show();
@@ -42,15 +42,18 @@ async fn main() -> std::io::Result<()> {
                     .allowed_origin("http://localhost:5173")
                     .supports_credentials()
                     .max_age(3600)
-                    .finish()
+                    .finish(),
             )
             .state(state.clone())
             .wrap(web::middleware::Logger::default())
             .wrap(web::middleware::Compress::default())
-            .service(web::scope(apiv1).configure(users::routes::init))
-            .service(web::scope(apiv1).configure(tags::routes::init))
-            .service(web::scope(apiv1).configure(votes::routes::init))
-            .service(web::scope(apiv1).configure(questions::routes::init))
+            .service(
+                web::scope(apiv1)
+                    .configure(users::routes::init)
+                    .configure(tags::routes::init)
+                    .configure(votes::routes::init)
+                    .configure(questions::routes::init),
+            )
     })
     .workers(num_cpus::get())
     .keep_alive(300)

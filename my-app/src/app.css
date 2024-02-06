@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    font-family: "Open Sans";
+    font-weight: 300!important;
+}
+
+.b-wrapper {
+    width: 100%;
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#preview article > ul {
+	list-style: inside;
+}
+
+#preview article > ol {
+    list-style: inside;
+	list-style-type: arabic;
+}
+
+#preview article > ol > ol {
+    list-style: inside;
+	list-style-type: upper-roman;
+}
+
+#preview article > h1 {
+    font-size: 40px;
+    font-weight: bold;
+}
+
+#preview article > h2 {
+    font-size: 35px;
+    font-weight: bold;
+}
+
+#preview article > h3 {
+    font-size: 30px;
+    font-weight: bold;
+}
+
+#preview article > h4 {
+    font-size: 25px;
+    font-weight: bold;
+}
+
+#preview article > h5 {
+    font-size: 22px;
+    font-weight: bold;
+}
+
+#preview article > h6 {
+    font-size: 20px;
+    font-weight: bold;
+}

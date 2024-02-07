@@ -1,11 +1,13 @@
 <script>
 	import * as api from '$lib/api.js';
+	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
 	import Tags from 'svelte-tags-input';
 	import { Label, Textarea, Input, Helper } from 'flowbite-svelte';
 	import Markdoc from '@markdoc/markdoc';
 	import hljs from 'highlight.js';
 	import '../highlight.css';
+	import { redirect } from '@sveltejs/kit';
 
 	let title = '';
 	let description = '';
@@ -25,43 +27,42 @@
 
 	async function onSubmit() {
 		console.log(title, description, tagList);
+	    if ($page.data.user) {
+	        if (title < 6 || title > 256) {
+	            M.toast({
+	                html: "Title should not be less than 6 or more than 256 characters.",
+	            });
+	            return;
+	        }
+	        if (value.length < 20 || value.length > 100000) {
+	            M.toast({
+	                html: "question should not be less than 20 or more than 100000 characters.",
+	            });
+	            return;
+	        }
+
+	        body = description;
+
+	        if (question.tagList.length < 1) {
+	            M.toast({ html: "At least one tag should be supplied." });
+	        }
+
+	        const response = await api.post(
+	            "create-question",
+	            { "title": question.title, "description": question.body, "tag_list": question.tagList },
+	            $page.data.user.xsrf_token
+	        );
+
+	        if (response.code === 200 && response.data.id && response.data.slug) {
+	            id = response.data.id;
+	            await goto(`/questions/${id}`);
+	        } else if(response.code === 400) {
+	            M.toast({html: response.msg});
+	        }
+	    } else {
+	        throw redirect(307, '/questions');
+	    }
 	}
-	//     if ($page.data.user) {
-	//         if (question.title < 6 || question.title > 256) {
-	//             M.toast({
-	//                 html: "Title should not be less than 6 or more than 256 characters.",
-	//             });
-	//             return;
-	//         }
-	//         if (value.length < 20 || value.length > 100000) {
-	//             M.toast({
-	//                 html: "question should not be less than 20 or more than 100000 characters.",
-	//             });
-	//             return;
-	//         }
-
-	//         question.body = value;
-
-	//         if (question.tagList.length < 1) {
-	//             M.toast({ html: "At least one tag should be supplied." });
-	//         }
-
-	//         const response = await api.post(
-	//             "create-question",
-	//             { "title": question.title, "description": question.body, "tag_list": question.tagList },
-	//             $page.data.user.xsrf_token
-	//         );
-
-	//         if (response.code === 200 && response.data.id && response.data.slug) {
-	//             id = response.data.id;
-	//             await goto(`/questions/${id}`);
-	//         } else if(response.code === 400) {
-	//             M.toast({html: response.msg});
-	//         }
-	//     } else {
-	//         M.toast({ html: "You are not logged in." });
-	//     }
-	// }
 
 	function handleTags(event) {
 		tagList = event.detail.tags;

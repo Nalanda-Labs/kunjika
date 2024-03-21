@@ -41,6 +41,9 @@ devDependencies:
   autoprefixer:
     specifier: ^10.4.17
     version: 10.4.17(postcss@8.4.34)
+  dompurify:
+    specifier: ^3.0.11
+    version: 3.0.11
   eslint:
     specifier: ^8.56.0
     version: 8.56.0
@@ -62,6 +65,12 @@ devDependencies:
   highlight.js:
     specifier: ^11.9.0
     version: 11.9.0
+  hljs:
+    specifier: ^6.2.3
+    version: 6.2.3
+  marked:
+    specifier: ^12.0.1
+    version: 12.0.1
   postcss:
     specifier: ^8.4.33
     version: 8.4.34
@@ -1325,6 +1334,10 @@ packages:
       esutils: 2.0.3
     dev: true
 
+  /dompurify@3.0.11:
+    resolution: {integrity: sha512-Fan4uMuyB26gFV3ovPoEoQbxRRPfTu3CvImyZnhGq5fsIEO+gEFLp45ISFt+kQBWsK5ulDdT0oV28jS1UrwQLg==}
+    dev: true
+
   /eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
     dev: true
@@ -1781,6 +1794,10 @@ packages:
     engines: {node: '>=12.0.0'}
     dev: true
 
+  /hljs@6.2.3:
+    resolution: {integrity: sha512-2vtAOX8kI7WO4/19XPFl7WJauIGsOxZkD+6LLmDWx6IQsPvxjnqqFsJlfg+wkghrb5I59OS5oeqGU7Ihbp+oOw==}
+    dev: true
+
   /ignore@5.3.1:
     resolution: {integrity: sha512-5Fytz/IraMjqpwfd34ke28PTVMjZjJG2MPn5t7OE4eUCUNf8BAa7b5WUS9/Qvr6mwOQS7Mk6vdsMno5he+T8Xw==}
     engines: {node: '>= 4'}
@@ -1996,6 +2013,12 @@ packages:
 
   /markdown-table@3.0.3:
     resolution: {integrity: sha512-Z1NL3Tb1M9wH4XESsCDEksWoKTdlUafKc4pt0GRwjUyXaCFZ+dc3g2erqB6zm3szA2IUSi7VnPI+o/9jnxh9hw==}
+    dev: true
+
+  /marked@12.0.1:
+    resolution: {integrity: sha512-Y1/V2yafOcOdWQCX0XpAKXzDakPOpn6U0YLxTJs3cww6VxOzZV1BTOOYWLvH3gX38cq+iLwljHHTnMtlDfg01Q==}
+    engines: {node: '>= 18'}
+    hasBin: true
     dev: true
 
   /mdast-util-find-and-replace@3.0.1:

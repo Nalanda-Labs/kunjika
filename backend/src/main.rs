@@ -39,7 +39,10 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(
                 Cors::new()
+                    // for svelte dev server
                     .allowed_origin("http://localhost:5173")
+                    // for node production server
+                    .allowed_origin("http://localhost:3000")
                     .supports_credentials()
                     .max_age(3600)
                     .finish(),

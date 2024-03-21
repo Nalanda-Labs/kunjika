@@ -4,29 +4,17 @@
 	import { browser } from '$app/environment';
 	import Tags from 'svelte-tags-input';
 	import { Label, Textarea, Input, Helper } from 'flowbite-svelte';
-	import Markdoc from '@markdoc/markdoc';
-	import hljs from 'highlight.js';
 	import '../highlight.css';
 	import { redirect } from '@sveltejs/kit';
+	import Editor from '../../components/Editor/Editor.svelte';
+	import Preview from '../../components/Editor/Preview.svelte';
 
 	let title = '';
 	let description = '';
 	let tagList = [];
-
-	function process() {
-		const config = { variables: { version: '1.0' } };
-		const ast = Markdoc.parse(description);
-		const content = Markdoc.transform(ast, config);
-		const html = Markdoc.renderers.html(content);
-
-		document.getElementById('preview').innerHTML = html;
-		document.querySelectorAll('pre').forEach((el) => {
-    		hljs.highlightElement(el);
-  		});
-	}
+	let contentValue = '', markup = '';
 
 	async function onSubmit() {
-		console.log(title, description, tagList);
 	    if ($page.data.user) {
 	        if (title < 6 || title > 256) {
 	            M.toast({
@@ -34,14 +22,12 @@
 	            });
 	            return;
 	        }
-	        if (value.length < 20 || value.length > 100000) {
+	        if (contentValue.length < 20 || contentValue.length > 100000) {
 	            M.toast({
 	                html: "question should not be less than 20 or more than 100000 characters.",
 	            });
 	            return;
 	        }
-
-	        body = description;
 
 	        if (question.tagList.length < 1) {
 	            M.toast({ html: "At least one tag should be supplied." });
@@ -49,7 +35,7 @@
 
 	        const response = await api.post(
 	            "create-question",
-	            { "title": question.title, "description": question.body, "tag_list": question.tagList },
+	            { "title": question.title, "description": contentValue, "tag_list": question.tagList },
 	            $page.data.user.xsrf_token
 	        );
 
@@ -133,22 +119,15 @@
 			maxlength="256"
 			name="title"
 		/>
-		<!-- <svelte:component this={Editor} on:change={handleChange} mode="tab" {value} /> -->
 		<Label for="description" class="mb-2">Description</Label>
-		<Textarea
-			id="description"
-			placeholder=""
-			rows="4"
-			name="body"
-			bind:value={description}
-			on:keyup={process}
-		/>
-		<div style="margin-top:20px" />
-		<div id="preview" />
+		
+		<Editor bind:markup bind:contentValue />
+		<Preview {markup} />
 		<div style="margin:30px" />
 		<Tags
 			name={'tags'}
 			bind:tags={tagList}
+			on:tags={handleTags}
 			addKeys={[9]}
 			maxTags={5}
 			allowPaste={true}
@@ -185,9 +164,5 @@
 		.question {
 			width: 800px;
 		}
-	}
-	#preview {
-		border: 1px dashed;
-		padding: 5px;
 	}
 </style>

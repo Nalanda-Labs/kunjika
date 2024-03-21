@@ -1,38 +1,29 @@
-# create-svelte
+# Frontend for Kunjika
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/main/packages/create-svelte).
+## Quickstart
 
-## Creating a project
+`npm i -g pnpm && pnpm i && pnpm dev` will get the dev server up and running on http://localhost:5173.
 
-If you're seeing this, you've probably already done this step. Congrats!
+For production build run `pnpm build && node build` which will get server up and running on http://localhost:3000.
 
-```bash
-# create a new project in the current directory
-npm create svelte@latest
+Do not forget to whitelist the schme://host:port on backend. If you want to run something like
+`PM2` then you can invoke `pm2 start build/index.js -i <no. of instances>`
 
-# create a new project in my-app
-npm create svelte@latest my-app
-```
+## Details
 
-## Developing
+This is the frontend of Kunjika, a minimal QA framework or forum. Though it is minimal
+I won't shy away from implementing a feature which adds value to the users.
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Inspiration has been drawn from Stackoverflow and Discourse. Both are great and if you
+are thinking of hosting a forum or QA most probably Discourse is what you should use.
+Kunjika is my itch and I am just scratching my itch. I hate the app servers which consume
+several hundreds of megabytes of memory when launched. So I decided to write one in Rust.
 
-```bash
-npm run dev
+But this is not about backend. This frontend is done in Svelte. I started web development in
+2013 with jQuery. Angular and React came by but I could never get the hang of both. Perhaps
+my mind is too simple. Then Svelte came and I was able to learn it quickly and be productive
+in it. The performance of Svelte is comparable to Rust UI frameworks like Perseus/Yew.
+You can look at benchmarks in Perseus repo.
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```bash
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+Perhaps someday I will make another frontend for Kunjika using Perseus but for the the
+first implementation it is not worth the pain.

@@ -1,0 +1,32 @@
+lockfileVersion: '6.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+devDependencies:
+  dompurify:
+    specifier: ^3.0.11
+    version: 3.0.11
+  hljs:
+    specifier: ^6.2.3
+    version: 6.2.3
+  marked:
+    specifier: ^12.0.1
+    version: 12.0.1
+
+packages:
+
+  /dompurify@3.0.11:
+    resolution: {integrity: sha512-Fan4uMuyB26gFV3ovPoEoQbxRRPfTu3CvImyZnhGq5fsIEO+gEFLp45ISFt+kQBWsK5ulDdT0oV28jS1UrwQLg==}
+    dev: true
+
+  /hljs@6.2.3:
+    resolution: {integrity: sha512-2vtAOX8kI7WO4/19XPFl7WJauIGsOxZkD+6LLmDWx6IQsPvxjnqqFsJlfg+wkghrb5I59OS5oeqGU7Ihbp+oOw==}
+    dev: true
+
+  /marked@12.0.1:
+    resolution: {integrity: sha512-Y1/V2yafOcOdWQCX0XpAKXzDakPOpn6U0YLxTJs3cww6VxOzZV1BTOOYWLvH3gX38cq+iLwljHHTnMtlDfg01Q==}
+    engines: {node: '>= 18'}
+    hasBin: true
+    dev: true

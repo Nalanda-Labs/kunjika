@@ -1,85 +1,70 @@
 <script>
+	import { goto } from '$app/navigation';
 	import * as api from '$lib/api.js';
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
 	import Tags from 'svelte-tags-input';
-	import { Label, Textarea, Input, Helper } from 'flowbite-svelte';
 	import '../highlight.css';
 	import { redirect } from '@sveltejs/kit';
 	import Editor from '../../components/Editor/Editor.svelte';
 	import Preview from '../../components/Editor/Preview.svelte';
+	import getCookie from '../../lib/cookie.js';
+	import './editor.css';
 
 	let title = '';
-	let description = '';
 	let tagList = [];
-	let contentValue = '', markup = '';
+	let contentValue = '',
+		markup = '';
+	let showContentValueToast = false;
 
 	async function onSubmit() {
-	    if ($page.data.user) {
-	        if (title < 6 || title > 256) {
-	            M.toast({
-	                html: "Title should not be less than 6 or more than 256 characters.",
-	            });
-	            return;
-	        }
-	        if (contentValue.length < 20 || contentValue.length > 100000) {
-	            M.toast({
-	                html: "question should not be less than 20 or more than 100000 characters.",
-	            });
-	            return;
-	        }
-
-	        if (question.tagList.length < 1) {
-	            M.toast({ html: "At least one tag should be supplied." });
-	        }
-
-	        const response = await api.post(
-	            "create-question",
-	            { "title": question.title, "description": contentValue, "tag_list": question.tagList },
-	            $page.data.user.xsrf_token
-	        );
-
-	        if (response.code === 200 && response.data.id && response.data.slug) {
-	            id = response.data.id;
-	            await goto(`/questions/${id}`);
-	        } else if(response.code === 400) {
-	            M.toast({html: response.msg});
-	        }
-	    } else {
-	        throw redirect(307, '/questions');
-	    }
-	}
-
-	function handleTags(event) {
-		tagList = event.detail.tags;
-		console.log(tagList);
-		let re = /[a-zA-Z0-0\-\+]+/;
-		for (let i = 0; i < tagList.length; i++) {
-			if (tagList[i].length > 32) {
-				document.getElementById('tags-helper').innerHTML = '32 Characterx max.';
-				document.getElementById('tags-helper').style.color = '#800';
-				break;
-			} else {
-				document.getElementById('tags-helper').innerHTML = '';
+		if ($page.data.user) {
+			if (contentValue.length < 20 || contentValue.length > 100000) {
+				showContentValueToast = true;
 			}
+			if (tagList.length < 1) {
+				// Toast('At least one tag should be supplied.');
+			}
+
+			if (browser) {
+				let xsrf_token = getCookie('xsrf_token');
+				const response = await api.post(
+					'create-question',
+					{ title: title, description: contentValue, tag_list: tagList },
+					xsrf_token
+				);
+
+				let text = await response.text();
+				let j = text ? JSON.parse(text) : {};
+				console.log(j);
+
+				if (response.status === 200 && j.data.id) {
+					let id = j.data.id;
+					await goto(`/questions/${id}`);
+				} else if (response.code === 400) {
+					M.toast({ html: j.message });
+				}
+			}
+		} else {
+			throw redirect(307, '/questions');
 		}
 	}
 
-	function getCookie(cname) {
-		let name = cname + '=';
-		let decodedCookie = decodeURIComponent(document.cookie);
-		let ca = decodedCookie.split(';');
-		for (let i = 0; i < ca.length; i++) {
-			let c = ca[i];
-			while (c.charAt(0) == ' ') {
-				c = c.substring(1);
-			}
-			if (c.indexOf(name) == 0) {
-				return c.substring(name.length, c.length);
-			}
-		}
-		return '';
-	}
+	// function handleTags(event) {
+	// 	tagList = event.detail.tags;
+	// 	console.log(tagList);
+	// 	let re = /[a-zA-Z0-0\-\+]+/;
+	// 	for (let i = 0; i < tagList.length; i++) {
+	// 		if (tagList[i].length > 32) {
+	// 			document.getElementById('tags-helper').innerHTML = '32 Characterx max.';
+	// 			document.getElementById('tags-helper').style.color = '#800';
+	// 			break;
+	// 		} else {
+	// 			document.getElementById('tags-helper').innerHTML = '';
+	// 		}
+	// 	}
+	// }
+
 	// function for auto-completing tags
 	async function ts() {
 		if (browser) {
@@ -105,64 +90,50 @@
 	}
 </script>
 
-<main class="overflow-hidden relative m-2 p-4 question">
-	<h4>Post your question for discussion</h4>
-	<hr />
-	<form on:submit|preventDefault={onSubmit}>
-		<Label for="large-input" class="block mb-2">Title</Label>
-		<Input
-			size="lg"
-			required
-			bind:value={title}
-			id="title"
-			minlength="6"
-			maxlength="256"
-			name="title"
-		/>
-		<Label for="description" class="mb-2">Description</Label>
-		
-		<Editor bind:markup bind:contentValue />
-		<Preview {markup} />
-		<div style="margin:30px" />
-		<Tags
-			name={'tags'}
-			bind:tags={tagList}
-			on:tags={handleTags}
-			addKeys={[9]}
-			maxTags={5}
-			allowPaste={true}
-			allowDrop={true}
-			splitWith={','}
-			onlyUnique={true}
-			removeKeys={[27, 8]}
-			placeholder="Tags, tab to complete"
-			allowBlur={true}
-			disable={false}
-			id={'tags'}
-			minChars={1}
-			autoComplete={ts}
-		/>
-		<Helper class="text-sm mt-2" id="tags-helper" />
-		<div class="b-wrapper">
-			<button
-				type="submit"
-				class="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg text-sm px-5 py-2.5 text-center"
-			>
-				Ask
-			</button>
-		</div>
-	</form>
-</main>
+<div class="row">
+	<div class="col s12 m8 offset-m4 xl10 offset-xl2">
+		{#if showContentValueToast}
+			<Toast>Question length should be 20 to 1000000 Characters!</Toast>
+		{/if}
+		<h4>Post your question for discussion</h4>
+		<hr />
+		<form class="col s12" on:submit|preventDefault={onSubmit}>
+			<div class="input-field">
+				<input
+					bind:value={title}
+					label="Title"
+					id="title"
+					type="text"
+					minlength="6"
+					maxlength="256"
+					style="min-width:100%"
+				/>
+				<label for="title">Summary</label>
+			</div>
+			<Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />
+			<Preview {markup} />
+			<div style="margin:30px" />
+			<Tags
+				name={'tags'}
+				bind:tags={tagList}
+				addKeys={[9]}
+				maxTags={5}
+				allowPaste={true}
+				allowDrop={true}
+				splitWith={','}
+				onlyUnique={true}
+				removeKeys={[27, 8]}
+				placeholder="Tags, tab to complete"
+				allowBlur={true}
+				disable={false}
+				id={'tags'}
+				minChars={1}
+				autoComplete={ts}
+			/>
+			<div class="b-wrapper">
+				<button type="submit" class="btn"> Ask </button>
+			</div>
+		</form>
+	</div>
+</div>
 
-<style>
-	@media (max-width: 720px) {
-		.question {
-			width: 100%;
-		}
-	}
-	@media (max-width: 4096px) {
-		.question {
-			width: 800px;
-		}
-	}
-</style>

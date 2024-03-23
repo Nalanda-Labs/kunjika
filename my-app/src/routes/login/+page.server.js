@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import * as api from '../../lib/api.js';
+import { fail } from '@sveltejs/kit';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals }) {
@@ -19,8 +20,8 @@ export const actions = {
 		let text = await resp.text();
 		let j = text ? JSON.parse(text) : {};
 
-		if (j.success === 'fail' || resp.status !== 200) {
-			return { success: false, message: j.message, email:data.get('email'), password: data.get('password') };
+		if (resp.status === 401) {
+			return fail(401, { success: false, errors: 'Either email or password is wrong!', email:data.get('email') });
 		}
 
 		for (const pair of resp.headers.entries()) {

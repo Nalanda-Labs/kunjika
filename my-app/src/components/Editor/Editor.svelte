@@ -18,10 +18,13 @@
 		parseMarkdown,
 		useKeyCombinations
 	} from '../../lib/utils/editor/utils.editor';
+    import hljs from 'highlight.js';
 
 	let contentTextArea;
 	export let contentValue;
 	export let markup;
+    export let minlength;
+    export let maxlength;
 
 	const handlePreview = async () => {
 		const bodyEditor = {
@@ -198,11 +201,15 @@
 			useKeyCombinations(event, contentTextArea);
 		}
 	}}
-    on:input={() => handlePreview()}
+    on:input={() => { handlePreview(); hljs.highlightAll()}}
+    on:keyup={() => { handlePreview(); hljs.highlightAll()}}
 	name="content"
-	class="w-full border border-grey border-solid"
+	class="materialize-textarea"    
     rows="10"
+    style="min-height: 300px"
 	id="textAreaContent"
+    minlength="{minlength}"
+    maxlength="{maxlength}"
 	placeholder="Write your article content here (markdown supported)..."
 	data-input-field
 	required

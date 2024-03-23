@@ -2,7 +2,6 @@
 	import hljs from 'highlight.js';
 	import '../../routes/highlight.css';
 
-	import { showPreview } from '$lib/stores/editor.store';
 	import { onMount } from 'svelte';
 
 	let articleContainer;
@@ -25,7 +24,7 @@
 <section class="section" aria-label="feature">
 	<div class="w-full">
 		<div class="preview full-text">
-			<div class="main-text w-full border border-grey border-dashed" bind:this={articleContainer}>
+			<div class="main-text w-full" bind:this={articleContainer}>
 				<p class="m-0.5">{@html markup}</p>
 			</div>
 		</div>

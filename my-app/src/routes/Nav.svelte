@@ -1,77 +1,66 @@
 <script>
 	import { page } from '$app/stores';
-	import { Navbar, NavBrand, A } from 'flowbite-svelte';
-	import { enhance } from '$app/forms';
 </script>
 
-<Navbar color="primary">
-	<NavBrand href="/">
-		<img src="/logo.png" class="me-3 h-6 sm:h-9" alt="Kunjika" />
-		<span class="self-center whitespace-nowrap text-xl font-semibold dark:text-white">Kunjika</span>
-	</NavBrand>
-	<ul
-		class="font-medium flex flex-col p-4 md:p-0 mt-4 border border-gray-100 rounded-lg bg-gray-50 md:flex-row md:space-x-8 md:mt-0 md:border-0 md:bg-white dark:bg-gray-800 md:dark:bg-gray-900 dark:border-gray-700"
-	>
-		{#if $page.data.user}
-			<li>
-				<button
-					id="mega-menu-dropdown-button"
-					data-dropdown-toggle="mega-menu-dropdown"
-					class="flex items-center justify-between w-full py-2 px-3 font-medium text-gray-900 border-b border-gray-100 md:w-auto hover:bg-gray-50 md:hover:bg-transparent md:border-0 md:hover:text-blue-600 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-blue-500 md:dark:hover:bg-transparent dark:border-gray-700"
-				>
-					{$page.data.user.username}
-					<svg
-						class="w-2.5 h-2.5 ms-3"
-						aria-hidden="true"
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 10 6"
-					>
-						<path
-							stroke="currentColor"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="m1 1 4 4 4-4"
-						/>
-					</svg>
-				</button>
-				<div
-					id="mega-menu-dropdown"
-					class="absolute z-10 grid hidden w-auto grid-cols-2 text-sm bg-white border border-gray-100 rounded-lg shadow-md dark:border-gray-700 md:grid-cols-3 dark:bg-gray-700"
-				>
-					<div class="p-4 pb-0 text-gray-900 md:pb-4 dark:text-white">
-						<ul class="space-y-4" aria-labelledby="mega-menu-dropdown-button">
-							<li>
-								<a
-									href="/user/{$page.data.user.id}"
-									class="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-500"
-								>
-									Profile
-								</a>
-							</li>
-							<li>
-								<form
-									use:enhance
-									class="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-500"
-									style="margin-left:0px"
-									method="POST"
-									action="/logout"
-								>
-									<button type="submit">Sign Out</button>
-								</form>
-							</li>
+<header>
+	<nav class="top-nav">
+		<div class="container">
+			<div class="nav-wrapper">
+				<div class="row">
+					<div class="col s12 m10 offset-m2 xl10 offset-xl2">
+						<a
+							href="#"
+							data-target="slide-out"
+							class="top-nav sidenav-trigger full hide-on-large-only"
+							><i class="material-icons green">menu</i></a
+						>
+						<a href="/" class="brand-logo">Kunjika</a>
+						<ul id="nav-mobile" class="right">
+							{#if $page.data.user}
+								<li>
+									<a rel="prefetch" href="/user/{$page.data.user.id}/{$page.data.user.username}">
+										{$page.data.user.username}
+									</a>
+								</li>
+								<li>
+									<form style="margin-left:0px" method="POST" action="/logout">
+										<button class="btn" type="submit">Sign Out</button>
+									</form>
+								</li>
+							{:else}
+								<li>
+									<a rel="prefetch" href="/login" class:active={$page.url.pathname === '/login'}>
+										Login
+									</a>
+								</li>
+
+								<li>
+									<a
+										rel="prefetch"
+										href="/register"
+										class:active={$page.url.pathname === '/register'}
+									>
+										Register
+									</a>
+								</li>
+							{/if}
 						</ul>
 					</div>
 				</div>
-			</li>
-		{:else}
-			<li>
-				<A href="/register">Register</A>
-			</li>
-			<li>
-				<A href="/login">Login</A>
-			</li>
-		{/if}
+			</div>
+		</div>
+	</nav>
+	<!-- <div class="container" /> -->
+	<ul class="sidenav sidenav-fixed" id="slide-out" style="transform: translateX(0%);">
+		<li class="logo">
+			<a id="logo-container" href="/questions" class="brand-logo"> Kunjika</a>
+		</li>
+		<li><div class="divider" /></li>
+		<li>
+			<a href="/questions">Questions</a>
+		</li>
+		<li><a href="/tags">Tags</a></li>
+		<li><a href="/users">Users</a></li>
+		<li />
 	</ul>
-</Navbar>
+</header>

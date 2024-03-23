@@ -93,7 +93,7 @@
 		<h1 class="text-xl font-bold">
 			All questions
 			{#if $page.data.user}
-				<button href="/ask" class="btn" style="float:right;margin-right:50px;">Ask</button>
+				<a href="/ask" class="btn" style="float:right;margin-right:50px;">Ask</a>
 			{/if}
 		</h1>
 		<div class="row">
@@ -105,7 +105,7 @@
 					<p style="text-align:center;font-size:16px;margin-top:5px">
 						{answers}
 					</p>
-					<p style="text-align:center;font-size:10px;margin-top:0px;float:left">answers</p>
+					<p style="text-align:center;font-size:10px;margin-top:10px;float:left">answers</p>
 				</div>
 				<div style="margin-right:10px;flex-basis: 5%;max-width:5%;height:60px;float:left">
 					<p style="text-align:center;font-size:16px;margin-top:5px">

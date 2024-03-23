@@ -7,6 +7,7 @@
     import { page } from "$app/stores";
     import { parseMarkdown } from "../../../../lib/utils/editor/utils.editor";
     import Render from "../../../../components/Editor/Render.svelte";
+	import Preview from "../../../../components/Editor/Preview.svelte";
 
     export let id;
     export let slug;
@@ -196,7 +197,7 @@
 <div>
     <h3>{title}</h3>
     <hr />
-    <div>
+    <div style="margin-top:10px">
         <div style="float:left;margin-right:10px;z-index:2;">
             {#if image_url === ""}
                 <a href="/user/{posted_by}/{username}">
@@ -298,10 +299,10 @@
             {/if}
         </div>
     </div>
-    <div style="clear:both" />
+    <div style="clear:both;margin-bottom:10px" />
     {#each questions as { question_id, description, votes, posted_by_id, username, initials, image_url, shown_ts, answer_accepted }}
-        <hr style="border-bottom:1px solid;color:#eee" />
-        <div>
+        <hr style="border-bottom:1px solid;color:#eee;" />
+        <div style="margin-top:10px">
             <div style="float:left;margin-right:10px">
                 {#if image_url === "" || image_url === undefined}
                     <a href="/user/{posted_by_id}/{username}">
@@ -325,9 +326,7 @@
                     >
                         <i class="fas fa-angle-up" />
                     </a>
-                    <br />
                     <span style="text-align:center">{votes}</span>
-                    <br />
                     <a
                         href="/vote-down"
                         class="anchor"
@@ -335,7 +334,6 @@
                     >
                         <i class="fas fa-angle-down" />
                     </a>
-                    <br />
                     {#if $page.data.user && posted_by_id == $page.data.user.id}
                         {#if answer_accepted}
                             <a
@@ -363,9 +361,9 @@
                 </div>
             </div>
             <div style="float:left; position:relative;width:calc(100% - 70px)">
-                <span style="font-weight:bold;color:#888">{username}</span>
-                <span style="float:right">posted {shown_ts} ago</span>
-                <svelte:component this={Viewer} value={description} />
+                <span style="font-weight:bold;color:#888">{username}</span><span style="float:right">posted {shown_ts}</span>
+                <div style="margin:10px" />
+                <Render markup={description} />
                 {#if $page.data.user}
                     <div style="float:right">
                         <a

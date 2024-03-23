@@ -3,11 +3,9 @@
 </script>
 
 <script>
-	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import * as api from '$lib/api.js';
 	import InfiniteLoading from 'svelte-infinite-loading';
-	import { A, Button } from 'flowbite-svelte';
 
 	let questions = [];
 	let data = [];
@@ -95,7 +93,7 @@
 		<h1 class="text-xl font-bold">
 			All questions
 			{#if $page.data.user}
-				<Button href="/ask" class="btn" style="float:right;margin-right:50px;">Ask</Button>
+				<button href="/ask" class="btn" style="float:right;margin-right:50px;">Ask</button>
 			{/if}
 		</h1>
 		<div class="row">
@@ -107,7 +105,7 @@
 					<p style="text-align:center;font-size:16px;margin-top:5px">
 						{answers}
 					</p>
-					<p style="text-align:center;font-size:10px;margin-top:10px;float:left">answers</p>
+					<p style="text-align:center;font-size:10px;margin-top:0px;float:left">answers</p>
 				</div>
 				<div style="margin-right:10px;flex-basis: 5%;max-width:5%;height:60px;float:left">
 					<p style="text-align:center;font-size:16px;margin-top:5px">
@@ -117,7 +115,7 @@
 				</div>
 				<div style="width:85%;float:left;position:relative">
 					<a
-						href="/questions/{id}"
+						href="/questions/{id}/{slug}"
 						style="text-decoration:none; color: #4285F4; font-size:16px; font-weight:400">{title}</a
 					>
 					<div style="margin-top:10px;clear:both" />
@@ -125,7 +123,7 @@
 						<a
 							href="/questions/tagged/{tag}"
 							class="btn"
-							style="text-decoration:none; color: #fff;background-color: #4285F4;">{tag}</a
+							style="text-decoration:none; color: #fff;background-color: #4285F4;margin-right:10px">{tag}</a
 						>
 					{/each}
 					<span style="float:right"

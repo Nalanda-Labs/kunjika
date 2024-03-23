@@ -1,4 +1,5 @@
 <script>
+	import { goto } from '$app/navigation';
 	import { onDestroy, onMount } from 'svelte';
 	import { navigating } from '$app/stores';
 	import Nav from './Nav.svelte';

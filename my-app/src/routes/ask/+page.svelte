@@ -9,7 +9,7 @@
 	import Editor from '../../components/Editor/Editor.svelte';
 	import Preview from '../../components/Editor/Preview.svelte';
 	import getCookie from '../../lib/cookie.js';
-	import './editor.css';
+	import '../../editor.css';
 
 	let title = '';
 	let tagList = [];

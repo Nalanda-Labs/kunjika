@@ -38,3 +38,7 @@ body {
     border-width: 1px;
     border-color: #ddd;
 }
+
+.render {
+    min-height: 150px;
+}

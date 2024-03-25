@@ -90,12 +90,12 @@
 </svelte:head>
 <div class="row">
 	<div class="col s12 m8 offset-m4 xl10 offset-xl2">
-		<h1 class="text-xl font-bold">
+		<h4 class="text-xl font-bold">
 			All questions
 			{#if $page.data.user}
 				<a href="/ask" class="btn light-blue darken-2" style="float:right;margin-right:50px;">Ask</a>
 			{/if}
-		</h1>
+		</h4>
 		<div class="row">
 			{#each data as { id, slug, title, tags, shown_ts, uid, username, answers, views }}
 				<hr

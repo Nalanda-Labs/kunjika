@@ -12,14 +12,15 @@ pub struct Tag {
     pub name: String,
     pub post_count: Option<i64>,
     pub info: Option<String>,
-    pub create_dt: SqlDateTime,
-    pub update_dt: SqlDateTime,
+    pub weekly_count: Option<i64>,
+    pub daily_count: Option<i64>
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug, Validate)]
 pub struct TagRequest {
     // #[validate(length(min = 1, max = 32))]
-    pub tag: String
+    pub tag: String,
+    pub direction: Option<String>
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug, Validate)]

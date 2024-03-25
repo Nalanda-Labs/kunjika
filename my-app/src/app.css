@@ -50,3 +50,12 @@ body {
 .top-nav, .btn {
     background-color:#0288d1!important;
 }
+
+.logo {
+    min-height:55px;
+}
+
+.pagination li.disabled i{
+	cursor: default;
+	color: #999;
+}

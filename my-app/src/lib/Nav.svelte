@@ -76,7 +76,7 @@
 		id="slide-out"
 		style="transform: translateX(0%);"
 	>
-		<li class="logo" style="min-height:55px">
+		<li class="logo">
 			<a id="logo-container" href="/questions" class="brand-logo">
 				Kunjika</a
 			>

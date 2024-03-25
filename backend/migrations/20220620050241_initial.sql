@@ -44,18 +44,18 @@ CREATE TABLE public.tags (
     name character varying(32) NOT NULL,
     info character varying(1048576),
     post_count bigint DEFAULT 0,
-    create_dt timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    update_dt timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
 ALTER TABLE public.tags OWNER TO shiv;
 
 --
--- Name: daily_tags_by_popularity; Type: MATERIALIZED VIEW; Schema: public; Owner: shiv
+-- Name: daily_tags_by_popularity; Type: VIEW; Schema: public; Owner: shiv
 --
 
-CREATE MATERIALIZED VIEW public.daily_tags_by_popularity AS
+CREATE VIEW public.daily_tags_by_popularity AS
  SELECT post_tags.tag_id,
     count(post_tags.tag_id) AS count,
     t.name
@@ -63,11 +63,10 @@ CREATE MATERIALIZED VIEW public.daily_tags_by_popularity AS
      LEFT JOIN public.tags t ON ((t.id = post_tags.tag_id)))
   WHERE (post_tags.created_at > (CURRENT_DATE - '1 day'::interval))
   GROUP BY post_tags.tag_id, t.name
-  ORDER BY (count(post_tags.tag_id))
-  WITH NO DATA;
+  ORDER BY (count(post_tags.tag_id));
 
 
-ALTER MATERIALIZED VIEW public.daily_tags_by_popularity OWNER TO shiv;
+ALTER VIEW public.daily_tags_by_popularity OWNER TO shiv;
 
 --
 -- Name: post_tags_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
@@ -137,21 +136,31 @@ ALTER SEQUENCE public.posts_id_seq OWNED BY public.posts.id;
 
 
 --
--- Name: tags_by_popularity; Type: MATERIALIZED VIEW; Schema: public; Owner: shiv
+-- Name: tags_by_popularity; Type: VIEW; Schema: public; Owner: shiv
 --
 
-CREATE MATERIALIZED VIEW public.tags_by_popularity AS
+CREATE VIEW public.tags_by_popularity AS
  SELECT post_tags.tag_id,
     count(post_tags.tag_id) AS count,
     t.name
    FROM (public.post_tags
      LEFT JOIN public.tags t ON ((t.id = post_tags.tag_id)))
   GROUP BY post_tags.tag_id, t.name
-  ORDER BY (count(post_tags.tag_id))
-  WITH NO DATA;
+  ORDER BY (count(post_tags.tag_id));
 
 
-ALTER MATERIALIZED VIEW public.tags_by_popularity OWNER TO shiv;
+ALTER VIEW public.tags_by_popularity OWNER TO shiv;
+
+--
+-- Name: tags_count; Type: VIEW; Schema: public; Owner: shiv
+--
+
+CREATE VIEW public.tags_count AS
+ SELECT count(1) AS count
+   FROM public.tags;
+
+
+ALTER VIEW public.tags_count OWNER TO shiv;
 
 --
 -- Name: tags_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
@@ -224,10 +233,10 @@ ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 
 --
--- Name: weekly_tags_by_popularity; Type: MATERIALIZED VIEW; Schema: public; Owner: shiv
+-- Name: weekly_tags_by_popularity; Type: VIEW; Schema: public; Owner: shiv
 --
 
-CREATE MATERIALIZED VIEW public.weekly_tags_by_popularity AS
+CREATE VIEW public.weekly_tags_by_popularity AS
  SELECT post_tags.tag_id,
     count(post_tags.tag_id) AS count,
     t.name
@@ -235,11 +244,10 @@ CREATE MATERIALIZED VIEW public.weekly_tags_by_popularity AS
      LEFT JOIN public.tags t ON ((t.id = post_tags.tag_id)))
   WHERE (post_tags.created_at > (CURRENT_DATE - '7 days'::interval))
   GROUP BY post_tags.tag_id, t.name
-  ORDER BY (count(post_tags.tag_id))
-  WITH NO DATA;
+  ORDER BY (count(post_tags.tag_id));
 
 
-ALTER MATERIALIZED VIEW public.weekly_tags_by_popularity OWNER TO shiv;
+ALTER VIEW public.weekly_tags_by_popularity OWNER TO shiv;
 
 --
 -- Name: post_tags id; Type: DEFAULT; Schema: public; Owner: shiv

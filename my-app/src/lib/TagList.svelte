@@ -6,9 +6,9 @@
 	{#each taglist as tag}
 		<li style="display:inline">
 			<a
-				href="/tags/topics/tagged/{tag}"
-				class=""
-				style="display:inline;padding:5px;border-radius:3px;text-decoration:none; color: #fff;background-color: #4285F4; margin-right:10px; border-radius: 4px"
+				href="/tags/questions/tagged/{tag}"
+				class="light-blue darken-2"
+				style="display:inline;padding:5px;border-radius:3px;text-decoration:none; color: #fff; margin-right:10px; border-radius: 4px"
 				>{tag}</a
 			>
 		</li>

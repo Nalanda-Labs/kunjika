@@ -65,13 +65,13 @@
 		let text = await response.text();
 		let j = text ? JSON.parse(text) : {};
 		if (response.status === 200) {
-		    M.toast({
-		        html: "You have been sent a confirmation email. Please verify!",
-		    });
+			M.toast({
+				html: 'You have been sent a confirmation email. Please verify!'
+			});
 		} else {
-		    M.toast({
-		        html: j.message,
-		    });
+			M.toast({
+				html: j.message
+			});
 		}
 	}
 </script>
@@ -79,81 +79,79 @@
 <svelte:head>
 	<title>Register ❤ Kunjika</title>
 </svelte:head>
-<main>
-	<div class="row">
-		<div class="col-md-6 offset-md-3 col-xs-12">
-			<h3 class="text-xs-center">Register</h3>
-			<p class="text-xs-center" style="margin-left:20px">
-				<a href="/login">Have an account?</a>
-			</p>
+<div class="row">
+	<div class="col s12 m12 offset-m4 xl12 offset-xl4">
+		<h3 class="text-xs-center">Register</h3>
+		<p class="text-xs-center" style="margin-left:20px">
+			<a href="/login">Have an account?</a>
+		</p>
 
-			<form on:submit|preventDefault={submit} class="col s6">
-				<div class="row">
-					<div class="input-field col s12">
-						<input
-							class="validate"
-							type="text"
-							required
-							bind:value={username}
-							on:keyup={check_username_availablity}
-							id="username"
-							placeholder="Username minimum three characters"
-						/>
-						<label for="username">Username</label>
-					</div>
-					<p id="username-helper" />
-					<div class="input-field col s12">
-						<input
-							class="validate"
-							type="email"
-							required
-							bind:value={email}
-							minlength="6"
-							maxlength="256"
-						/>
-						<label for="email">Email</label>
-					</div>
-					<p>
-						We’ll never share your details. Read our <a
-							href="/privacy-policy"
-							class="font-medium text-primary-600 hover:underline dark:text-primary-500"
-						>
-							Privacy Policy
-						</a>
-						.
-					</p>
-					<div class="input-field col s12">
-						<input
-							class="validate"
-							type="password"
-							required
-							bind:value={password}
-							minlength="16"
-							maxlength="64"
-							placeholder="minimum 16 characters"
-						/>
-						<label for="password">Passphrase</label>
-					</div>
-					<div class="input-field col s12">
-						<input
-							class="validate"
-							type="password"
-							required
-							bind:value={confirm_password}
-							minlength="16"
-							maxlength="64"
-							placeholder="Repeat passphrase"
-						/>
-						<label for="password">Confirm Passphrase</label>
-					</div>
+		<form on:submit|preventDefault={submit} class="col s6">
+			<div class="row">
+				<div class="input-field col s12">
+					<input
+						class="validate"
+						type="text"
+						required
+						bind:value={username}
+						on:keyup={check_username_availablity}
+						id="username"
+						placeholder="Username minimum three characters"
+					/>
+					<label for="username">Username</label>
 				</div>
-				<div class="b-wrapper">
-					<button class="btn" type="submit" name="action"
-						>Submit
-						<i class="material-icons right">send</i>
-					</button>
+				<p id="username-helper" />
+				<div class="input-field col s12">
+					<input
+						class="validate"
+						type="email"
+						required
+						bind:value={email}
+						minlength="6"
+						maxlength="256"
+					/>
+					<label for="email">Email</label>
 				</div>
-			</form>
-		</div>
+				<p>
+					We’ll never share your details. Read our <a
+						href="/privacy-policy"
+						class="font-medium text-primary-600 hover:underline dark:text-primary-500"
+					>
+						Privacy Policy
+					</a>
+					.
+				</p>
+				<div class="input-field col s12">
+					<input
+						class="validate"
+						type="password"
+						required
+						bind:value={password}
+						minlength="16"
+						maxlength="64"
+						placeholder="minimum 16 characters"
+					/>
+					<label for="password">Passphrase</label>
+				</div>
+				<div class="input-field col s12">
+					<input
+						class="validate"
+						type="password"
+						required
+						bind:value={confirm_password}
+						minlength="16"
+						maxlength="64"
+						placeholder="Repeat passphrase"
+					/>
+					<label for="password">Confirm Passphrase</label>
+				</div>
+			</div>
+			<div class="b-wrapper">
+				<button class="btn light-blue darken-2" type="submit" name="action"
+					>Submit
+					<i class="material-icons right">send</i>
+				</button>
+			</div>
+		</form>
 	</div>
-</main>
+</div>

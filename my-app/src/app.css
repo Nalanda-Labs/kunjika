@@ -46,3 +46,7 @@ body {
 .answers {
     min-height: 150px;
 }
+
+.top-nav, .btn {
+    background-color:#0288d1!important;
+}

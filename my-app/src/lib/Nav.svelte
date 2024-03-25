@@ -5,7 +5,7 @@
 </script>
 
 <header>
-	<nav class="top-nav">
+	<nav class="top-nav light-blue darken-2">
 		<div class="container">
 			<div class="nav-wrapper">
 				<div class="row">
@@ -39,7 +39,7 @@
 							</li>
 							<li>
 								<form use:enhance method="POST" action="/logout" style="margin-left:20px">
-									<button type="submit" style="background-color: rgb(249, 250, 251)!important;color: #000">Sign Out</button>
+									<button type="submit" class="light-blue darken-2" style="background-color:#0288d1!important">Sign Out</button>
 								</form>
 							</li>
 						{:else}

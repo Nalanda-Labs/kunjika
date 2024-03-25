@@ -8,17 +8,20 @@
 	import { browser } from '$app/environment';
 	import '../app.css';
 
-	const refresh = setInterval(async () => {
-		if (browser) {
-			const resp = await api.get('auth/refresh', {});
+	const refresh = setInterval(
+		async () => {
+			if (browser) {
+				const resp = await api.get('auth/refresh', {});
 
-			if (resp.status === 403) {
-				goto('/');
+				if (resp.status === 403) {
+					goto('/');
+				}
+
+				// TODO: remove this hardcoding. keep this interval less than access token max age
 			}
-			
-			// TODO: remove this hardcoding. keep this interval less than access token max age
-		}
-	}, 10 * 60 * 1000);
+		},
+		10 * 60 * 1000
+	);
 
 	onMount(async () => {
 		// this immediate refresh is for the reason when user will close the
@@ -35,7 +38,7 @@
 
 	onDestroy(async () => {
 		clearInterval(refresh);
-	})
+	});
 </script>
 
 {#if $navigating}
@@ -44,7 +47,7 @@
 
 <Nav />
 <div class="container">
-<main>
-	<slot />
-</main>
+	<main>
+		<slot />
+	</main>
 </div>

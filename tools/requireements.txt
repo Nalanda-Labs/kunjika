@@ -1,0 +1,7 @@
+annotated-types==0.6.0
+psycopg==3.1.18
+pydantic==2.6.4
+pydantic-settings==2.2.1
+pydantic_core==2.16.3
+python-dotenv==1.0.1
+typing_extensions==4.10.0

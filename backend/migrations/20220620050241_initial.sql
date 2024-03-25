@@ -1,10 +1,9 @@
--- Add migration script here
 --
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 14.3 (Ubuntu 14.3-0ubuntu0.22.04.1)
--- Dumped by pg_dump version 14.3 (Ubuntu 14.3-0ubuntu0.22.04.1)
+-- Dumped from database version 16.1
+-- Dumped by pg_dump version 16.1
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -37,6 +36,40 @@ CREATE TABLE public.post_tags (
 ALTER TABLE public.post_tags OWNER TO shiv;
 
 --
+-- Name: tags; Type: TABLE; Schema: public; Owner: shiv
+--
+
+CREATE TABLE public.tags (
+    id bigint NOT NULL,
+    name character varying(32) NOT NULL,
+    info character varying(1048576),
+    post_count bigint DEFAULT 0,
+    create_dt timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    update_dt timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.tags OWNER TO shiv;
+
+--
+-- Name: daily_tags_by_popularity; Type: MATERIALIZED VIEW; Schema: public; Owner: shiv
+--
+
+CREATE MATERIALIZED VIEW public.daily_tags_by_popularity AS
+ SELECT post_tags.tag_id,
+    count(post_tags.tag_id) AS count,
+    t.name
+   FROM (public.post_tags
+     LEFT JOIN public.tags t ON ((t.id = post_tags.tag_id)))
+  WHERE (post_tags.created_at > (CURRENT_DATE - '1 day'::interval))
+  GROUP BY post_tags.tag_id, t.name
+  ORDER BY (count(post_tags.tag_id))
+  WITH NO DATA;
+
+
+ALTER MATERIALIZED VIEW public.daily_tags_by_popularity OWNER TO shiv;
+
+--
 -- Name: post_tags_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
 --
 
@@ -48,7 +81,7 @@ CREATE SEQUENCE public.post_tags_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.post_tags_id_seq OWNER TO shiv;
+ALTER SEQUENCE public.post_tags_id_seq OWNER TO shiv;
 
 --
 -- Name: post_tags_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
@@ -94,7 +127,7 @@ CREATE SEQUENCE public.posts_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.posts_id_seq OWNER TO shiv;
+ALTER SEQUENCE public.posts_id_seq OWNER TO shiv;
 
 --
 -- Name: posts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
@@ -104,20 +137,21 @@ ALTER SEQUENCE public.posts_id_seq OWNED BY public.posts.id;
 
 
 --
--- Name: tags; Type: TABLE; Schema: public; Owner: shiv
+-- Name: tags_by_popularity; Type: MATERIALIZED VIEW; Schema: public; Owner: shiv
 --
 
-CREATE TABLE public.tags (
-    id bigint NOT NULL,
-    name character varying(32) NOT NULL,
-    info character varying(1048576),
-    post_count bigint DEFAULT 0,
-    create_dt timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    update_dt timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
+CREATE MATERIALIZED VIEW public.tags_by_popularity AS
+ SELECT post_tags.tag_id,
+    count(post_tags.tag_id) AS count,
+    t.name
+   FROM (public.post_tags
+     LEFT JOIN public.tags t ON ((t.id = post_tags.tag_id)))
+  GROUP BY post_tags.tag_id, t.name
+  ORDER BY (count(post_tags.tag_id))
+  WITH NO DATA;
 
 
-ALTER TABLE public.tags OWNER TO shiv;
+ALTER MATERIALIZED VIEW public.tags_by_popularity OWNER TO shiv;
 
 --
 -- Name: tags_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
@@ -131,7 +165,7 @@ CREATE SEQUENCE public.tags_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.tags_id_seq OWNER TO shiv;
+ALTER SEQUENCE public.tags_id_seq OWNER TO shiv;
 
 --
 -- Name: tags_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
@@ -149,10 +183,10 @@ CREATE TABLE public.users (
     username character varying(10) NOT NULL,
     email character varying(256) NOT NULL,
     password_hash character varying(256) NOT NULL,
-    create_dt timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    update_dt timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    modified_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     status character varying(10) DEFAULT 'normal'::character varying NOT NULL,
-    image_url character varying(512),
+    image_url character varying(512) NOT NULL,
     location character varying(128),
     name character varying(128),
     karma bigint DEFAULT 1,
@@ -161,7 +195,8 @@ CREATE TABLE public.users (
     website character varying(256),
     git character varying(256),
     twitter character varying(256),
-    email_verified boolean DEFAULT false not null
+    email_verified boolean DEFAULT false NOT NULL,
+    deleted boolean DEFAULT false NOT NULL
 );
 
 
@@ -179,7 +214,7 @@ CREATE SEQUENCE public.users_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.users_id_seq OWNER TO shiv;
+ALTER SEQUENCE public.users_id_seq OWNER TO shiv;
 
 --
 -- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
@@ -187,6 +222,24 @@ ALTER TABLE public.users_id_seq OWNER TO shiv;
 
 ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
+
+--
+-- Name: weekly_tags_by_popularity; Type: MATERIALIZED VIEW; Schema: public; Owner: shiv
+--
+
+CREATE MATERIALIZED VIEW public.weekly_tags_by_popularity AS
+ SELECT post_tags.tag_id,
+    count(post_tags.tag_id) AS count,
+    t.name
+   FROM (public.post_tags
+     LEFT JOIN public.tags t ON ((t.id = post_tags.tag_id)))
+  WHERE (post_tags.created_at > (CURRENT_DATE - '7 days'::interval))
+  GROUP BY post_tags.tag_id, t.name
+  ORDER BY (count(post_tags.tag_id))
+  WITH NO DATA;
+
+
+ALTER MATERIALIZED VIEW public.weekly_tags_by_popularity OWNER TO shiv;
 
 --
 -- Name: post_tags id; Type: DEFAULT; Schema: public; Owner: shiv

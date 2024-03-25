@@ -4,7 +4,7 @@ use crate::state::AppStateRaw;
 #[async_trait]
 pub trait ITag: std::ops::Deref<Target = AppStateRaw> {
     async fn tag_query(&self, name: &str) -> sqlx::Result<Vec<Tag>>;
-    async fn get_all_tags(&self, name: &str, post_count: std::option::Option<i64>) -> sqlx::Result<Vec<Tag>>;
+    async fn get_all_tags_by_name(&self, name: &str) -> sqlx::Result<Vec<Tag>>;
     async fn update_tag_info(&self, info: &str, id: i64) -> sqlx::Result<String>;
     async fn get_tag_info(&self, id: i64) -> sqlx::Result<String>;
 }
@@ -23,12 +23,12 @@ impl ITag for &AppStateRaw {
         sqlx::query_as(&sql).fetch_all(&self.sql).await
     }
 
-    async fn get_all_tags(&self, name: &str, post_count: std::option::Option<i64>) -> sqlx::Result<Vec<Tag>> {
+    async fn get_all_tags_by_name(&self, name: &str) -> sqlx::Result<Vec<Tag>> {
         sqlx::query_as!(
             Tag, r#"
-            select * from tags where name > $1 and post_count< $2 order by post_count desc, name limit $3
+            select * from tags where name > $1 order by name desc, name limit $2
             "#,
-            name, post_count, self.config.tags_per_page
+            name, self.config.tags_per_page
         )
         .fetch_all(&self.sql)
         .await

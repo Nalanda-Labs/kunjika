@@ -42,7 +42,8 @@
             value = parseMarkdown(response.data.description);
             contentValue = response.data.description;
             tagList = response.data.tags.map((tag) => tag);
-            console.log(response.data.tagList);
+			console.log(response.data.tags);
+            console.log(tagList);
             time = response.data.created_at;
             votes = response.data.votes;
             posted_by = response.data.posted_by_id;
@@ -175,7 +176,7 @@
 			{/if}
 			<Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />
 			<Preview {markup} />
-			{#if !tagList}
+			{#if tagList}
 			<div style="margin:30px" />
 			<Tags
 				name={'tags'}

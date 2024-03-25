@@ -31,7 +31,7 @@ async fn get_tags(
 async fn get_all_tags(form: web::types::Json<TagRequest>, state: AppState) -> impl Responder {
     let tag = form.into_inner();
 
-    match state.get_ref().get_all_tags(&tag.tag, tag.post_count).await {
+    match state.get_ref().get_all_tags_by_name(&tag.tag).await {
         Ok(t) => {
             debug!("find tags {:?} ", t);
 

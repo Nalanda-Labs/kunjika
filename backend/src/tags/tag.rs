@@ -19,8 +19,7 @@ pub struct Tag {
 #[derive(FromRow, Serialize, Deserialize, Debug, Validate)]
 pub struct TagRequest {
     // #[validate(length(min = 1, max = 32))]
-    pub tag: String,
-    pub post_count: Option<SqlID>
+    pub tag: String
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug, Validate)]

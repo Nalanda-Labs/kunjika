@@ -93,7 +93,7 @@
 		<h1 class="text-xl font-bold">
 			All questions
 			{#if $page.data.user}
-				<a href="/ask" class="btn" style="float:right;margin-right:50px;">Ask</a>
+				<button href="/ask" class="btn" style="float:right;margin-right:50px;">Ask</button>
 			{/if}
 		</h1>
 		<div class="row">
@@ -118,12 +118,12 @@
 						href="/questions/{id}/{slug}"
 						style="text-decoration:none; color: #4285F4; font-size:16px; font-weight:400">{title}</a
 					>
-					<div style="margin-top:10px;clear:both" />
+					<div style="margin-top:20px;clear:both" />
 					{#each tags as tag, i}
 						<a
 							href="/questions/tagged/{tag}"
-							class="btn"
-							style="text-decoration:none; color: #fff;background-color: #4285F4;margin-right:10px">{tag}</a
+							class=""
+							style="display:inline;padding:5px;border-radius:3px;text-decoration:none; color: #fff;background-color: #4285F4;margin-right:10px">{tag}</a
 						>
 					{/each}
 					<span style="float:right"

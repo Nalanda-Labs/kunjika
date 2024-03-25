@@ -248,7 +248,7 @@
                         href="/questions/edit/{id}"
                         class="anchor"
                         title="Edit your post"
-                        style="margin-right:5px"
+                        style="margin-right:5px;display:inline"
                         ><span
                             class="material-icons"
                             style="vertical-align:bottom">edit</span
@@ -293,7 +293,7 @@
                         )}
                         class="anchor"
                         title="Reply to this post"
-                        style="margin-right:5px"
+                        style="margin-right:5px;display:inline"
                         ><span
                             class="material-icons"
                             style="vertical-align:bottom">reply</span

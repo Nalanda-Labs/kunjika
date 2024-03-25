@@ -31,7 +31,7 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         tag_list: &Option<Vec<String>>,
         title: &String,
         slug: &String,
-    ) -> sqlx::Result<u64>;
+    ) -> sqlx::Result<(u64, String)>;
 }
 
 #[cfg(any(feature = "postgres"))]
@@ -341,7 +341,7 @@ impl IQuestion for &AppStateRaw {
         let pr = PostResponse {
             title,
             description: r.description,
-            tags: tags1,
+            tags: tags,
         };
 
         Ok(pr)
@@ -383,7 +383,7 @@ impl IQuestion for &AppStateRaw {
         tag_list: &Option<Vec<String>>,
         title: &String,
         slug: &String,
-    ) -> sqlx::Result<u64> {
+    ) -> sqlx::Result<(u64, String)> {
         let t_tags = Vec::new();
         let tags = match tag_list {
             Some(tl) => tl,
@@ -428,7 +428,7 @@ impl IQuestion for &AppStateRaw {
             for t in &ts {
                 if !tags.contains(&t.name) {
                     let _ = &tx.rollback().await?;
-                    return Ok(0);
+                    return Ok((0, "".to_owned()));
                 }
             }
 
@@ -486,33 +486,44 @@ impl IQuestion for &AppStateRaw {
 
         pr = sqlx::query!(
             r#"
-            select id from posts where op_id=0 and id=$1
+            select id, slug from posts where op_id=0 and id=$1
             "#,
             pid
         )
         .fetch_one(&mut *tx)
         .await;
 
-        id = match pr {
-            Ok(p) => p.id,
-            Err(_e) => 0,
+        id = match pr.as_ref() {
+            Ok(pr) => match pr.id {
+                id => id as i64,
+            },
+            Err(_e) => 0
+        };
+        let mut slug = match pr {
+            Ok(pr) => match pr.slug {
+                Some(s) => s,
+                None => "".to_owned()
+            },
+            Err(_e) => "".to_owned()
         };
 
         debug!("id is {}", id);
         if id == 0 {
             pr1 = sqlx::query!(
                 r#"
-            select id from posts where id in (select op_id from posts where op_id!=0 and id=$1)
+            select id, slug from posts where id in (select op_id from posts where op_id!=0 and id=$1)
             "#,
                 pid
             )
             .fetch_one(&mut *tx)
             .await?;
             id = pr1.id;
+            slug = pr1.slug.unwrap();
         }
 
         tx.commit().await?;
 
-        Ok(id as u64)
+        println!("The post id is {}", id);
+        Ok((id as u64, slug))
     }
 }

@@ -4,14 +4,14 @@
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
 	import Tags from 'svelte-tags-input';
-	import '../../../../highlight.css';
+	import '../../../highlight.css';
 	import { redirect } from '@sveltejs/kit';
-	import Editor from '../../../../../components/Editor/Editor.svelte';
-	import Preview from '../../../../../components/Editor/Preview.svelte';
-	import getCookie from '../../../../../lib/cookie.js';
-	import '../../../../../editor.css';
+	import Editor from '../../../../components/Editor/Editor.svelte';
+	import Preview from '../../../../components/Editor/Preview.svelte';
+	import getCookie from '../../../../lib/cookie.js';
+	import '../../../../editor.css';
     import { onMount } from "svelte";
-    import { parseMarkdown } from "../../../../../lib/utils/editor/utils.editor";
+    import { parseMarkdown } from "../../../../lib/utils/editor/utils.editor";
 
 	let title = "";
     let tagList = [];
@@ -32,16 +32,17 @@
 
 
     onMount(async () => {
-        let response = await api.get(`questions/${$page.params.id}/${$page.params.slug}`);
+		let xsrf_token = getCookie('xsrf_token');
+        let response = await api.get(`edit/question/${$page.params.id}`, xsrf_token);
 
         if (response.status === 200) {
             response = JSON.parse(await response.text());
             title = response.data.title;
-            console.log(title);
             description = response.data.description;
             value = parseMarkdown(response.data.description);
             contentValue = response.data.description;
             tagList = response.data.tags.map((tag) => tag);
+            console.log(response.data.tagList);
             time = response.data.created_at;
             votes = response.data.votes;
             posted_by = response.data.posted_by_id;
@@ -158,6 +159,7 @@
 		<h4>Post your question for discussion</h4>
 		<hr />
 		<form class="col s12" on:submit|preventDefault={onSubmit}>
+			{#if title}
 			<div class="input-field">
 				<input
 					bind:value={title}
@@ -170,8 +172,10 @@
 				/>
 				<label for="title">Summary</label>
 			</div>
+			{/if}
 			<Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />
 			<Preview {markup} />
+			{#if !tagList}
 			<div style="margin:30px" />
 			<Tags
 				name={'tags'}
@@ -190,8 +194,9 @@
 				minChars={1}
 				autoComplete={ts}
 			/>
+			{/if}
 			<div class="b-wrapper">
-				<button type="submit" class="btn"> Ask </button>
+				<button type="submit" class="btn">Edit</button>
 			</div>
 		</form>
 	</div>

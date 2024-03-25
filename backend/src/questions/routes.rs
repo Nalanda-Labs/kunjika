@@ -190,7 +190,7 @@ async fn update_post(
         .update_post(pid, &er.description, &er.tag_list, &title, &slug)
         .await
     {
-        Ok(post) => HttpResponse::Ok().json(&json!({"data": { "id": pid, "slug": slug}})),
+        Ok((post, slug)) => HttpResponse::Ok().json(&json!({"data": { "id": post, "slug": slug}})),
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": "fail", "message": e.to_string()})),
     }

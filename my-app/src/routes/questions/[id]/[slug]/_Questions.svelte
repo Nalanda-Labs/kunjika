@@ -245,7 +245,7 @@
             {#if $page.data.user}
                 <div style="float:right">
                     <a
-                        href="/questions/edit/{id}/{slug}"
+                        href="/questions/edit/{id}"
                         class="anchor"
                         title="Edit your post"
                         style="margin-right:5px"
@@ -373,7 +373,7 @@
                 {#if $page.data.user}
                     <div style="float:right">
                         <a
-                            href="/edit/{question_id}"
+                            href="/questions/edit/{question_id}"
                             class="anchor"
                             title="Edit your post"
                             style="margin-right:5px"

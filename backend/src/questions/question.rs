@@ -134,7 +134,7 @@ pub struct AnswerReq {
 pub struct PostResponse {
     pub title: String,
     pub description: String,
-    pub tags: String,
+    pub tags: Vec<String>,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug, Validate)]

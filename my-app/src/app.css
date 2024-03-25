@@ -32,13 +32,17 @@ body {
 .light-pagination-nav {
     margin-top: 20px;
 }
-
+/* 
 .preview {
     border-style: dashed;
     border-width: 1px;
     border-color: #ddd;
-}
+} */
 
 .render {
+    min-height: 150px;
+}
+
+.answers {
     min-height: 150px;
 }

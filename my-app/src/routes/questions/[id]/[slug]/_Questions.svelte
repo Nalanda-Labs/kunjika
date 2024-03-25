@@ -18,18 +18,17 @@
 
     let title = "";
     let taglist = [];
-    let Viewer = null;
     let offset = 0;
     let limit = 50;
     let count = 0;
     let time = "";
     let votes = 0;
-    let bytemd = null;
     let posted_by;
     let username;
     let image_url = "";
     let initials = "";
     let shown_ts;
+    let description = "";
 
     onMount(async () => {
         let response = await api.get(`questions/${id}/${slug}`);
@@ -37,6 +36,7 @@
         if (response.status === 200) {
             response = JSON.parse(await response.text());
             title = response.data.title;
+            description = response.data.description;
             value = parseMarkdown(response.data.description);
             taglist = response.data.tags.map((tag) => tag);
             time = response.data.created_at;
@@ -79,6 +79,8 @@
         response = JSON.parse(await response.text());
 
         if (response.data) {
+            // these questions are actually answers. the question has already been
+            // fetched in the first request.
             questions = response.data.questions;
             for (var i = 0; i < questions.length; i++) {
                 if (questions[i].image_url === "") {
@@ -236,12 +238,14 @@
             <span style="font-weight:bold;color:#888;display:inline!important">{username}</span><span style="float:right"> {shown_ts}</span>
             <!-- <span style="float:left">{shown_ts}</span> -->
             <div style="margin:10px" />
-            <Render markup={value} />
+            <div class="answers">
+            <Preview markup={value} />
+            </div>
             <TagList {taglist} />
             {#if $page.data.user}
                 <div style="float:right">
                     <a
-                        href="/edit/{id}"
+                        href="/questions/edit/{id}/{slug}"
                         class="anchor"
                         title="Edit your post"
                         style="margin-right:5px"
@@ -363,7 +367,9 @@
             <div style="float:left; position:relative;width:calc(100% - 70px)">
                 <span style="font-weight:bold;color:#888">{username}</span><span style="float:right">posted {shown_ts}</span>
                 <div style="margin:10px" />
-                <Render markup={description} />
+                <div class="answers">
+                <Preview markup={description} />
+                </div>
                 {#if $page.data.user}
                     <div style="float:right">
                         <a

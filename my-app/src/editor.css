@@ -230,9 +230,9 @@ body {
     object-fit: cover
 }
 
-.section {
+/* .section {
     padding-block: var(--section-padding)
-}
+} */
 
 .section-text {
     font-size: var(--fontSize-3);
@@ -244,7 +244,7 @@ body {
     color: #000000;
     /* font-size: var(--fontSize-5); */
     /* text-shadow: 0 2px 0 rgba(0, 0, 0, .25); */
-    line-height: 2.6rem
+    /* line-height: 2.6rem */
 }
 
 .full-text h1:not(.headline),
@@ -253,7 +253,7 @@ body {
     position: relative;
     margin-top: 1.5rem;
     margin-bottom: 2rem;
-    color: var(--text-alice-blue);
+    /* color: var(--text-alice-blue); */
     transition: all .5s;
     display: flex;
     align-items: center

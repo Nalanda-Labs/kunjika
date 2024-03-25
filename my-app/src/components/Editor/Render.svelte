@@ -21,10 +21,10 @@
 	export let markup;
 </script>
 
-<section class="render" aria-label="feature">
+<section class="section" aria-label="feature">
 	<div class="w-full">
-		<div>
-			<div class="w-full" bind:this={articleContainer}>
+		<div class="preview full-text">
+			<div class="preview main-text w-full" bind:this={articleContainer}>
 				<p class="m-0.5">{@html markup}</p>
 			</div>
 		</div>

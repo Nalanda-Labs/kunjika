@@ -7,7 +7,8 @@ export function load({ locals}) {
             email: locals.user.email,
             firstName: locals.user.firstName,
             lastName: locals.user.lastName,
-            isAdmin: locals.user.isAdmin
+            isAdmin: locals.user.isAdmin,
+            image_url: locals.user.image_url
         },
         locals
     };

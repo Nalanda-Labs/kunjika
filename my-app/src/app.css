@@ -60,3 +60,7 @@ body {
 	cursor: default;
 	color: #999;
 }
+
+.nav-anchor{
+	background-color: rgba(0,0,0,0) ! important;
+}

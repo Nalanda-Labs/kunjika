@@ -18,8 +18,8 @@
 						<ul id="nav-mobile" class="right">
 							{#if $page.data.user}
 								<li>
-									<a rel="prefetch" href="/user/{$page.data.user.id}/{$page.data.user.username}">
-										{$page.data.user.username}
+									<a rel="prefetch" class="nav-anchor" href="/users/{$page.data.user.id}/{$page.data.user.username}" style="padding:0px;margin-right:10px">
+										<img src="{$page.data.user.image_url}?s=48" alt="profile" height="48px" style="margin-top:8px"/>
 									</a>
 								</li>
 								<li>

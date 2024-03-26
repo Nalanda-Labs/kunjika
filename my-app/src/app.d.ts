@@ -9,7 +9,8 @@ declare global {
 				username: string,
 				firstName: string,
 				lastName: string,
-				isAdmin: boolean
+				isAdmin: boolean,
+				image_url: string
 			} | null
 		}
 		interface PageData {
@@ -19,7 +20,8 @@ declare global {
 				username: string,
 				firstName: string,
 				lastName: string,
-				isAdmin: boolean
+				isAdmin: boolean,
+				image_url: string
 			} | null
 		}
 	}

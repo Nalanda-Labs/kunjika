@@ -23,6 +23,7 @@ body {
 .anchor {
     color: #4285F4;
     text-decoration: none;
+    display: inline;
 }
 
 .danger, .error-messages{

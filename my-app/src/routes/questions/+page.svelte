@@ -124,7 +124,7 @@
 						<a
 							href="/questions/tagged/{tag}"
 							class="light-blue darken-2"
-							style="display:inline;padding:5px;border-radius:3px;text-decoration:none; color: #fff;margin-right:10px">{tag}</a
+							style="display:inline;padding:5px;border-radius:3px;text-decoration:none; color: #fff;margin-right:10px;font-size:12px">{tag}</a
 						>
 					{/each}
 					<span style="float:right"

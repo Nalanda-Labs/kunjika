@@ -119,16 +119,21 @@
 				</div>
 			{/each}
 			<div style="clear:both;margin:auto;width:100%;" />
-			<ul class="pagination">
+			<ul class="pagination" style="float:right">
 				<!-- svelte-ignore a11y-invalid-attribute -->
 				{#if page == 1}
 					<li class="disabled"><i class="material-icons" title="first page">first_page</i></li>
 					<li class="disabled">
 						<i class="material-icons" title="previouse page">chevron_left</i>
 					</li>
+                    {#if page != pages}
 					<li style="cursor:pointer" on:click={nextPage}>
 						<i class="material-icons" title="next page">chevron_right</i>
 					</li>
+                    {/if}
+                    {#if page == pages}
+                    <li class="disabled"><i class="material-icons" title="last page">last_page</i></li>
+                    {/if}
 				{:else if page != pages}
 					<li style="cursor:pointer" on:click={firstPage}>
 						<i class="material-icons" title="first page">first_page</i>

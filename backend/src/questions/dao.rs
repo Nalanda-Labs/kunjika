@@ -1,3 +1,5 @@
+use std::net::IpAddr;
+
 use super::question::*;
 use crate::state::AppStateRaw;
 
@@ -6,7 +8,12 @@ use chrono::*;
 #[async_trait]
 pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
     async fn insert_question(&self, name: &DbQuestion) -> sqlx::Result<u64>;
-    async fn get_question(&self, qid: i64) -> sqlx::Result<QuestionResponse>;
+    async fn get_question(
+        &self,
+        qid: i64,
+        uid: i64,
+        ipaddr: &str,
+    ) -> sqlx::Result<QuestionResponse>;
     async fn get_answers(
         &self,
         qid: i64,
@@ -94,22 +101,91 @@ impl IQuestion for &AppStateRaw {
         Ok(p.id as u64)
     }
 
-    async fn get_question(&self, qid: i64) -> sqlx::Result<QuestionResponse> {
+    async fn get_question(
+        &self,
+        qid: i64,
+        uid: i64,
+        ipaddr: &str,
+    ) -> sqlx::Result<QuestionResponse> {
+        let mut tx = self.sql.begin().await?;
+        let mut viewed_by_user = false;
+        if uid != 0 {
+            let qr = sqlx::query!(
+                r#"
+                select count(1) from views where userid=$1 and qid=$2
+                "#r,
+                uid,
+                qid
+            )
+            .fetch_one(&mut *tx)
+            .await?;
+            viewed_by_user = match qr.count {
+                Some(0) => false,
+                Some(i) => true,
+                None => false,
+            };
+        } else if ipaddr != "" {
+            let qr = sqlx::query!(
+                r#"
+                select count(1) from views where ipaddress=$1 and qid=$2
+                "#r,
+                ipaddr,
+                qid
+            )
+            .fetch_one(&mut *tx)
+            .await?;
+            viewed_by_user = match qr.count {
+                Some(i) => true,
+                None => false,
+            };
+        }
+
+        debug!("{}, {}", viewed_by_user, uid);
+        if !viewed_by_user && uid != 0 {
+            sqlx::query!(
+                r#"
+                insert into views (userid, qid) values($1, $2)
+                "#r,
+                uid,
+                qid
+            )
+            .execute(&mut *tx)
+            .await?;
+            sqlx::query!(r#"update posts set views=views + 1 where id=$1"#, qid)
+                .execute(&mut *tx)
+                .await?;
+        } else if !viewed_by_user && ipaddr != "" {
+            sqlx::query!(
+                r#"
+                insert into views (ipaddress, qid) values($1, $2)
+                "#r,
+                ipaddr,
+                qid
+            )
+            .execute(&mut *tx)
+            .await?;
+            sqlx::query!(r#"update posts set views=views + 1 where id=$1"#, qid)
+                .execute(&mut *tx)
+                .await?;
+        }
+
         let question = sqlx::query!(
             r#"
             select t.title as title, t.description, t.visible, t.created_at, t.posted_by_id, t.updated_at,
             t.votes, t.views, t.op_id, t.updated_by_id, users.username as username, users.image_url as image_url
             from posts t left join users on t.posted_by_id=users.id where t.id=$1
             "#, qid
-        ).fetch_one(&self.sql)
+        ).fetch_one(&mut *tx)
         .await?;
         let tags = sqlx::query!(
             r#"
             select t.name from tags t left join post_tags on post_tags.tag_id=t.id where post_tags.post_id=$1
             "#,
             qid
-        ).fetch_all(&self.sql)
+        ).fetch_all(&mut *tx)
         .await?;
+
+        tx.commit().await?;
 
         let mut trs: Vec<String> = Vec::new();
         for t in tags {
@@ -497,14 +573,14 @@ impl IQuestion for &AppStateRaw {
             Ok(pr) => match pr.id {
                 id => id as i64,
             },
-            Err(_e) => 0
+            Err(_e) => 0,
         };
         let mut slug = match pr {
             Ok(pr) => match pr.slug {
                 Some(s) => s,
-                None => "".to_owned()
+                None => "".to_owned(),
             },
-            Err(_e) => "".to_owned()
+            Err(_e) => "".to_owned(),
         };
 
         debug!("id is {}", id);

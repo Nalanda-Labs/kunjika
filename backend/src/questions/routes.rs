@@ -1,11 +1,12 @@
 use super::dao::IQuestion;
 use super::question::*;
-use crate::middlewares::auth::AuthorizationService;
+use crate::users::user::{User, UserCookie};
+use crate::{middlewares::auth::AuthorizationService, users::user};
 use crate::state::AppState;
 use crate::utils::slug::create_slug;
 
 use chrono::*;
-use ntex::web::{get, post, HttpResponse, Responder};
+use ntex::{http::HttpMessage, web::{get, post, HttpRequest, HttpResponse, Responder}};
 use serde_json::json;
 
 #[post("/create-question")]
@@ -55,11 +56,43 @@ async fn insert_question(
 #[get("/questions/{id}/{slug}")]
 async fn get_question(
     params: ntex::web::types::Path<(String, String)>,
+    req: HttpRequest,
     state: AppState,
 ) -> impl Responder {
+    let remote_address = match req.peer_addr() {
+        Some (ra) => ra.to_string(),
+        None => "".to_owned()
+    };
+
+    let parts: Vec<&str> = remote_address.split(":").collect();
+    let mut ipaddr = "";
+
+    if parts[0] != "" {
+        ipaddr = parts[0];
+    }
+
+    let logged_in = match req.cookie("logged_in") {
+        Some(s) => s.to_string(),
+        None => "".to_owned()
+    };
+
+    debug!("{:?}", logged_in);
+    let cookie_str: Vec<&str> = logged_in.split("=").collect();
+    let u: UserCookie;
+    let mut uid = 0;
+
+    if cookie_str.len() != 2 {
+        return HttpResponse::BadRequest()
+            .json(&json!({"status": "fail", "message": "Bad cookie"}));
+    }
+    else {
+        u = serde_json::from_str(cookie_str[1]).unwrap();
+        uid = u.user.id;
+    }
+
     let qid: i64 = (params.0).parse().unwrap();
     debug!("Question id is {}", qid);
-    match state.get_ref().get_question(qid).await {
+    match state.get_ref().get_question(qid, uid, ipaddr).await {
         Ok(db_question) => HttpResponse::Ok().json(&json!({"data": db_question})),
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": "fail", "message": e.to_string()})),

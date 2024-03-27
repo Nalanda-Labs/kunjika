@@ -16,6 +16,22 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+--
+-- Name: views_delete_old_rows(); Type: FUNCTION; Schema: public; Owner: shiv
+--
+
+CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  DELETE FROM views WHERE created_date < NOW() - INTERVAL '15 minute';
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.views_delete_old_rows() OWNER TO shiv;
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -220,6 +236,42 @@ ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 
 --
+-- Name: views; Type: TABLE; Schema: public; Owner: shiv
+--
+
+CREATE TABLE public.views (
+    userid bigint,
+    ipaddress character varying(64),
+    qid bigint,
+    created_date timestamp with time zone DEFAULT now(),
+    id bigint NOT NULL
+);
+
+
+ALTER TABLE public.views OWNER TO shiv;
+
+--
+-- Name: views_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
+--
+
+CREATE SEQUENCE public.views_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.views_id_seq OWNER TO shiv;
+
+--
+-- Name: views_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
+--
+
+ALTER SEQUENCE public.views_id_seq OWNED BY public.views.id;
+
+
+--
 -- Name: weekly_tags_by_popularity; Type: MATERIALIZED VIEW; Schema: public; Owner: shiv
 --
 
@@ -263,6 +315,13 @@ ALTER TABLE ONLY public.tags ALTER COLUMN id SET DEFAULT nextval('public.tags_id
 --
 
 ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
+
+
+--
+-- Name: views id; Type: DEFAULT; Schema: public; Owner: shiv
+--
+
+ALTER TABLE ONLY public.views ALTER COLUMN id SET DEFAULT nextval('public.views_id_seq'::regclass);
 
 
 --
@@ -353,6 +412,13 @@ CREATE INDEX tags_post_count_idx ON public.tags USING btree (post_count);
 --
 
 CREATE INDEX users_karma_idx ON public.users USING btree (karma);
+
+
+--
+-- Name: views views_delete_old_rows_trigger; Type: TRIGGER; Schema: public; Owner: shiv
+--
+
+CREATE TRIGGER views_delete_old_rows_trigger AFTER INSERT ON public.views FOR EACH STATEMENT EXECUTE FUNCTION public.views_delete_old_rows();
 
 
 --

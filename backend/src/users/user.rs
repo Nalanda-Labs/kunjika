@@ -28,6 +28,7 @@ pub struct User {
     pub email: String,
     // not return password
     #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
     pub password_hash: String,
     pub status: String,
     pub image_url: String,
@@ -38,6 +39,11 @@ pub struct User {
     pub location: Option<String>,
     pub git: Option<String>,
     pub website: Option<String>
+}
+
+#[derive(FromRow, Serialize, Deserialize, Debug)]
+pub struct UserCookie {
+    pub user: User
 }
 
 #[derive(Serialize, Deserialize, Debug)]

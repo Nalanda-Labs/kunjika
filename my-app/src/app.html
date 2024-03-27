@@ -35,10 +35,17 @@
 			elems = document.querySelectorAll('.tooltipped');
 			M.Tooltip.init(elems);
 		});
+
 		document.addEventListener('DOMContentLoaded', function () {
 			var elems = document.querySelectorAll('.sidenav');
 			var instances = M.Sidenav.init(elems, {});
 		});
+
+		document.addEventListener('DOMContentLoaded', function () {
+			var elems = document.querySelectorAll('.tabs');
+			var instance = M.Tabs.init(elems, {});
+		});
+		
 	</script>
 </body>
 

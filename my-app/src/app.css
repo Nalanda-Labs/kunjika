@@ -64,3 +64,12 @@ body {
 .nav-anchor{
 	background-color: rgba(0,0,0,0) ! important;
 }
+
+.tab a.active{
+    background-color:#b3e5fc!important;
+    /* width: 120px!important; */
+}
+
+.tab a {
+    color: #03a9f4 ! important;
+}

@@ -10,7 +10,12 @@ declare global {
 				firstName: string,
 				lastName: string,
 				isAdmin: boolean,
-				image_url: string
+				image_url: string,
+				created_date: Date,
+				location: string,
+				designation: string,
+				git: string,
+				website: string
 			} | null
 		}
 		interface PageData {
@@ -21,7 +26,12 @@ declare global {
 				firstName: string,
 				lastName: string,
 				isAdmin: boolean,
-				image_url: string
+				image_url: string,
+				created_date: Date,
+				location: string,
+				designation: string,
+				git: string,
+				website: string
 			} | null
 		}
 	}

@@ -19,7 +19,8 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
         let (column, placeholder) = column_placeholder(who);
 
         let sql = format!(
-            "SELECT id, username, email, password_hash, status, email_verified, image_url, created_date, modified_date
+            "SELECT id, username, email, password_hash, status, email_verified, image_url, created_date, modified_date,
+            designation, location, git, website
             FROM users
             where {} = {};",
             column, placeholder
@@ -102,7 +103,8 @@ impl IUser for &AppStateRaw {
     async fn get_profile(&self, uid: &i64) -> sqlx::Result<ProfileResponse> {
         let qr = sqlx::query!(
             r#"
-            select username, name, title, designation, location, email, image_url, git, website, twitter, karma from users
+            select username, name, title, designation, location, email, image_url, git, website,
+            twitter, karma, displayname, created_date from users
             where id = $1
             "#,
             uid
@@ -143,8 +145,16 @@ impl IUser for &AppStateRaw {
             Some(s) => s.to_string(),
             None => 1.to_string(),
         };
+
+        let created_date = qr.created_date;
+        let displayname = match qr.displayname {
+            Some(d) => d.to_string(),
+            None => qr.username.to_string()
+        };
+
         let p = ProfileResponse {
             username: qr.username,
+            displayname,
             name,
             title,
             designation,
@@ -154,6 +164,7 @@ impl IUser for &AppStateRaw {
             website,
             twitter,
             karma,
+            created_date
         };
         Ok(p)
     }

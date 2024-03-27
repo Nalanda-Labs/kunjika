@@ -276,7 +276,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
     let query_result = sqlx::query_as!(
         User,
         "SELECT id, username, email, password_hash, created_date, image_url, email_verified,
-        modified_date, status FROM users WHERE id = $1",
+        modified_date, status, designation, git, location, website FROM users WHERE id = $1",
         user_id
     )
     .fetch_optional(&state.sql)

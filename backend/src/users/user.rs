@@ -34,6 +34,10 @@ pub struct User {
     pub email_verified: Option<bool>,
     pub created_date: SqlDateTime,
     pub modified_date: SqlDateTime,
+    pub designation: Option<String>,
+    pub location: Option<String>,
+    pub git: Option<String>,
+    pub website: Option<String>
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -134,6 +138,7 @@ pub struct UserResponse {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProfileResponse {
     pub username: String,
+    pub displayname: String,
     pub name: String,
     pub title: String,
     pub designation: String,
@@ -143,6 +148,7 @@ pub struct ProfileResponse {
     pub website: String,
     pub twitter: String,
     pub karma: String,
+    pub created_date: SqlDateTime,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

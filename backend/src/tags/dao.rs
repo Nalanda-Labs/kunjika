@@ -1,5 +1,3 @@
-use mobc_redis::redis::Direction;
-
 use super::tag::*;
 use crate::state::AppStateRaw;
 

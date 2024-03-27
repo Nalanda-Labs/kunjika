@@ -73,3 +73,7 @@ body {
 .tab a {
     color: #03a9f4 ! important;
 }
+
+a {
+    text-decoration: none;
+}

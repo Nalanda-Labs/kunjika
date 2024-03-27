@@ -317,7 +317,7 @@ impl IUser for &AppStateRaw {
 }
 
 fn column_placeholder(id_or_name_or_email: &str) -> (&'static str, &'static str) {
-    let mut column = "name";
+    let mut column = "username";
 
     if id_or_name_or_email.contains("@") {
         column = "email";

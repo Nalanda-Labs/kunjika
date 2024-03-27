@@ -92,8 +92,8 @@
 	<title />
 </svelte:head>
 
-<div class="row">
-	<div class="col s12 m8 offset-m4 xl10 offset-xl2" id="container">
+<div class="row justify-content-center align-items-center" style="margin-top:20px">
+	<div class="col-8">
 		<div class="col-xs-12">
 			<Questions {id} {slug} bind:reply_to_id bind:questions bind:user_replied />
 			<div id="questions-end" style="display:none" />

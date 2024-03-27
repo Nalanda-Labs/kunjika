@@ -273,7 +273,7 @@
 	</div>
 	<div style="clear:both;margin-bottom:10px" />
 	{#each questions as { question_id, description, votes, posted_by_id, username, initials, image_url, shown_ts, answer_accepted }}
-		<hr style="border-bottom:1px solid;color:#eee;" />
+		<hr style="border-bottom:1px solid;color:#ccc;" />
 		<div style="margin-top:10px">
 			<div style="float:left;margin-right:10px">
 				{#if image_url === '' || image_url === undefined}
@@ -295,16 +295,16 @@
 						<i class="fas fa-angle-up" />
 					</a>
 					<span style="text-align:center">{votes}</span>
-					<a href="/vote-down" class="anchor" on:click|preventDefault={vote(-1, question_id)}>
+					<a href="/vote-down" class="anchor" style="display:block" on:click|preventDefault={vote(-1, question_id)}>
 						<i class="fas fa-angle-down" />
 					</a>
-					{#if $page.data.user && posted_by_id == $page.data.user.id}
+					{#if $page.data.user && posted_by == $page.data.user.id}
 						{#if answer_accepted}
-							<a href="/accept-answer" on:click|preventDefault={acceptAnswer(question_id)}>
-								<i class="fas fa-check" style="color: #3DDC84" />
+							<a href="/accept-answer" class="anchor" on:click|preventDefault={acceptAnswer(question_id)}>
+								<i class="fas fa-check" style="color: #080" />
 							</a>
 						{:else}
-							<a href="/accept-answer" on:click|preventDefault={acceptAnswer(question_id)}>
+							<a href="/accept-answer" class="anchor" on:click|preventDefault={acceptAnswer(question_id)}>
 								<i class="fas fa-check" style="color: #ddd" />
 							</a>
 						{/if}

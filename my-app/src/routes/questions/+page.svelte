@@ -88,56 +88,55 @@
 <svelte:head>
 	<title>All questions ❤ Kunjika</title>
 </svelte:head>
-<div class="row">
-	<div class="col s12 m8 offset-m4 xl10 offset-xl2">
-		<h4 class="text-xl font-bold">
-			All questions
-			{#if $page.data.user}
-				<a href="/ask" class="btn light-blue darken-2" style="float:right;margin-right:50px;">Ask</a>
-			{/if}
-		</h4>
-		<div class="row">
-			{#each data as { id, slug, title, tags, shown_ts, uid, username, answers, views }}
-				<hr
-					style="border-bottom:1px solid;color:#eee;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
-				/>
-				<div style="margin-right:10px;flex-basis: 5%;max-width:5%;height:60px;float:left">
-					<p style="text-align:center;font-size:16px;margin-top:5px">
-						{answers}
-					</p>
-					<p style="text-align:center;font-size:10px;margin-top:10px;float:left">answers</p>
-				</div>
-				<div style="margin-right:10px;flex-basis: 5%;max-width:5%;height:60px;float:left">
-					<p style="text-align:center;font-size:16px;margin-top:5px">
-						{views}
-					</p>
-					<p style="text-align:center;font-size:10px;margin-top:10px;">views</p>
-				</div>
-				<div style="width:85%;float:left;position:relative">
+<div class="row" style="margin-top:20px">
+	<h4 class="text-xl font-bold">
+		All questions
+		{#if $page.data.user}
+			<a href="/ask" style="float:right;margin-right:50px;text-decoration:none">Ask</a>
+		{/if}
+	</h4>
+	<div class="row">
+		{#each data as { id, slug, title, tags, shown_ts, uid, username, answers, views }}
+			<hr
+				style="border-bottom:1px solid;color:#eee;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
+			/>
+			<div style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left">
+				<p style="text-align:center;font-size:16px;margin-top:5px">
+					{answers}
+				</p>
+				<p style="text-align:center;font-size:10px;margin-top:0px;float:left">answers</p>
+			</div>
+			<div style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left">
+				<p style="text-align:center;font-size:16px;margin-top:5px">
+					{views}
+				</p>
+				<p style="text-align:center;font-size:10px;margin-top:10px;">views</p>
+			</div>
+			<div style="width:85%;float:left;position:relative">
+				<a
+					href="/questions/{id}/{slug}"
+					class="blue-text text-darken-2"
+					style="text-decoration:none; font-size:16px; font-weight:400">{title}</a
+				>
+				<div style="margin-top:20px;clear:both" />
+				{#each tags as tag, i}
 					<a
-						href="/questions/{id}/{slug}"
-						class="blue-text text-darken-2"
-						style="text-decoration:none; font-size:16px; font-weight:400">{title}</a
+						href="/questions/tagged/{tag}"
+						class="light-blue darken-2"
+						style="display:inline;padding:5px;border-radius:3px;text-decoration:none; background-color:#f0f0ff;margin-right:10px;font-size:12px"
+						>{tag}</a
 					>
-					<div style="margin-top:20px;clear:both" />
-					{#each tags as tag, i}
-						<a
-							href="/questions/tagged/{tag}"
-							class="light-blue darken-2"
-							style="display:inline;padding:5px;border-radius:3px;text-decoration:none; color: #fff;margin-right:10px;font-size:12px">{tag}</a
-						>
-					{/each}
-					<span style="float:right"
-						>{shown_ts}
-						<a href="/user/{uid}/{username}" style="text-decoration:none; color:#4285F4;"
-							>{username}</a
-						></span
-					>
-				</div>
-				<div style="clear:both" />
-			{/each}
-			<svelte:component this={InfiniteLoading} on:infinite={infiniteHandler} />
-			<hr style="border-bottom:1px solid;color:#eee;display:block;min-width:100%;margin-top:20px" />
-		</div>
+				{/each}
+				<span style="float:right"
+					>{shown_ts}
+					<a href="/user/{uid}/{username}" style="text-decoration:none; color:#4285F4;"
+						>{username}</a
+					></span
+				>
+			</div>
+			<div style="clear:both" />
+		{/each}
+		<svelte:component this={InfiniteLoading} on:infinite={infiniteHandler} />
+		<hr style="border-bottom:1px solid;color:#eee;display:block;min-width:100%;margin-top:20px" />
 	</div>
 </div>

@@ -14,7 +14,7 @@ use lettre::{
 };
 use mobc_redis::redis::{self, AsyncCommands};
 use ntex::http::HttpMessage;
-use ntex::web::{self, get, post, Error, HttpResponse, Responder, HttpRequest};
+use ntex::web::{self, get, post, Error, HttpRequest, HttpResponse, Responder};
 use serde_json::json;
 use uuid::Uuid;
 use validator::Validate;
@@ -206,7 +206,8 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
                                 .secure(true)
                                 .http_only(true)
                                 .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
-                                .finish().to_string(),
+                                .finish()
+                                .to_string(),
                         )
                         .content_type("application/json")
                         .body(""),
@@ -374,6 +375,9 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
     };
     let resp = match serde_json::to_string(&r) {
         Ok(json) => HttpResponse::Ok()
+            .header("Cache-Control", "no-cache, no-store, must-revalidate")
+            .header("Pragma", "no-cache")
+            .header("Expires", 0)
             .cookie(access_cookie.to_string())
             .cookie(refresh_cookie.to_string())
             .cookie(xsrf_cookie.to_string())
@@ -384,7 +388,8 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
                     .secure(true)
                     .http_only(true)
                     .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
-                    .finish().to_string(),
+                    .finish()
+                    .to_string(),
             )
             .content_type("application/json")
             .body(""),

@@ -11,6 +11,12 @@ async function send({ method, path, data, xsrf_token, headers }) {
 		opts.body = JSON.stringify(data);
 	}
 
+	if (path === 'auth/refresh') {
+		opts.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+		opts.headers['Pragma'] = 'no-cache';
+		opts.headers['Expires'] = 0;
+	}
+
 	if (xsrf_token) {
 		opts.headers['X-XSRF-TOKEN'] = xsrf_token;
 	}

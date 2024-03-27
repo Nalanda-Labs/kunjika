@@ -204,7 +204,7 @@
     on:input={() => { handlePreview(); hljs.highlightAll()}}
     on:keyup={() => { handlePreview(); hljs.highlightAll()}}
 	name="content"
-	class="materialize-textarea"    
+	class="form-control"  
     rows="10"
     style="min-height: 300px"
 	id="textAreaContent"

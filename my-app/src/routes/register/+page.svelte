@@ -33,12 +33,14 @@
 				errors = response.message;
 			}
 			response = JSON.parse(await response.text());
+			console.log(response.status);
 
-			if (response.status === 200) {
+			if (response.message === 'username available') {
 				document.getElementById('username-helper').innerHTML = 'Username available!';
 				document.getElementById('username-helper').style.color = '#080';
 			} else {
-				M.toast({ html: 'Username unavailable' });
+				document.getElementById('username-helper').innerHTML = 'Username unavailable!';
+				document.getElementById('username-helper').style.color = '#800';
 			}
 		}
 	}
@@ -64,14 +66,25 @@
 
 		let text = await response.text();
 		let j = text ? JSON.parse(text) : {};
+		let alert = document.getElementById('registrationMessage');
+		const wrapper = document.createElement('div');
+
 		if (response.status === 200) {
-			M.toast({
-				html: 'You have been sent a confirmation email. Please verify!'
-			});
+			wrapper.innerHTML = [
+				`<div class="alert alert-success alert-dismissible" role="alert">`,
+				`   <div>An email verification email has been sent to you!</div>`,
+				'   <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>',
+				'</div>'
+			].join('');
+			alert.append(wrapper);
 		} else {
-			M.toast({
-				html: j.message
-			});
+			wrapper.innerHTML = [
+				`<div class="alert alert-success alert-dismissible" role="alert">`,
+				`   <div>${j.message}</div>`,
+				'   <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>',
+				'</div>'
+			].join('');
+			alert.append(wrapper);
 		}
 	}
 </script>
@@ -79,18 +92,20 @@
 <svelte:head>
 	<title>Register ❤ Kunjika</title>
 </svelte:head>
-<div class="row">
-	<div class="col s12 m12 offset-m4 xl12 offset-xl4">
-		<h3 class="text-xs-center">Register</h3>
-		<p class="text-xs-center" style="margin-left:20px">
+<div class="row justify-content-center align-items-center" style="height:80vh">
+	<div class="col-4">
+		<div id="registrationMessage"></div>
+		<h3>Register</h3>
+		<p>
 			<a href="/login">Have an account?</a>
 		</p>
 
 		<form on:submit|preventDefault={submit} class="col s6">
-			<div class="row">
-				<div class="input-field col s12">
+			<div>
+				<div>
+					<label for="username" class="form-label">Username</label>
 					<input
-						class="validate"
+						class="form-control"
 						type="text"
 						required
 						bind:value={username}
@@ -98,19 +113,18 @@
 						id="username"
 						placeholder="Username minimum three characters"
 					/>
-					<label for="username">Username</label>
 				</div>
 				<p id="username-helper" />
-				<div class="input-field col s12">
+				<div>
+					<label for="email" class="form-label">Email</label>
 					<input
-						class="validate"
+						class="form-control"
 						type="email"
 						required
 						bind:value={email}
 						minlength="6"
 						maxlength="256"
 					/>
-					<label for="email">Email</label>
 				</div>
 				<p>
 					We’ll never share your details. Read our <a
@@ -121,9 +135,10 @@
 					</a>
 					.
 				</p>
-				<div class="input-field col s12">
+				<div>
+					<label for="password" class="form-label">Passphrase</label>
 					<input
-						class="validate"
+						class="form-control"
 						type="password"
 						required
 						bind:value={password}
@@ -131,11 +146,11 @@
 						maxlength="64"
 						placeholder="minimum 16 characters"
 					/>
-					<label for="password">Passphrase</label>
 				</div>
+				<label for="password" class="form-label">Confirm Passphrase</label>
 				<div class="input-field col s12">
 					<input
-						class="validate"
+						class="form-control"
 						type="password"
 						required
 						bind:value={confirm_password}
@@ -143,14 +158,10 @@
 						maxlength="64"
 						placeholder="Repeat passphrase"
 					/>
-					<label for="password">Confirm Passphrase</label>
 				</div>
 			</div>
 			<div class="b-wrapper">
-				<button class="btn light-blue darken-2" type="submit" name="action"
-					>Submit
-					<i class="material-icons right">send</i>
-				</button>
+				<button class="btn btn-primary" type="submit" name="action">Submit</button>
 			</div>
 		</form>
 	</div>

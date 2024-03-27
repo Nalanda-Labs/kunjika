@@ -3,7 +3,7 @@ use crate::state::AppStateRaw;
 
 #[async_trait]
 pub trait ITag: std::ops::Deref<Target = AppStateRaw> {
-    async fn tag_query(&self, name: &str) -> sqlx::Result<Vec<Tag>>;
+    async fn tag_query(&self, name: &str) -> sqlx::Result<Vec<TagResponse>>;
     async fn get_all_tags_by_name(
         &self,
         name: &str,
@@ -16,9 +16,9 @@ pub trait ITag: std::ops::Deref<Target = AppStateRaw> {
 #[cfg(any(feature = "postgres"))]
 #[async_trait]
 impl ITag for &AppStateRaw {
-    async fn tag_query(&self, name: &str) -> sqlx::Result<Vec<Tag>> {
+    async fn tag_query(&self, name: &str) -> sqlx::Result<Vec<TagResponse>> {
         let sql = format!(
-            "SELECT *
+            "SELECT id, name, post_count, info
             FROM tags
             where {} like '{}%';",
             "name", name

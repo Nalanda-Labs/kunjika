@@ -1,66 +1,91 @@
 <script>
 	import { page } from '$app/stores';
+	import { browser } from '$app/environment';
+
+	if (browser) {
+		(() => {
+			'use strict';
+			const tooltipTriggerList = Array.from(
+				document.querySelectorAll('[data-bs-toggle="tooltip"]')
+			);
+			tooltipTriggerList.forEach((tooltipTriggerEl) => {
+				new bootstrap.Tooltip(tooltipTriggerEl);
+			});
+		})();
+	}
 </script>
 
-<header>
-	<nav class="top-nav">
-		<div class="container">
-			<div class="nav-wrapper">
-				<div class="row">
-					<div class="col s12 m10 offset-m2 xl10 offset-xl2">
+<nav class="navbar navbar-expand-lg bg-body-tertiary">
+	<div class="container">
+		<a class="navbar-brand" href="/">Kunjika</a>
+		<button
+			class="navbar-toggler"
+			type="button"
+			data-bs-toggle="collapse"
+			data-bs-target="#navbarSupportedContent"
+			aria-controls="navbarSupportedContent"
+			aria-expanded="false"
+			aria-label="Toggle navigation"
+		>
+			<span class="navbar-toggler-icon"></span>
+		</button>
+		<div class="collapse navbar-collapse" id="navbarSupportedContent">
+			<ul class="navbar-nav me-auto mb-2 mb-lg-0">
+				<li class="nav-item">
+					<a
+						rel="prefetch"
+						class="nav-link"
+						href="/questions"
+					>Questions
+					</a>
+				</li>
+				<li class="nav-item">
+					<a
+						rel="prefetch"
+						class="nav-link"
+						href="/tags"
+					>Tags
+					</a>
+				</li>
+				<li class="nav-item">
+					<a
+						rel="prefetch"
+						class="nav-link"
+						href="/users"
+					>Users
+					</a>
+				</li>
+			</ul>
+			<ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+				{#if $page.data.user}
+					<li class="nav-item">
 						<a
-							href="#"
-							data-target="slide-out"
-							class="top-nav sidenav-trigger full hide-on-large-only"
-							><i class="material-icons green">menu</i></a
+							rel="prefetch"
+							class="nav-link"
+							href="/users/{$page.data.user.id}/{$page.data.user.username}"
 						>
-						<a href="/" class="brand-logo">Kunjika</a>
-						<ul id="nav-mobile" class="right">
-							{#if $page.data.user}
-								<li>
-									<a rel="prefetch" class="nav-anchor" href="/users/{$page.data.user.id}/{$page.data.user.username}" style="padding:0px;margin-right:10px">
-										<img src="{$page.data.user.image_url}?s=48" alt="profile" height="48px" style="margin-top:8px"/>
-									</a>
-								</li>
-								<li>
-									<form style="margin-left:0px" method="POST" action="/logout">
-										<button class="btn" type="submit">Sign Out</button>
-									</form>
-								</li>
-							{:else}
-								<li>
-									<a rel="prefetch" href="/login" class:active={$page.url.pathname === '/login'}>
-										Login
-									</a>
-								</li>
+							<img
+								src="{$page.data.user.image_url}?s=32"
+								alt="profile"
+								height="32px"
+							/>
+						</a>
+					</li>
+					<li class="nav-item">
+						<form style="margin-top:5px;" method="POST" action="/logout">
+							<button class="btn" style="color:#fff" type="submit">Sign Out</button>
+						</form>
+					</li>
+				{:else}
+					<li class="nav-item">
+						<a rel="prefetch" href="/login" class="nav-link"> Login </a>
+					</li>
 
-								<li>
-									<a
-										rel="prefetch"
-										href="/register"
-										class:active={$page.url.pathname === '/register'}
-									>
-										Register
-									</a>
-								</li>
-							{/if}
-						</ul>
-					</div>
-				</div>
-			</div>
+					<li class="nav-item">
+						<a rel="prefetch" href="/register" class="nav-link"> Register </a>
+					</li>
+				{/if}
+			</ul>
 		</div>
-	</nav>
-	<!-- <div class="container" /> -->
-	<ul class="sidenav sidenav-fixed" id="slide-out" style="transform: translateX(0%);">
-		<li class="logo">
-			<a id="logo-container" href="/questions" class="brand-logo"> Kunjika</a>
-		</li>
-		<li><div class="divider" /></li>
-		<li>
-			<a href="/questions">Questions</a>
-		</li>
-		<li><a href="/tags">Tags</a></li>
-		<li><a href="/users">Users</a></li>
-		<li />
-	</ul>
-</header>
+	</div>
+</nav>

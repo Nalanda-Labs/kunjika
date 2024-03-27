@@ -8,7 +8,7 @@
 			<a
 				href="/tags/questions/tagged/{tag}"
 				class="light-blue darken-2"
-				style="display:inline;padding:5px;border-radius:3px;text-decoration:none; color: #fff; margin-right:10px; border-radius: 4px;font-size:12px"
+				style="display: inline; padding: 5px; border-radius: 3px; text-decoration: none; background-color: rgb(240, 240, 255); margin-right: 10px; font-size: 12px;"
 				>{tag}</a
 			>
 		</li>

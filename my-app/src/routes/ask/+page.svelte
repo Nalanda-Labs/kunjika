@@ -91,50 +91,52 @@
 	}
 </script>
 
-<div class="row">
-	<div class="col s12 m8 offset-m4 xl10 offset-xl2">
-		{#if showContentValueToast}
-			<Toast>Question length should be 20 to 1000000 Characters!</Toast>
-		{/if}
-		<h4>Post your question for discussion</h4>
-		<hr />
-		<form class="col s12" on:submit|preventDefault={onSubmit}>
-			<div class="input-field">
-				<input
-					bind:value={title}
-					label="Title"
-					id="title"
-					type="text"
-					minlength="6"
-					maxlength="256"
-					style="min-width:100%"
-				/>
-				<label for="title">Summary</label>
-			</div>
-			<Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />
-			<Preview {markup} />
-			<div style="margin:30px" />
-			<Tags
-				name={'tags'}
-				bind:tags={tagList}
-				addKeys={[9]}
-				maxTags={5}
-				allowPaste={true}
-				allowDrop={true}
-				splitWith={','}
-				onlyUnique={true}
-				removeKeys={[27, 8]}
-				placeholder="Tags, tab to complete"
-				allowBlur={true}
-				disable={false}
-				id={'tags'}
-				minChars={1}
-				autoComplete={ts}
+<div class="row justify-content-center align-items-center" style="margin-top:20px">
+	<div class="col-8">
+	{#if showContentValueToast}
+		<Toast>Question length should be 20 to 1000000 Characters!</Toast>
+	{/if}
+	<h4>Post your question for discussion</h4>
+	<hr />
+	<form on:submit|preventDefault={onSubmit}>
+		<div>
+			<label for="title" class="form-label">Summary</label>
+			<input
+				bind:value={title}
+				label="Title"
+				class="form-control"
+				id="title"
+				type="text"
+				minlength="6"
+				maxlength="256"
+				style="min-width:100%"
 			/>
-			<div class="b-wrapper">
-				<button type="submit" class="btn"> Ask </button>
-			</div>
-		</form>
+		</div>
+		<Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />
+		<div style="margin:20px" />
+		<Preview {markup} />
+		<div style="margin:30px" />
+		<Tags
+			name={'tags'}
+			bind:tags={tagList}
+			addKeys={[9]}
+			maxTags={5}
+			allowPaste={true}
+			allowDrop={true}
+			splitWith={','}
+			onlyUnique={true}
+			removeKeys={[27, 8]}
+			placeholder="Tags, tab to complete"
+			allowBlur={true}
+			disable={false}
+			id={'tags'}
+			minChars={1}
+			autoComplete={ts}
+			class="form-control"
+		/>
+		<div class="b-wrapper">
+			<button type="submit" class="btn btn-primary"> Ask </button>
+		</div>
+	</form>
 	</div>
 </div>
-

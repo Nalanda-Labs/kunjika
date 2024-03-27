@@ -53,7 +53,7 @@
     box-sizing: border-box
 }
 
-a,
+/* a, */
 button,
 img,
 input,
@@ -98,7 +98,7 @@ button {
 }
 
 a {
-    color: inherit;
+    /* color: inherit; */
     text-decoration: none
 }
 
@@ -152,7 +152,7 @@ body {
 }
 
 .container {
-    padding-inline: 16px
+    /* padding-inline: 16px */
 }
 
 .headline {
@@ -213,10 +213,10 @@ body {
     width: 100%
 }
 
-.card {
+/* .card {
     background-color: var(--bg-oxford-blue);
     border: 1px solid var(--border-prussian-blue)
-}
+} */
 
 .img-holder {
     aspect-ratio: var(--width)/var(--height);
@@ -393,7 +393,7 @@ body {
 .full-text h2:not(.headline) .anchor,
 .full-text h3:not(.headline) .anchor {
     visibility: hidden;
-    opacity: 0;
+    opacity: 1;
     display: inline;
     font-size: 2rem;
     margin-left: 1rem;
@@ -491,7 +491,7 @@ body {
     color: var(--black);
     box-shadow: 0 2px 5px 0 #011627;
     margin: 15px 0;
-    padding: 3px 20px;
+    padding: 3px 10px;
     border-radius: 5px;
     overflow: auto;
     position: relative
@@ -895,7 +895,7 @@ textarea.input-field:focus {
 
 .editor-icons p {
     font-size: var(--fontSize-3);
-    padding: 1rem;
+    padding: 0rem 1rem;
     cursor: pointer
 }
 
@@ -1139,9 +1139,9 @@ textarea.input-field:focus {
     }
 }
 
-@media (min-width:1200px) {
+@media (min-width:1400px) {
     .container {
-        max-width: 1140px
+        max-width: 1320px
     }
 
     .tags .grid-list {
@@ -1186,4 +1186,8 @@ textarea.input-field:focus {
 
 .error {
     color: red
+}
+
+.basic .tooltip, .others .tooltip {
+    opacity: 1;
 }

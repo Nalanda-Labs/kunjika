@@ -14,7 +14,6 @@
 
 		if (response.status === 200) {
 			response = JSON.parse(await response.text());
-			console.log(response);
 			tags = response.data.map((t) => t);
 			count = response.count;
 			pages = Math.floor(count / tags_per_page);

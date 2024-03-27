@@ -119,15 +119,18 @@ pub struct UserName {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UsersReq {
     pub last_user: String,
+    pub direction: Option<String>
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UR {
-    pub id: String,
+    pub id: SqlID,
     pub username: String,
+    pub displayname: String,
     pub name: String,
     pub location: String,
-    pub image_url: String
+    pub image_url: String,
+    pub karma: i64
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -137,6 +140,7 @@ pub struct UserResponse {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProfileResponse {
+    pub id: SqlID,
     pub username: String,
     pub displayname: String,
     pub name: String,
@@ -147,7 +151,7 @@ pub struct ProfileResponse {
     pub git: String,
     pub website: String,
     pub twitter: String,
-    pub karma: String,
+    pub karma: i64,
     pub created_date: SqlDateTime,
 }
 

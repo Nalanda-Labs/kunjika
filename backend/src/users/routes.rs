@@ -508,7 +508,7 @@ async fn confirm_email(form: web::types::Path<String>, state: AppState) -> impl 
 async fn get_users(form: web::types::Json<UsersReq>, state: AppState) -> impl Responder {
     let last_user = form.into_inner();
     match state.get_ref().get_users(&last_user).await {
-        Ok(user_res) => HttpResponse::Ok().json(&json!({"message": "", "data": user_res})),
+        Ok((user_res, count)) => HttpResponse::Ok().json(&json!({"message": "", "data": user_res, "count": count})),
         Err(e) => {
             debug!("{:?}", e.to_string());
             HttpResponse::InternalServerError()
@@ -523,6 +523,7 @@ async fn get_profile(
     state: AppState,
 ) -> impl Responder {
     let uid = &params.0.parse::<i64>().unwrap();
+    debug!("{}", uid);
     match state.get_ref().get_profile(&uid).await {
         Ok(profile) => HttpResponse::Ok().json(&json!({"message": "", "data": profile})),
         Err(e) => {

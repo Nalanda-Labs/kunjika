@@ -98,7 +98,7 @@
 	<div class="row">
 		{#each data as { id, slug, title, tags, shown_ts, uid, username, answers, views }}
 			<hr
-				style="border-bottom:1px solid;color:#eee;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
+				style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
 			/>
 			<div style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left">
 				<p style="text-align:center;font-size:16px;margin-top:5px">
@@ -137,6 +137,6 @@
 			<div style="clear:both" />
 		{/each}
 		<svelte:component this={InfiniteLoading} on:infinite={infiniteHandler} />
-		<hr style="border-bottom:1px solid;color:#eee;display:block;min-width:100%;margin-top:20px" />
+		<hr style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px" />
 	</div>
 </div>

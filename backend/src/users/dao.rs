@@ -5,7 +5,7 @@ use md5::compute;
 #[async_trait]
 pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn user_add(&self, form: &Register) -> sqlx::Result<u64>;
-    async fn get_users(&self, form: &UsersReq) -> sqlx::Result<UserResponse>;
+    async fn get_users(&self, form: &UsersReq) -> sqlx::Result<(UserResponse, i64)>;
     async fn get_profile(&self, uid: &i64) -> sqlx::Result<ProfileResponse>;
     async fn update_username(&self, uid: i64, username: &String) -> sqlx::Result<bool>;
     async fn update_title(&self, uid: i64, title: &String) -> sqlx::Result<bool>;
@@ -64,46 +64,57 @@ impl IUser for &AppStateRaw {
         .map(|d| d.rows_affected())
     }
 
-    async fn get_users(&self, form: &UsersReq) -> sqlx::Result<UserResponse> {
-        let qr = sqlx::query!(
+    async fn get_users(&self, form: &UsersReq) -> sqlx::Result<(UserResponse, i64)> {
+        let qr;
+
+        match &form.direction {
+            Some(d) => {
+                qr = sqlx::query_as!(
+                    UR, r#"
+                    select id, username, displayname, name, location, image_url, karma from users where
+                    username > $1 order by displayname desc, username limit $2
+                    "#,
+                    &form.last_user,
+                    self.config.users_per_page as i64
+                )
+                .fetch_all(&self.sql)
+                .await?;
+            },
+            None => {
+                qr = sqlx::query_as!(
+                    UR, r#"
+                    select id, username, displayname, name, location, image_url, karma from users where
+                    username > $1 order by displayname asc, username limit $2
+                    "#,
+                    &form.last_user,
+                    self.config.users_per_page as i64
+                )
+                .fetch_all(&self.sql)
+                .await?;
+            }
+        };
+
+        let count = sqlx::query!(
             r#"
-        select id, username, name, location, image_url from users where
-        username > $1 order by karma desc, username limit $2
-        "#,
-            &form.last_user,
-            self.config.users_per_page as i64
+            select count(1) from users
+            "#
         )
-        .fetch_all(&self.sql)
+        .fetch_one(&self.sql)
         .await?;
 
-        let mut urs: UserResponse = UserResponse { users: Vec::new() };
-        for q in qr {
-            let name = match q.name {
-                Some(n) => n,
-                None => "".to_owned(),
-            };
-            let location = match q.location {
-                Some(n) => n,
-                None => "".to_owned(),
-            };
-            let image_url = q.image_url;
-            let ur: UR = UR {
-                id: q.id.to_string(),
-                username: q.username,
-                name,
-                location,
-                image_url,
-            };
-            urs.users.push(ur);
-        }
+        let c = match count.count {
+            Some(c) => c,
+            None => 0,
+        };
 
-        Ok(urs)
+        let urs = UserResponse{users: qr};
+        Ok((urs, c))
     }
 
     async fn get_profile(&self, uid: &i64) -> sqlx::Result<ProfileResponse> {
         let qr = sqlx::query!(
             r#"
-            select username, name, title, designation, location, email, image_url, git, website,
+            select id, username, name, title, designation, location, email, image_url, git, website,
             twitter, karma, displayname, created_date from users
             where id = $1
             "#,
@@ -112,10 +123,7 @@ impl IUser for &AppStateRaw {
         .fetch_one(&self.sql)
         .await?;
 
-        let name = match qr.name {
-            Some(s) => s,
-            None => "".to_owned(),
-        };
+        let name = qr.name;
         let title = match qr.title {
             Some(s) => s,
             None => "".to_owned(),
@@ -124,10 +132,7 @@ impl IUser for &AppStateRaw {
             Some(s) => s,
             None => "".to_owned(),
         };
-        let location = match qr.location {
-            Some(s) => s,
-            None => "".to_owned(),
-        };
+        let location = qr.location;
         let image_url = qr.image_url;
         let git = match qr.git {
             Some(s) => s,
@@ -141,18 +146,15 @@ impl IUser for &AppStateRaw {
             Some(s) => s,
             None => "".to_owned(),
         };
-        let karma = match qr.karma {
-            Some(s) => s.to_string(),
-            None => 1.to_string(),
-        };
 
+        let karma = qr.karma;
+
+        let id = qr.id;
         let created_date = qr.created_date;
-        let displayname = match qr.displayname {
-            Some(d) => d.to_string(),
-            None => qr.username.to_string()
-        };
+        let displayname = qr.displayname;
 
         let p = ProfileResponse {
+            id,
             username: qr.username,
             displayname,
             name,
@@ -164,7 +166,7 @@ impl IUser for &AppStateRaw {
             website,
             twitter,
             karma,
-            created_date
+            created_date,
         };
         Ok(p)
     }
@@ -307,7 +309,10 @@ impl IUser for &AppStateRaw {
             r#"
             update users set website=$1, git=$2, twitter=$3 where id=$4
             "#,
-            form.website, form.git, form.twitter, uid
+            form.website,
+            form.git,
+            form.twitter,
+            uid
         )
         .execute(&self.sql)
         .await?;

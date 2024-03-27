@@ -5,12 +5,11 @@
 <script>
 	import { page } from '$app/stores';
 	import * as api from '$lib/api.js';
-	import { onMount } from 'svelte';
-
-	let joining_date = $page.data.user.created_date.split('T')[0];
+	import { afterUpdate, onMount } from 'svelte';
+	import { navigating } from '$app/stores';
 
 	let id = $page.params.id;
-	let username = $page.params.username;
+	let username = '';
 	let imageUrl = '';
 	let displayname = '';
 	let designation = '';
@@ -19,12 +18,14 @@
 	let location = '';
 	let created_date = '';
 
-	onMount(async () => {
+	async function getUser() {
 		const response = await api.get(`user/${$page.params.id}/${$page.params.username}`);
 
 		if (response.status === 200) {
 			const text = await response.text();
 			const j = text ? JSON.parse(text) : {};
+			console.log(j);
+			username = j.data.username;
 			imageUrl = j.data.image_url;
 			displayname = j.data.displayname;
 			designation = j.data.designation;
@@ -33,7 +34,10 @@
 			location = j.data.location;
 			created_date = j.data.created_date;
 		}
-	});
+	}
+
+	onMount(async () => await getUser());
+	afterUpdate(async () => await getUser());
 </script>
 
 <svelte:head>
@@ -43,7 +47,7 @@
 <div class="row justify-content-center align-items-center" style="margin-top:20px">
 	<div class="col-12">
 		<a
-			href="/users/{$page.data.user.id}/{$page.data.user.username}"
+			href="/users/{id}/{username}"
 			style="display:flex;float:left"
 		>
 			<img src="{imageUrl}?s=128" alt="{displayname}'s avatar" style="display:flex;float:left" />
@@ -60,64 +64,76 @@
 		<p style="display:flex;color:#666;padding-left:5px;margin-top:-5px;float:left">
 			{#if git}
 				<a href={git} title={git.split('/').slice(-1)}>
-					<i
-						class="material-icons"
-						style="display:flex!important;font-size:15px;margin-right:5px;margin-left:-45px"
-						>github</i
-					></a
+					<i class="fa-brands fa-github" style="margin-right:5px"></i></a
 				>
 			{/if}
-			{#if $page.data.user.website}
-				<a href={$page.data.user.website}
-					><i class="material-icons" style="display:inline!important;font-size:15px;">link</i>
-					{$page.data.user.website.split('//').slice(-1)}
+			{#if website}
+				<a href={website}
+					><i class="fa-solid fa-link"></i>
+					{website.split('//').slice(-1)}
 				</a>
 			{/if}
-			{#if $page.data.user.location}
-				<a href={$page.data.user.lcoation}
-					><i class="material-icons" style="display:inline!important;font-size:15px">location_on</i>
-					{$page.data.user.location}
+			{#if location}
+				<a href={location}
+					><i class="fa-solid fa-location-dot" style="margin-left:5px"></i>
+					{location}
 				</a>
 			{/if}
 		</p>
 		<p style="display:flex;color:#666;padding-left:5px;float:right">
-			{#if $page.params.id == $page.data.user.id}
-				<a class="btn" href="/users/edit/{$page.params.id}">Edit Profile</a>
+			{#if id == $page.data.user.id}
+				<a class="btn" href="/users/edit/{id}">Edit Profile</a>
 			{/if}
 		</p>
-		<div style="clear:both" />
-		<ul class="nav nav-tabs">
-			<li class="nav-item">
-				<a class="nav-link" aria-current="page" href="#profile" data-bs-toggle="tab">Profile</a>
-			</li>
-			<li class="nav-item">
-				<a class="nav-link active" href="#activity" data-bs-toggle="tab">Activity</a>
-			</li>
-			<li class="nav-item">
-				<a class="nav-link"  data-bs-toggle="tab" href="#">Saves</a>
-			</li>
-		</ul>
-		<div style="margin-top:10px" />
-		<div class="tab-content">
-			<!-- Repo -->
-			<div class="tab-pane active" id="activity">
-				<!-- Repo Tabs --->
-				<ul class="nav nav-tabs" id="repoTabs">
-					<li><a class="nav-link active" href="#summary1" data-bs-toggle="tab">Summary</a></li>
-					<li><a class="nav-link" href="#questions" data-bs-toggle="tab">Questions</a></li>
-					<li><a class="nav-link" href="#answers" data-bs-toggle="tab">Answers</a></li>
-				</ul>
+		<div style="clear:both;" />
+		<div style="margin-top:20px">
+			<ul class="nav nav-tabs">
+				<li class="nav-item">
+					<a class="nav-link" aria-current="page" href="#profile" data-bs-toggle="tab">Profile</a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link active" href="#activity" data-bs-toggle="tab">Activity</a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link" href="#bookmarks" data-bs-toggle="tab">Bookmarks</a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link" href="#settings" data-bs-toggle="tab">Settings</a>
+				</li>
+			</ul>
+			<div style="margin-top:10px" />
+			<div class="tab-content">
+				<!-- Repo -->
+				<div class="tab-pane active" id="activity">
+					<!-- Repo Tabs --->
+					<ul class="nav nav-tabs" id="repoTabs">
+						<li><a class="nav-link active" href="#summary1" data-bs-toggle="tab">Summary</a></li>
+						<li><a class="nav-link" href="#questions" data-bs-toggle="tab">Questions</a></li>
+						<li><a class="nav-link" href="#answers" data-bs-toggle="tab">Answers</a></li>
+					</ul>
 
-				<!-- Repo Tabs -->
+					<!-- Repo Tabs -->
 
-				<div class="tab-content">
-					<div class="tab-pane active" id="summary1">Summary Content</div>
-					<div class="tab-pane" id="questions">Questions Content</div>
-					<div class="tab-pane" id="answers">Answers Content</div>
+					<div class="tab-content">
+						<div class="tab-pane active" id="summary1">Not implemented</div>
+						<div class="tab-pane" id="questions">Not implemented</div>
+						<div class="tab-pane" id="answers">Not implemented</div>
+					</div>
 				</div>
-			</div>
-			<div class="tab-pane" id="profile">
-				Profile
+				<div class="tab-pane" id="profile">Not implemented</div>
+				<div class="tab-pane" id="bookmarks">Not implemented</div>
+				<div class="tab-pane" id="settings">
+					<ul class="nav nav-tabs">
+						<li><a class="nav-link active" href="#edit-profile" data-bs-toggle="tab">Edit</a></li>
+						<li><a class="nav-link" href="#delete-profile" data-bs-toggle="tab">Delete</a></li>
+						<li><a class="nav-link" href="#settings1" data-bs-toggle="tab">Settings</a></li>
+					</ul>
+					<div class="tab-content">
+						<div class="tab-pane active" id="edit-profile">Not implemented</div>
+						<div class="tab-pane" id="delete-profile">Not implemented</div>
+						<div class="tab-pane" id="settings1">Not implemented</div>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>

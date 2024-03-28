@@ -55,6 +55,14 @@
 					>Users
 					</a>
 				</li>
+				<li class="nav-item">
+					<a
+						class="nav-link"
+						href="https://github.com/Nalanda-Labs/kunjika"
+						target="_blank"
+					><i class="fa-brands fa-github"></i>
+					</a>
+				</li>
 			</ul>
 			<ul class="navbar-nav ms-auto mb-2 mb-lg-0">
 				{#if $page.data.user}

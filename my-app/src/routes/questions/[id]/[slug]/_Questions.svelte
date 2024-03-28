@@ -312,7 +312,7 @@
 				</div>
 			</div>
 			<div style="float:left; position:relative;width:calc(100% - 70px)">
-				<span style="font-weight:bold;color:#888">{username}</span><span style="float:right"
+				<span style="display:inline;font-weight:bold;color:#888">{username}</span><span style="float:right"
 					>posted {shown_ts}</span
 				>
 				<div style="margin:10px" />

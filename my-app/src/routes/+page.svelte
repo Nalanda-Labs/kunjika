@@ -14,4 +14,13 @@
 	<p>There is no binary release nor there is any plan to do so.
 		The installation must be done using source code.
 	</p>
+	<h3>Why another QA?</h3>
+	<p>It is not about QA/forum only. Most web software is written using inefficient languages
+		like PHP, Python, Java, Ruby and so on. It is an attempt to develop a web application
+		in Rust which is very efficient and resource-friendly.
+	</p>
+	<p>Discourse is very nice forum software but I find it bloated with features but for most
+		use cases it should work nicely. If you want a lean/mean QA/forum only then you should
+		choose Kunjika.
+	</p>
 </div>

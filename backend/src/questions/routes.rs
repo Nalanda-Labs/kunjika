@@ -82,8 +82,7 @@ async fn get_question(
     let mut uid = 0;
 
     if cookie_str.len() != 2 {
-        return HttpResponse::BadRequest()
-            .json(&json!({"status": "fail", "message": "Bad cookie"}));
+        // the user is not logged in
     }
     else {
         u = serde_json::from_str(cookie_str[1]).unwrap();

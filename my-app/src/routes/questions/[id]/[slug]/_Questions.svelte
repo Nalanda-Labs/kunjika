@@ -6,8 +6,10 @@
 	import TagList from '$lib/TagList.svelte';
 	import { page } from '$app/stores';
 	import { parseMarkdown } from '../../../../lib/utils/editor/utils.editor';
-	import Render from '../../../../components/Editor/Render.svelte';
 	import Preview from '../../../../components/Editor/Preview.svelte';
+	import getCookie from '../../../../lib/cookie';
+	import { browser } from '$app/environment';
+	import ListErrors from '../../../../lib/ListErrors.svelte';
 
 	export let id;
 	export let slug;
@@ -29,6 +31,7 @@
 	let initials = '';
 	let shown_ts;
 	let description = '';
+	let errors = '';
 
 	onMount(async () => {
 		let response = await api.get(`questions/${id}/${slug}`);
@@ -120,29 +123,27 @@
 			document.getElementById('editor').style.display = 'none';
 		}
 	}
-	async function vote(vote, elementID) {
-		if (!$page.data.user) {
-			M.toast({ html: 'You need to be logged in before voting.' });
-			return;
-		}
-		let data = {};
-		data.vote = vote;
-		data.id = elementID;
-		const response = await api.post('votes', { vote, id }, $page.data.user.xsrf_token);
 
-		if (response.code != 200) {
-			M.toast({ html: response.msg });
-		} else {
-			if (elementID == id) {
-				votes = vote + parseInt(votes);
-			} else {
-				for (var i = 0; i < questions.length; i++) {
-					if (questions[i].question_id == elementID) {
-						questions[i].votes = vote + parseInt(questions[i].votes);
-						questions = questions;
-						break;
+	async function vote(vote, elementID) {
+		if (browser) {
+			let xsrf_token = getCookie('xsrf_token');
+			const response = await api.post('votes', { vote, id: parseInt(elementID)}, xsrf_token);
+
+			if (response.status === 200) {
+				if (elementID == id) {
+					votes = vote + parseInt(votes);
+				} else {
+					for (var i = 0; i < questions.length; i++) {
+						if (questions[i].question_id == elementID) {
+							questions[i].votes = vote + parseInt(questions[i].votes);
+							questions = questions;
+							break;
+						}
 					}
 				}
+			} else {
+				let j = JSON.parse(await response.text());
+				errors = j.message;
 			}
 		}
 	}
@@ -187,6 +188,7 @@
 	<title>{title}</title>
 </svelte:head>
 <div>
+	<ListErrors errors={errors} />
 	<h3>{title}</h3>
 	<hr />
 	<div style="margin-top:10px">
@@ -206,14 +208,17 @@
 			{/if}
 			<br />
 			<div style="text-align: center;font-size: 24px">
-				<a href="/vote-up" class="anchor" on:click|preventDefault={vote(1, id)}>
-					<i class="fas fa-angle-up" />
-				</a>
+				{#if $page.data.user && posted_by != $page.data.user.id}
+					<a href="/vote-up" class="anchor" on:click|preventDefault={vote(1, id)}>
+						<i class="fas fa-angle-up" />
+					</a>
+				{/if}
 				<span style="text-align:center">{votes}</span>
-
-				<a href="/vote-down" class="anchor" on:click|preventDefault={vote(-1, id)}>
-					<i class="fas fa-angle-down" />
-				</a>
+				{#if $page.data.user && posted_by != $page.data.user.id}
+					<a href="/vote-down" class="anchor" on:click|preventDefault={vote(-1, id)}>
+						<i class="fas fa-angle-down" />
+					</a>
+				{/if}
 			</div>
 		</div>
 		<div style="float:left; position:relative;width:calc(100% - 70px)">
@@ -291,20 +296,37 @@
 				{/if}
 				<br />
 				<div style="text-align: center;font-size: 24px">
-					<a href="/vote-up" class="anchor" on:click|preventDefault={vote(1, question_id)}>
-						<i class="fas fa-angle-up" />
-					</a>
+					{#if $page.data.user && posted_by_id != $page.data.user.id}
+						<a href="/vote-up" class="anchor" on:click|preventDefault={vote(1, question_id)}>
+							<i class="fas fa-angle-up" />
+						</a>
+					{/if}
 					<span style="text-align:center">{votes}</span>
-					<a href="/vote-down" class="anchor" style="display:block" on:click|preventDefault={vote(-1, question_id)}>
-						<i class="fas fa-angle-down" />
-					</a>
+					{#if $page.data.user && posted_by_id != $page.data.user.id}
+						<a
+							href="/vote-down"
+							class="anchor"
+							style="display:block"
+							on:click|preventDefault={vote(-1, question_id)}
+						>
+							<i class="fas fa-angle-down" />
+						</a>
+					{/if}
 					{#if $page.data.user && posted_by == $page.data.user.id}
 						{#if answer_accepted}
-							<a href="/accept-answer" class="anchor" on:click|preventDefault={acceptAnswer(question_id)}>
+							<a
+								href="/accept-answer"
+								class="anchor"
+								on:click|preventDefault={acceptAnswer(question_id)}
+							>
 								<i class="fas fa-check" style="color: #080" />
 							</a>
 						{:else}
-							<a href="/accept-answer" class="anchor" on:click|preventDefault={acceptAnswer(question_id)}>
+							<a
+								href="/accept-answer"
+								class="anchor"
+								on:click|preventDefault={acceptAnswer(question_id)}
+							>
 								<i class="fas fa-check" style="color: #ddd" />
 							</a>
 						{/if}
@@ -312,8 +334,8 @@
 				</div>
 			</div>
 			<div style="float:left; position:relative;width:calc(100% - 70px)">
-				<span style="display:inline;font-weight:bold;color:#888">{username}</span><span style="float:right"
-					>posted {shown_ts}</span
+				<span style="display:inline;font-weight:bold;color:#888">{username}</span><span
+					style="float:right">posted {shown_ts}</span
 				>
 				<div style="margin:10px" />
 				<div class="answers">

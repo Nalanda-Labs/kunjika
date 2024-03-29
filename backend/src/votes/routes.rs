@@ -9,12 +9,12 @@ use serde_json::json;
 #[post("/votes")]
 async fn vote(
     form: web::types::Json<VoteRequest>,
-    _auth: AuthorizationService,
+    auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
     let data = form.into_inner();
 
-    match state.get_ref().handle_vote(&data).await {
+    match state.get_ref().handle_vote(&data, &auth.user).await {
         Ok(r) => HttpResponse::Ok().json(&json!({"data": r})),
         Err(e) => {
             debug!("{:?}", e.to_string());

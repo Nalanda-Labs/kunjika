@@ -29,6 +29,8 @@ pub struct Config {
     pub refresh_token_public_key: String,
     pub refresh_token_max_age: i64,
     pub results_per_page: u8,
+    pub karma_gain_per_vote: i64,
+    pub karma_loss_per_vote: i64,
 }
 
 impl Config {

@@ -1,4 +1,4 @@
-use chrono::{Utc, DateTime};
+use chrono::{DateTime, Utc};
 
 #[cfg(any(feature = "postgres"))]
 type SqlID = i64;
@@ -21,7 +21,7 @@ pub struct Question {
     pub reply_to_id: SqlID,
     pub updated_by_id: SqlID,
     pub created_at: SqlDateTime,
-    pub updated_at: SqlDateTime
+    pub updated_at: SqlDateTime,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug, Validate)]
@@ -33,7 +33,7 @@ pub struct DbQuestion {
     pub tag_list: Vec<String>,
     pub slug: String,
     pub posted_by_id: SqlID,
-    pub updated_by_id: SqlID
+    pub updated_by_id: SqlID,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug, Validate)]
@@ -48,7 +48,7 @@ pub struct QuestionRequest {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AskResponse {
     pub id: String,
-    pub slug: String
+    pub slug: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -66,12 +66,12 @@ pub struct QuestionResponse {
     pub updated_at: SqlDateTime,
     pub tags: Vec<String>,
     pub username: String,
-    pub image_url: String
+    pub image_url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct QuestionsReq {
-    pub updated_at: String
+    pub updated_at: String,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
@@ -95,13 +95,13 @@ pub struct QR {
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct QuestionsResponse {
-    pub questions: Vec<QR>
+    pub questions: Vec<QR>,
 }
 
 #[derive(Deserialize)]
 pub struct AnswersQuery {
     pub time: chrono::DateTime<Utc>,
-    pub limit: i64
+    pub limit: i64,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
@@ -115,19 +115,22 @@ pub struct AR {
     pub updated_at: SqlDateTime,
     pub username: String,
     pub image_url: String,
-    pub answer_accepted: bool
+    pub answer_accepted: bool,
+    pub reply_to_id: Option<i64>,
+    pub rusername: String,
+    pub rimage_url: String,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct AnswersResponse {
-    pub questions: Vec<AR>
+    pub questions: Vec<AR>,
 }
 
 #[derive(Deserialize)]
 pub struct AnswerReq {
     pub id: String,
     pub value: String,
-    pub reply_to: String
+    pub reply_to: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

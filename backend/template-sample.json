@@ -13,6 +13,8 @@
     "host": "localhost",
     "secret_key": "some super secret key",
     "questions_per_page": 30,
-    "users_per_page": 18,
-    "tags_per_page": 18
+    "users_per_page": 20,
+    "tags_per_page": 20,
+    "karma_gain_per_vote": 10,
+    "karma_loss_per_vote": -10
 }

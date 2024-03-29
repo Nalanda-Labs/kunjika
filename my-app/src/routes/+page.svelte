@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>Home</title>
+	<title>Home ❤ Kunjika</title>
 </svelte:head>
 
 <div style="margin-top:20px">
@@ -21,6 +21,7 @@
 	</p>
 	<p>Discourse is very nice forum software but I find it bloated with features but for most
 		use cases it should work nicely. If you want a lean/mean QA/forum only then you should
-		choose Kunjika.
+		choose Kunjika. The other reason is the license. Kunjika is true free software under
+		GNU GPL and not under some other open source license.
 	</p>
 </div>

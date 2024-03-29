@@ -233,7 +233,10 @@ impl IQuestion for &AppStateRaw {
         let questions = sqlx::query!(
             r#"
             select count(1) over(), t.id, t.description, t.visible, t.created_at, t.posted_by_id, t.updated_at,
-            t.votes, t.answer_accepted, users.username, users.image_url from posts t left join users on t.posted_by_id=users.id
+            t.votes, t.answer_accepted, t.reply_to_id, u.username, u.image_url,
+            u1.username as rusername, u1.image_url as rimage_url
+            from posts t left join users as u on t.posted_by_id=u.id
+            left join users as u1 on t.reply_to_id=u1.id
             where t.op_id=$1  and t.created_at > $2 order by t.created_at asc limit $3
             "#, qid, updated_at, limit
         ).fetch_all(&self.sql)
@@ -255,6 +258,9 @@ impl IQuestion for &AppStateRaw {
                 username: q.username,
                 image_url,
                 answer_accepted: q.answer_accepted,
+                reply_to_id: q.reply_to_id,
+                rusername: q.rusername,
+                rimage_url: q.rimage_url
             };
             ars.questions.push(qr);
         }

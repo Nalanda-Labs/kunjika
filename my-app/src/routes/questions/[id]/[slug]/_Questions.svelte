@@ -114,6 +114,7 @@
 			}
 		}
 	});
+
 	function show_editor(reply_to, username) {
 		reply_to_id = reply_to;
 		user_replied = username;
@@ -127,9 +128,10 @@
 	async function vote(vote, elementID) {
 		if (browser) {
 			let xsrf_token = getCookie('xsrf_token');
-			const response = await api.post('votes', { vote, id: parseInt(elementID)}, xsrf_token);
+			const response = await api.post('votes', { vote, id: parseInt(elementID) }, xsrf_token);
+			const j = JSON.parse(await response.text());
 
-			if (response.status === 200) {
+			if (response.status === 200 && j.data) {
 				if (elementID == id) {
 					votes = vote + parseInt(votes);
 				} else {
@@ -188,7 +190,7 @@
 	<title>{title}</title>
 </svelte:head>
 <div>
-	<ListErrors errors={errors} />
+	<ListErrors {errors} />
 	<h3>{title}</h3>
 	<hr />
 	<div style="margin-top:10px">
@@ -202,7 +204,7 @@
 					<img
 						src={image_url}
 						alt="profile pic"
-						style="width: 3.5em;height: 3.5em;line-height: 3.5em;text-align: center;border-radius: 50%;"
+						style="width: 3.5em;height: 3.5em;line-height: 3.5em;text-align: center;"
 					/>
 				</a>
 			{/if}
@@ -277,7 +279,7 @@
 		</div>
 	</div>
 	<div style="clear:both;margin-bottom:10px" />
-	{#each questions as { question_id, description, votes, posted_by_id, username, initials, image_url, shown_ts, answer_accepted }}
+	{#each questions as { question_id, description, votes, posted_by_id, username, initials, image_url, shown_ts, answer_accepted, reply_to_id, rusername, rimage_url }}
 		<hr style="border-bottom:1px solid;color:#ccc;" />
 		<div style="margin-top:10px">
 			<div style="float:left;margin-right:10px">
@@ -290,7 +292,7 @@
 						<img
 							src={image_url}
 							alt="profile pic"
-							style="width: 3.5em;height: 3.5em;line-height: 3.5em;text-align: center;border-radius: 50%;"
+							style="width: 3.5em;height: 3.5em;line-height: 3.5em;text-align: center;"
 						/>
 					</a>
 				{/if}
@@ -334,9 +336,15 @@
 				</div>
 			</div>
 			<div style="float:left; position:relative;width:calc(100% - 70px)">
-				<span style="display:inline;font-weight:bold;color:#888">{username}</span><span
-					style="float:right">posted {shown_ts}</span
-				>
+				<span style="display:inline;font-weight:bold;color:#888">{username}</span>
+				<span style="float:right">posted {shown_ts}</span>
+				{#if reply_to_id}
+					<span style="float:right"
+						>reply to <a href="/users/{reply_to_id}/{rusername}"
+							><img src="{rimage_url}?s=32" alt={rusername} style="display:inline;margin-right:10px" /></a
+						></span
+					>
+				{/if}
 				<div style="margin:10px" />
 				<div class="answers">
 					<Preview markup={description} />

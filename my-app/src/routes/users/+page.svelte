@@ -24,8 +24,6 @@
     }
 	onMount(async () => await getUsers());
 
-    afterUpdate(async () => await getUsers());
-
 	async function nextPage() {
 		page += 1;
 		user = users[users.length - 1].username;

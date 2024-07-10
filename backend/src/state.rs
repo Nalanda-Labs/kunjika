@@ -17,4 +17,4 @@ pub struct State {
 }
 
 pub type AppStateRaw = std::sync::Arc<State>;
-pub type AppState = ntex::web::types::State<AppStateRaw>;
+pub type AppState = actix_web::web::Data<AppStateRaw>;

@@ -3,12 +3,12 @@ use super::vote::*;
 use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
 
-use ntex::web::{self, post, Responder, HttpResponse};
+use actix_web::{web, post, Responder, HttpResponse};
 use serde_json::json;
 
 #[post("/votes")]
 async fn vote(
-    form: web::types::Json<VoteRequest>,
+    form: web::Json<VoteRequest>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {

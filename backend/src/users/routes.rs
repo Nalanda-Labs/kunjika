@@ -7,21 +7,20 @@ use crate::utils::security::{check_signature, sign};
 use crate::utils::verify_user::verify_profile_user;
 
 use cookie::time::Duration;
-use cookie::Cookie;
 use lettre::{
     transport::smtp::authentication::Credentials, AsyncSmtpTransport, AsyncTransport, Message,
     Tokio1Executor,
 };
 use mobc_redis::redis::{self, AsyncCommands};
-use ntex::http::HttpMessage;
-use ntex::web::{self, get, post, Error, HttpRequest, HttpResponse, Responder};
+use actix_web::{web, get, post, Error, HttpRequest, HttpResponse, Responder};
+use actix_web::cookie;
 use serde_json::json;
 use uuid::Uuid;
 use validator::Validate;
 
 // curl -v --data '{"name": "Bob", "email": "Bob@google.com", "password": "Bobpass"}' -H "Content-Type: application/json" -X POST localhost:8080/user/register
 #[post("/register")]
-async fn register(form: web::types::Json<Register>, state: AppState) -> impl Responder {
+async fn register(form: web::Json<Register>, state: AppState) -> impl Responder {
     let form = form.into_inner();
 
     if let Err(e) = form.validate() {
@@ -95,7 +94,7 @@ async fn register(form: web::types::Json<Register>, state: AppState) -> impl Res
 
 // curl -v --data '{"name": "Bob", "email": "Bob@google.com", "password": "Bobpass"}' -H "Content-Type: application/json" -X POST localhost:8080/user/login
 #[post("/auth/login")]
-async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder {
+async fn login(form: web::Json<Login>, state: AppState) -> impl Responder {
     let form = form.into_inner();
 
     // todo: distable login for deleted and blocked users
@@ -166,7 +165,7 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
                 drop(redis_client);
 
                 let access_cookie =
-                    Cookie::build("access_token", access_token_details.token.clone().unwrap())
+                    cookie::Cookie::build("access_token", access_token_details.token.clone().unwrap())
                         .domain(&state.config.host)
                         .path("/")
                         .secure(true)
@@ -174,7 +173,7 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
                         .http_only(true)
                         .finish();
                 let refresh_cookie =
-                    Cookie::build("refresh_token", refresh_token_details.token.unwrap())
+                    cookie::Cookie::build("refresh_token", refresh_token_details.token.unwrap())
                         .domain(&state.config.host)
                         .path("/")
                         .secure(true)
@@ -182,7 +181,7 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
                         .http_only(true)
                         .finish();
                 let xsrf_cookie =
-                    Cookie::build("xsrf_token", access_token_details.token_uuid.to_string())
+                    cookie::Cookie::build("xsrf_token", access_token_details.token_uuid.to_string())
                         .domain(&state.config.host)
                         .path("/")
                         .secure(true)
@@ -196,18 +195,17 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
                 };
                 let resp = match serde_json::to_string(&r) {
                     Ok(json) => HttpResponse::Ok()
-                        .cookie(access_cookie.to_string())
-                        .cookie(refresh_cookie.to_string())
-                        .cookie(xsrf_cookie.to_string())
+                        .cookie(access_cookie)
+                        .cookie(refresh_cookie)
+                        .cookie(xsrf_cookie)
                         .cookie(
-                            Cookie::build("logged_in", json)
+                            cookie::Cookie::build("logged_in", json)
                                 .domain(&state.config.host)
                                 .path("/")
                                 .secure(true)
                                 .http_only(true)
                                 .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
                                 .finish()
-                                .to_string(),
                         )
                         .content_type("application/json")
                         .body(""),
@@ -345,7 +343,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
 
     drop(redis_client);
 
-    let access_cookie = Cookie::build("access_token", access_token_details.token.clone().unwrap())
+    let access_cookie = cookie::Cookie::build("access_token", access_token_details.token.clone().unwrap())
         .domain(&state.config.host)
         .path("/")
         .secure(true)
@@ -353,7 +351,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         .http_only(true)
         .finish();
 
-    let refresh_cookie = Cookie::build("refresh_token", refresh_token_details.token.unwrap())
+    let refresh_cookie = cookie::Cookie::build("refresh_token", refresh_token_details.token.unwrap())
         .domain(&state.config.host)
         .path("/")
         .secure(true)
@@ -361,7 +359,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         .http_only(true)
         .finish();
 
-    let xsrf_cookie = Cookie::build("xsrf_token", access_token_details.token_uuid.to_string())
+    let xsrf_cookie = cookie::Cookie::build("xsrf_token", access_token_details.token_uuid.to_string())
         .domain(&state.config.host)
         .path("/")
         .secure(true)
@@ -378,18 +376,17 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
             .header("Cache-Control", "no-cache, no-store, must-revalidate")
             .header("Pragma", "no-cache")
             .header("Expires", 0)
-            .cookie(access_cookie.to_string())
-            .cookie(refresh_cookie.to_string())
-            .cookie(xsrf_cookie.to_string())
+            .cookie(access_cookie)
+            .cookie(refresh_cookie)
+            .cookie(xsrf_cookie)
             .cookie(
-                Cookie::build("logged_in", json)
+                cookie::Cookie::build("logged_in", json)
                     .domain(&state.config.host)
                     .path("/")
                     .secure(true)
                     .http_only(true)
                     .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
                     .finish()
-                    .to_string(),
             )
             .content_type("application/json")
             .body(""),
@@ -440,32 +437,32 @@ async fn logout_handler(
 
     drop(redis_client);
 
-    let access_cookie = Cookie::build("access_token", "")
+    let access_cookie = actix_web::cookie::Cookie::build("access_token", "")
         .path("/")
         .max_age(Duration::new(-1, 0))
         .http_only(true)
         .finish();
-    let refresh_cookie = Cookie::build("refresh_token", "")
+    let refresh_cookie = actix_web::cookie::Cookie::build("refresh_token", "")
         .path("/")
         .max_age(Duration::new(-1, 0))
         .http_only(true)
         .finish();
-    let logged_in_cookie = Cookie::build("logged_in", "")
+    let logged_in_cookie = actix_web::cookie::Cookie::build("logged_in", "")
         .path("/")
         .max_age(Duration::new(-1, 0))
         .http_only(true)
         .finish();
 
     HttpResponse::Ok()
-        .cookie(access_cookie.to_string())
-        .cookie(refresh_cookie.to_string())
-        .cookie(logged_in_cookie.to_string())
+        .cookie(access_cookie)
+        .cookie(refresh_cookie)
+        .cookie(logged_in_cookie)
         .json(&json!({"status": "success"}))
 }
 
 #[post("/check-username-availability")]
 async fn check_username_availability(
-    form: web::types::Json<UserName>,
+    form: web::Json<UserName>,
     state: AppState,
 ) -> impl Responder {
     match state.get_ref().user_query(&form.username).await {
@@ -482,7 +479,7 @@ async fn check_username_availability(
 }
 
 #[get("/confirm-email/{token}")]
-async fn confirm_email(form: web::types::Path<String>, state: AppState) -> impl Responder {
+async fn confirm_email(form: web::Path<String>, state: AppState) -> impl Responder {
     let token = form.into_inner();
     let email = check_signature(&token, &state).await;
     if &email == "Signature was expired" {
@@ -505,7 +502,7 @@ async fn confirm_email(form: web::types::Path<String>, state: AppState) -> impl 
 }
 
 #[post("/users")]
-async fn get_users(form: web::types::Json<UsersReq>, state: AppState) -> impl Responder {
+async fn get_users(form: web::Json<UsersReq>, state: AppState) -> impl Responder {
     let last_user = form.into_inner();
     match state.get_ref().get_users(&last_user).await {
         Ok((user_res, count)) => HttpResponse::Ok().json(&json!({"message": "", "data": user_res, "count": count})),
@@ -519,7 +516,7 @@ async fn get_users(form: web::types::Json<UsersReq>, state: AppState) -> impl Re
 
 #[get("/user/{id}/{username}")]
 async fn get_profile(
-    params: web::types::Path<(String, String)>,
+    params: web::Path<(String, String)>,
     state: AppState,
 ) -> impl Responder {
     let uid = &params.0.parse::<i64>().unwrap();
@@ -536,7 +533,7 @@ async fn get_profile(
 
 #[get("/profile/{id}/username/{username}")]
 async fn update_username(
-    params: web::types::Path<(String, String)>,
+    params: web::Path<(String, String)>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -559,7 +556,7 @@ async fn update_username(
 
 #[get("/profile/{id}/title/{title}")]
 async fn update_title(
-    params: web::types::Path<(String, String)>,
+    params: web::Path<(String, String)>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -582,7 +579,7 @@ async fn update_title(
 
 #[get("/profile/{id}/name/{name}")]
 async fn update_name(
-    params: web::types::Path<(String, String)>,
+    params: web::Path<(String, String)>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -605,7 +602,7 @@ async fn update_name(
 
 #[get("/profile/{id}/designation/{designation}")]
 async fn update_designation(
-    params: web::types::Path<(String, String)>,
+    params: web::Path<(String, String)>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -628,7 +625,7 @@ async fn update_designation(
 
 #[get("/profile/{id}/location/{location}")]
 async fn update_location(
-    params: web::types::Path<(String, String)>,
+    params: web::Path<(String, String)>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -651,7 +648,7 @@ async fn update_location(
 
 #[get("/edit-links/{uid}")]
 async fn get_links(
-    params: web::types::Path<String>,
+    params: web::Path<String>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -673,8 +670,8 @@ async fn get_links(
 
 #[post("/edit-links/{uid}")]
 async fn update_links(
-    params: web::types::Path<String>,
-    form: web::types::Json<LinksResponse>,
+    params: web::Path<String>,
+    form: web::Json<LinksResponse>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {

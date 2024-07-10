@@ -3,12 +3,12 @@ use super::tag::*;
 use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
 
-use ntex::web::{self, get, post, HttpResponse, Responder};
+use actix_web::{web, get, post, HttpResponse, Responder};
 use serde_json::json;
 
 #[post("/get-tags")]
 async fn get_tags(
-    form: web::types::Json<TagRequest>,
+    form: web::Json<TagRequest>,
     _auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -28,7 +28,7 @@ async fn get_tags(
 }
 
 #[post("/tags")]
-async fn get_all_tags(form: web::types::Json<TagRequest>, state: AppState) -> impl Responder {
+async fn get_all_tags(form: web::Json<TagRequest>, state: AppState) -> impl Responder {
     let tag = form.into_inner();
 
     match state.get_ref().get_all_tags_by_name(&tag.tag, &tag.direction).await {
@@ -46,7 +46,7 @@ async fn get_all_tags(form: web::types::Json<TagRequest>, state: AppState) -> im
 
 #[get("/tags/edit/{tag}/{id}")]
 async fn get_tag_info(
-    params: web::types::Path<(String, String)>,
+    params: web::Path<(String, String)>,
     _auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -63,8 +63,8 @@ async fn get_tag_info(
 
 #[post("/tags/edit/{tag}/{id}")]
 async fn update_tag_info(
-    params: web::types::Path<(String, String)>,
-    form: web::types::Json<TagInfoRequest>,
+    params: web::Path<(String, String)>,
+    form: web::Json<TagInfoRequest>,
     _auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {

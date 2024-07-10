@@ -9,8 +9,7 @@ extern crate sqlx;
 #[macro_use]
 extern crate serde;
 
-use ntex::{web, web::App, web::HttpServer};
-use ntex_cors::Cors;
+use actix_web::{web, App, HttpServer, middleware};
 use num_cpus;
 
 // pub mod api;
@@ -27,7 +26,7 @@ pub mod votes;
 
 use config::{Config, Opts};
 
-#[ntex::main]
+#[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Config::show();
     let (_handle, opt) = Opts::parse_from_args();
@@ -37,19 +36,10 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .wrap(
-                Cors::new()
-                    // for svelte dev server
-                    .allowed_origin("http://localhost:5173")
-                    // for node production server
-                    .allowed_origin("http://localhost:3000")
-                    .supports_credentials()
-                    .max_age(3600)
-                    .finish(),
-            )
-            .state(state.clone())
-            .wrap(web::middleware::Logger::default())
-            .wrap(web::middleware::Compress::default())
+            // we do not do CORS rather use nginx to reverse proxy everything to localhost
+            .app_data(state.clone())
+            .wrap(middleware::Logger::default())
+            .wrap(middleware::Compress::default())
             .service(
                 web::scope(apiv1)
                     .configure(users::routes::init)
@@ -59,7 +49,7 @@ async fn main() -> std::io::Result<()> {
             )
     })
     .workers(num_cpus::get())
-    .keep_alive(300)
+    .keep_alive(std::time::Duration::from_secs(300))
     .bind(&state2.config.listen)?
     .run()
     .await

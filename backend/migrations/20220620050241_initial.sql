@@ -19,18 +19,18 @@ SET row_security = off;
 --
 -- Name: views_delete_old_rows(); Type: FUNCTION; Schema: public; Owner: shiv
 --
--- we no longer use this as cockroachdb has expirable rows
--- CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
---     LANGUAGE plpgsql
---     AS $$
--- BEGIN
---   DELETE FROM views WHERE created_date < NOW() - INTERVAL '15 minute';
---   RETURN NEW;
--- END;
--- $$;
+
+CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  DELETE FROM views WHERE created_date < NOW() - INTERVAL '15 minute';
+  RETURN NEW;
+END;
+$$;
 
 
--- ALTER FUNCTION public.views_delete_old_rows() OWNER TO shiv;
+ALTER FUNCTION public.views_delete_old_rows() OWNER TO shiv;
 
 SET default_tablespace = '';
 
@@ -289,14 +289,6 @@ CREATE MATERIALIZED VIEW public.weekly_tags_by_popularity AS
 
 ALTER MATERIALIZED VIEW public.weekly_tags_by_popularity OWNER TO shiv;
 
-create table public.votes (
-    topic_id bigint not null,
-    user_id bigint not null,
-    vote int not null default 0,
-    FOREIGN KEY (topic_id) REFERENCES posts(id),
-    FOREIGN KEY (user_id) REFERENCES users(id)
-);
-
 --
 -- Name: post_tags id; Type: DEFAULT; Schema: public; Owner: shiv
 --
@@ -456,3 +448,4 @@ ALTER TABLE ONLY public.posts
 --
 -- PostgreSQL database dump complete
 --
+

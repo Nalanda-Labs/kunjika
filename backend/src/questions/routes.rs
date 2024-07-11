@@ -6,12 +6,12 @@ use crate::state::AppState;
 use crate::utils::slug::create_slug;
 
 use chrono::*;
-use actix_web::{get, post, web, Responder, HttpResponse, HttpRequest};
+use ntex::{http::HttpMessage, web::{get, post, HttpRequest, HttpResponse, Responder}};
 use serde_json::json;
 
 #[post("/create-question")]
 async fn insert_question(
-    form: web::Json<QuestionRequest>,
+    form: ntex::web::types::Json<QuestionRequest>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -55,7 +55,7 @@ async fn insert_question(
 
 #[get("/questions/{id}/{slug}")]
 async fn get_question(
-    params: web::Path<(String, String)>,
+    params: ntex::web::types::Path<(String, String)>,
     req: HttpRequest,
     state: AppState,
 ) -> impl Responder {
@@ -100,7 +100,7 @@ async fn get_question(
 
 #[post("/questions/")]
 async fn get_questions(
-    ut: web::Json<QuestionsReq>,
+    ut: ntex::web::types::Json<QuestionsReq>,
     state: AppState,
 ) -> impl Responder {
     let updated_at = ut.into_inner();
@@ -123,8 +123,8 @@ async fn get_questions(
 
 #[post("/questions/tagged/{tag}")]
 async fn get_questions_by_tag(
-    params: web::Path<String>,
-    ut: web::Json<QuestionsReq>,
+    params: ntex::web::types::Path<String>,
+    ut: ntex::web::types::Json<QuestionsReq>,
     state: AppState,
 ) -> impl Responder {
     let tag = params.parse().unwrap();
@@ -148,8 +148,8 @@ async fn get_questions_by_tag(
 
 #[get("/question/get-answers/{id}/")]
 async fn get_answers(
-    params: web::Path<i64>,
-    q: web::Query<AnswersQuery>,
+    params: ntex::web::types::Path<i64>,
+    q: ntex::web::types::Query<AnswersQuery>,
     state: AppState,
 ) -> impl Responder {
     let qid = params.into_inner();
@@ -164,7 +164,7 @@ async fn get_answers(
 
 #[post("/answer")]
 async fn answer(
-    params: web::Json<AnswerReq>,
+    params: ntex::web::types::Json<AnswerReq>,
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -187,7 +187,7 @@ async fn answer(
 
 #[get("edit/question/{id}")]
 async fn get_edit_post(
-    params: web::Path<i64>,
+    params: ntex::web::types::Path<i64>,
     _auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -204,8 +204,8 @@ async fn get_edit_post(
 
 #[post("/edit-post/{id}")]
 async fn update_post(
-    params: web::Path<i64>,
-    form: web::Json<EditRequest>,
+    params: ntex::web::types::Path<i64>,
+    form: ntex::web::types::Json<EditRequest>,
     _auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
@@ -228,7 +228,7 @@ async fn update_post(
     }
 }
 
-pub fn init(cfg: &mut web::ServiceConfig) {
+pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(insert_question);
     cfg.service(get_question);
     cfg.service(get_questions);

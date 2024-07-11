@@ -245,7 +245,7 @@ CREATE TABLE public.views (
     qid bigint,
     created_date timestamp with time zone DEFAULT now(),
     id bigint NOT NULL
-);
+) WITH (ttl_expire_after = '15 min', ttl_job_cron = '0,15,30,45 * * * *');
 
 
 ALTER TABLE public.views OWNER TO shiv;

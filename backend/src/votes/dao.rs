@@ -42,7 +42,7 @@ impl IVote for &AppStateRaw {
         let karma = query1.karma;
 
         let vote = sqlx::query!(
-            "select * from votes where topic_id=$1 and user_id=$2",
+            "select * from votes where topic_id=$1 and from_user_id=$2",
             data.id,
             user.id
         )
@@ -51,9 +51,10 @@ impl IVote for &AppStateRaw {
 
         if vote.len() == 0 {
             sqlx::query!(
-                r#"insert into votes(topic_id, user_id, vote) values($1, $2, $3)"#,
+                r#"insert into votes(topic_id, from_user_id, to_user_id, vote) values($1, $2, $3, $4)"#,
                 data.id,
                 user.id,
+                receiving_user,
                 data.vote
             )
             .execute(&mut *tx)
@@ -95,7 +96,7 @@ impl IVote for &AppStateRaw {
                 return Ok(false);
             } else {
                 sqlx::query!(
-                    r#"update votes set vote = vote + $1 where topic_id=$2 and user_id=$3"#,
+                    r#"update votes set vote = vote + $1 where topic_id=$2 and from_user_id=$3"#,
                     data.vote,
                     data.id,
                     user.id

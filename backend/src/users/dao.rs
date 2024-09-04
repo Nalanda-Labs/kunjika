@@ -22,7 +22,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
             "SELECT id, username, email, password_hash, status, email_verified, image_url, created_date, modified_date,
             designation, location, git, website
             FROM users
-            where {} = {};",
+            where {} = {} and email_verified=true;",
             column, placeholder
         );
 

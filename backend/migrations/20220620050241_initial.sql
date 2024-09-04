@@ -19,7 +19,6 @@ SET row_security = off;
 --
 -- Name: views_delete_old_rows(); Type: FUNCTION; Schema: public; Owner: shiv
 --
-
 CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -30,7 +29,7 @@ END;
 $$;
 
 
-ALTER FUNCTION public.views_delete_old_rows() OWNER TO shiv;
+ALTER FUNCTION public.views_delete_old_rows() OWNER TO shiv; */
 
 SET default_tablespace = '';
 
@@ -164,7 +163,7 @@ CREATE MATERIALIZED VIEW public.tags_count AS
 
 ALTER MATERIALIZED VIEW public.tags_count OWNER TO shiv;
 
---
+
 -- Name: tags_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
 --
 
@@ -245,7 +244,7 @@ CREATE TABLE public.views (
     qid bigint,
     created_date timestamp with time zone DEFAULT now(),
     id bigint NOT NULL
-) WITH (ttl_expire_after = '15 min', ttl_job_cron = '0,15,30,45 * * * *');
+);
 
 
 ALTER TABLE public.views OWNER TO shiv;
@@ -418,7 +417,7 @@ CREATE INDEX users_karma_idx ON public.users USING btree (karma);
 -- Name: views views_delete_old_rows_trigger; Type: TRIGGER; Schema: public; Owner: shiv
 --
 
-CREATE TRIGGER views_delete_old_rows_trigger AFTER INSERT ON public.views FOR EACH STATEMENT EXECUTE FUNCTION public.views_delete_old_rows();
+-- CREATE TRIGGER views_delete_old_rows_trigger AFTER INSERT ON public.views FOR EACH STATEMENT EXECUTE FUNCTION public.views_delete_old_rows();
 
 
 --
@@ -448,4 +447,3 @@ ALTER TABLE ONLY public.posts
 --
 -- PostgreSQL database dump complete
 --
-

@@ -35,55 +35,58 @@ async fn register(form: web::types::Json<Register>, state: AppState) -> impl Res
     }
     match state.get_ref().user_add(&form).await {
         Ok(res) => {
-            info!("register {:?} res: {}", form, res);
+            debug!("register {:?} res: {}", form, res);
             // TODO: move it out to a common logic
-            // let smtp_credentials = Credentials::new(
-            //     state.config.mail_username.clone(),
-            //     state.config.mail_password.clone(),
-            // );
+            let smtp_credentials = Credentials::new(
+                 state.config.mail_username.clone(),
+                 state.config.mail_password.clone(),
+            );
 
-            //             let mailer =
-            //                 AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&state.config.mail_host)
-            //                     .unwrap()
-            //                     .credentials(smtp_credentials)
-            //                     .build();
+                        let mailer =
+                        // For production
+                        // AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&state.config.mail_host)
+                            //     .unwrap()
+                            //     .credentials(smtp_credentials)
+                            //     .build();
+                        // For development
+                        AsyncSmtpTransport::<Tokio1Executor>::unencrypted_localhost()               ;
 
-            //             let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
-            //             let to = form.email.clone();
-            //             let subject = "Registration at Kunjika";
+                        let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
+                        let to = form.email.clone();
+                        let subject = "Registration at Kunjika";
 
-            //             // Sign an arbitrary string.
-            //             let token = sign(&form.email, &state).await;
-            //             let body = format!(
-            //                 "Hi {},
+                        // Sign an arbitrary string.
+                        let token = sign(&form.email, &state).await;
+                        let body = format!(
+                            "Hi {},
 
-            // Thank you for registering at Kunjika.
-            // Your email confirmation link is https://{}/confirm-email/{}.
-            // This email will expire in one day.
+Thank you for registering at Kunjika.
+Your email confirmation link is https://{}/confirm-email/{}.
+This email will expire in one day.
 
-            // Thanks,
-            // Shiv",
-            //                 form.username, state.config.host, token
-            //             );
-            //             debug!("{:?}, {:?}", from, to);
-            //             let email = Message::builder()
-            //                 .from(from.parse().unwrap())
-            //                 .to(to.parse().unwrap())
-            //                 .subject(subject)
-            //                 .body(body.to_string())
-            //                 .unwrap();
+Thanks,
+Shiv",
+                             form.username, state.config.host, token
+                        );
+                        debug!("{:?}, {:?}", from, to);
+                        let email = Message::builder()
+                           .from(from.parse().unwrap())
+                           .to(to.parse().unwrap())
+                           .subject(subject)
+                           .body(body.to_string())
+                           .unwrap();
 
-            //             debug!("Sending email");
-            //             match mailer.send(email).await {
-            //                 Ok(_r) => {
-            //                     debug!("{:?}", _r);
-            HttpResponse::Ok().json(&json!({"data": res}))
-            //     }
-            //     Err(_e) => {
-            //         debug!("{:?}", _e);
-            //         HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": "Passwords are bad!"}))
-            //     }
-            // }
+                        debug!("Sending email");
+                        match mailer.send(email).await {
+                            Ok(_r) => {
+                                debug!("{:?}", _r);
+                    HttpResponse::Ok().json(&json!({"data": res}))
+                }
+                Err(_e) => {
+                    debug!("{:?}", _e);
+                    HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": "Passwords are bad!"}))
+                }
+            }
         }
         Err(e) => {
             error!("regitser {:?} error: {:?}", form, e);
@@ -114,7 +117,7 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
                         return HttpResponse::BadGateway()
                             .json(&json!({"status": "fail", "message": format_args!("{}", e)}));
                     }
-                };
+                };      
 
                 info!("Access token built");
                 let refresh_token_details = match token::generate_jwt_token(
@@ -132,8 +135,9 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
                 let mut redis_client = match state.kv.get().await {
                     Ok(redis_client) => redis_client,
                     Err(e) => {
+                        // debug!("{}",             format_args!(e));
                         return HttpResponse::InternalServerError()
-                            .json(&json!({"status": "fail", "message": format_args!("{}", e)}));
+                            .json(&json!({"status": "fail", "message": "An internal server occurred!"}));
                     }
                 };
 
@@ -166,29 +170,26 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
                 drop(redis_client);
 
                 let access_cookie =
-                    Cookie::build("access_token", access_token_details.token.clone().unwrap())
+                    Cookie::build(("access_token", access_token_details.token.clone().unwrap()))
                         .domain(&state.config.host)
                         .path("/")
                         .secure(true)
                         .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
-                        .http_only(true)
-                        .finish();
+                        .http_only(true);
                 let refresh_cookie =
-                    Cookie::build("refresh_token", refresh_token_details.token.unwrap())
+                    Cookie::build(("refresh_token", refresh_token_details.token.unwrap()))
                         .domain(&state.config.host)
                         .path("/")
                         .secure(true)
                         .max_age(Duration::new(state.config.refresh_token_max_age * 60, 0))
-                        .http_only(true)
-                        .finish();
+                        .http_only(true);
                 let xsrf_cookie =
-                    Cookie::build("xsrf_token", access_token_details.token_uuid.to_string())
+                    Cookie::build(("xsrf_token", access_token_details.token_uuid.to_string()))
                         .domain(&state.config.host)
                         .path("/")
                         .secure(true)
                         .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
-                        .http_only(false)
-                        .finish();
+                        .http_only(false);
 
                 let r: LoginResponse = LoginResponse {
                     user,
@@ -200,13 +201,12 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
                         .cookie(refresh_cookie.to_string())
                         .cookie(xsrf_cookie.to_string())
                         .cookie(
-                            Cookie::build("logged_in", json)
+                            Cookie::build(("logged_in", json))
                                 .domain(&state.config.host)
                                 .path("/")
                                 .secure(true)
                                 .http_only(true)
                                 .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
-                                .finish()
                                 .to_string(),
                         )
                         .content_type("application/json")
@@ -345,29 +345,26 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
 
     drop(redis_client);
 
-    let access_cookie = Cookie::build("access_token", access_token_details.token.clone().unwrap())
+    let access_cookie = Cookie::build(("access_token", access_token_details.token.clone().unwrap()))
         .domain(&state.config.host)
         .path("/")
         .secure(true)
         .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
-        .http_only(true)
-        .finish();
+        .http_only(true);
 
-    let refresh_cookie = Cookie::build("refresh_token", refresh_token_details.token.unwrap())
+    let refresh_cookie = Cookie::build(("refresh_token", refresh_token_details.token.unwrap()))
         .domain(&state.config.host)
         .path("/")
         .secure(true)
         .max_age(Duration::new(state.config.refresh_token_max_age * 60, 0))
-        .http_only(true)
-        .finish();
+        .http_only(true);
 
-    let xsrf_cookie = Cookie::build("xsrf_token", access_token_details.token_uuid.to_string())
+    let xsrf_cookie = Cookie::build(("xsrf_token", access_token_details.token_uuid.to_string()))
         .domain(&state.config.host)
         .path("/")
         .secure(true)
         .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
-        .http_only(false)
-        .finish();
+        .http_only(false);
 
     let r: LoginResponse = LoginResponse {
         user,
@@ -382,13 +379,12 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
             .cookie(refresh_cookie.to_string())
             .cookie(xsrf_cookie.to_string())
             .cookie(
-                Cookie::build("logged_in", json)
+                Cookie::build(("logged_in", json))
                     .domain(&state.config.host)
                     .path("/")
                     .secure(true)
                     .http_only(true)
                     .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
-                    .finish()
                     .to_string(),
             )
             .content_type("application/json")
@@ -440,21 +436,18 @@ async fn logout_handler(
 
     drop(redis_client);
 
-    let access_cookie = Cookie::build("access_token", "")
+    let access_cookie = Cookie::build(("access_token", ""))
         .path("/")
         .max_age(Duration::new(-1, 0))
-        .http_only(true)
-        .finish();
-    let refresh_cookie = Cookie::build("refresh_token", "")
+        .http_only(true);
+    let refresh_cookie = Cookie::build(("refresh_token", ""))
         .path("/")
         .max_age(Duration::new(-1, 0))
-        .http_only(true)
-        .finish();
-    let logged_in_cookie = Cookie::build("logged_in", "")
+        .http_only(true);
+    let logged_in_cookie = Cookie::build(("logged_in", ""))
         .path("/")
         .max_age(Duration::new(-1, 0))
-        .http_only(true)
-        .finish();
+        .http_only(true);
 
     HttpResponse::Ok()
         .cookie(access_cookie.to_string())

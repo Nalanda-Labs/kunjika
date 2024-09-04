@@ -72,7 +72,7 @@ pub struct Claims {
 
 #[derive(Serialize, Deserialize, Debug, Validate)]
 pub struct Register {
-    #[validate(length(min = 3, max = 33), custom = "validate_username")]
+    #[validate(length(min = 3, max = 33), custom(function = "validate_username"))]
     pub username: String,
     #[validate(length(min = 6, max = 256), email)]
     pub email: String,

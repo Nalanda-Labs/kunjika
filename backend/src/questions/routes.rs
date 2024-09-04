@@ -107,7 +107,7 @@ async fn get_questions(
     let up_at;
     debug!("{:?}", &updated_at.updated_at);
     if updated_at.updated_at == "" {
-        up_at = chrono::offset::Utc::now();
+        up_at = chrono::offset::Utc::now();                 
         debug!("{:?}", up_at);
     } else {
         up_at = chrono::DateTime::parse_from_rfc3339(&updated_at.updated_at)

@@ -21,8 +21,8 @@ export const actions = {
 		let j = text ? JSON.parse(text) : {};
 
 		if (resp.status === 401) {
-			return fail(401, { success: false, errors: 'Either email or password is wrong!', email:data.get('email') });
-		}
+			return fail(401, { success: false, errors: 'Either email or password is wrong or you have not verified your email!', email: data.get('email') });
+		}	
 
 		for (const pair of resp.headers.entries()) {
 			// this is not general cookie parsing logic but specific to what we use

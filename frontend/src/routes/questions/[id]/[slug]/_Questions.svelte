@@ -89,6 +89,7 @@
 				}
 				let asked_ts = Date.parse(questions[i].created_at);
 				let now = Date.now();
+				questions[i].		description = parseMarkdown(response.data.questions[i].description);
 				let shown_ts = Math.floor((now - asked_ts) / 1000);
 				if (shown_ts >= 259200) {
 					asked_ts = new Date(questions[i].created_at);
@@ -150,17 +151,6 @@
 		}
 	}
 	async function acceptAnswer(elementID) {
-		M.toast({ html: 'Not implemented yet!' });
-		return;
-		if (!$page.data.user) {
-			M.toast({
-				html: 'You need to be logged in before accepting answer.'
-			});
-			return;
-		}
-		if (parseInt(posted_by) != $page.data.user.id) {
-			M.toast({ html: 'Only author of question can accept the answer.' });
-		}
 		const response = await api.post(
 			`accept-answer/${id}/${elementID}/`,
 			{},
@@ -281,7 +271,7 @@
 	<div style="clear:both;margin-bottom:10px" />
 	{#each questions as { question_id, description, votes, posted_by_id, username, initials, image_url, shown_ts, answer_accepted, reply_to_id, rusername, rimage_url }}
 		<hr style="border-bottom:1px solid;color:#ccc;" />
-		<div style="margin-top:10px">
+		<div style="margin-top:10px" id="{question_id}">
 			<div style="float:left;margin-right:10px">
 				{#if image_url === '' || image_url === undefined}
 					<a href="/users/{posted_by_id}/{username}">

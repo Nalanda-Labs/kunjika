@@ -20,4 +20,3 @@
     choose Kunjika. The other reason is the license. Kunjika is true free software under
     GNU GPL and not under some other open source license.
 </p>
-</p>

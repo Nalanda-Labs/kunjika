@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 16.1
--- Dumped by pg_dump version 16.1
+-- Dumped from database version 16.4 (Ubuntu 16.4-0ubuntu0.24.04.2)
+-- Dumped by pg_dump version 16.4 (Ubuntu 16.4-0ubuntu0.24.04.2)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -19,6 +19,7 @@ SET row_security = off;
 --
 -- Name: views_delete_old_rows(); Type: FUNCTION; Schema: public; Owner: shiv
 --
+
 CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -29,7 +30,7 @@ END;
 $$;
 
 
-ALTER FUNCTION public.views_delete_old_rows() OWNER TO shiv; */
+ALTER FUNCTION public.views_delete_old_rows() OWNER TO shiv;
 
 SET default_tablespace = '';
 
@@ -163,7 +164,7 @@ CREATE MATERIALIZED VIEW public.tags_count AS
 
 ALTER MATERIALIZED VIEW public.tags_count OWNER TO shiv;
 
-
+--
 -- Name: tags_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
 --
 
@@ -271,6 +272,20 @@ ALTER SEQUENCE public.views_id_seq OWNED BY public.views.id;
 
 
 --
+-- Name: votes; Type: TABLE; Schema: public; Owner: shiv
+--
+
+CREATE TABLE public.votes (
+    topic_id bigint NOT NULL,
+    to_user_id bigint,
+    from_user_id bigint,
+    vote bigint NOT NULL
+);
+
+
+ALTER TABLE public.votes OWNER TO shiv;
+
+--
 -- Name: weekly_tags_by_popularity; Type: MATERIALIZED VIEW; Schema: public; Owner: shiv
 --
 
@@ -324,6 +339,89 @@ ALTER TABLE ONLY public.views ALTER COLUMN id SET DEFAULT nextval('public.views_
 
 
 --
+-- Data for Name: post_tags; Type: TABLE DATA; Schema: public; Owner: shiv
+--
+
+COPY public.post_tags (id, post_id, tag_id, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: posts; Type: TABLE DATA; Schema: public; Owner: shiv
+--
+
+COPY public.posts (id, title, description, created_at, updated_at, visible, op_id, votes, slug, views, answer_accepted, answer_count, posted_by_id, reply_to_id, updated_by_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: tags; Type: TABLE DATA; Schema: public; Owner: shiv
+--
+
+COPY public.tags (id, name, info, post_count, created_date, updated_date) FROM stdin;
+\.
+
+
+--
+-- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: shiv
+--
+
+COPY public.users (id, username, email, password_hash, created_date, modified_date, status, image_url, location, name, karma, title, designation, website, git, twitter, email_verified, deleted, displayname) FROM stdin;
+\.
+
+
+--
+-- Data for Name: views; Type: TABLE DATA; Schema: public; Owner: shiv
+--
+
+COPY public.views (userid, ipaddress, qid, created_date, id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: votes; Type: TABLE DATA; Schema: public; Owner: shiv
+--
+
+COPY public.votes (topic_id, to_user_id, from_user_id, vote) FROM stdin;
+\.
+
+
+--
+-- Name: post_tags_id_seq; Type: SEQUENCE SET; Schema: public; Owner: shiv
+--
+
+SELECT pg_catalog.setval('public.post_tags_id_seq', 1, false);
+
+
+--
+-- Name: posts_id_seq; Type: SEQUENCE SET; Schema: public; Owner: shiv
+--
+
+SELECT pg_catalog.setval('public.posts_id_seq', 1, false);
+
+
+--
+-- Name: tags_id_seq; Type: SEQUENCE SET; Schema: public; Owner: shiv
+--
+
+SELECT pg_catalog.setval('public.tags_id_seq', 1, false);
+
+
+--
+-- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: shiv
+--
+
+SELECT pg_catalog.setval('public.users_id_seq', 1, false);
+
+
+--
+-- Name: views_id_seq; Type: SEQUENCE SET; Schema: public; Owner: shiv
+--
+
+SELECT pg_catalog.setval('public.views_id_seq', 1, false);
+
+
+--
 -- Name: posts posts_pkey; Type: CONSTRAINT; Schema: public; Owner: shiv
 --
 
@@ -372,6 +470,21 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: votes votes_pkey; Type: CONSTRAINT; Schema: public; Owner: shiv
+--
+
+ALTER TABLE ONLY public.votes
+    ADD CONSTRAINT votes_pkey PRIMARY KEY (topic_id);
+
+
+--
+-- Name: from_user_id_idx; Type: INDEX; Schema: public; Owner: shiv
+--
+
+CREATE INDEX from_user_id_idx ON public.votes USING btree (from_user_id);
+
+
+--
 -- Name: post_tags_post_id_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
@@ -407,17 +520,24 @@ CREATE INDEX tags_post_count_idx ON public.tags USING btree (post_count);
 
 
 --
+-- Name: to_user_id_idx; Type: INDEX; Schema: public; Owner: shiv
+--
+
+CREATE INDEX to_user_id_idx ON public.votes USING btree (to_user_id);
+
+
+--
+-- Name: topic_id_idx; Type: INDEX; Schema: public; Owner: shiv
+--
+
+CREATE INDEX topic_id_idx ON public.votes USING btree (topic_id);
+
+
+--
 -- Name: users_karma_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
 CREATE INDEX users_karma_idx ON public.users USING btree (karma);
-
-
---
--- Name: views views_delete_old_rows_trigger; Type: TRIGGER; Schema: public; Owner: shiv
---
-
--- CREATE TRIGGER views_delete_old_rows_trigger AFTER INSERT ON public.views FOR EACH STATEMENT EXECUTE FUNCTION public.views_delete_old_rows();
 
 
 --
@@ -447,3 +567,4 @@ ALTER TABLE ONLY public.posts
 --
 -- PostgreSQL database dump complete
 --
+

@@ -16,7 +16,6 @@ use mobc_redis::redis::{self, AsyncCommands};
 use ntex::http::HttpMessage;
 use ntex::web::{self, get, post, Error, HttpRequest, HttpResponse, Responder};
 use serde_json::json;
-use uuid::Uuid;
 use validator::Validate;
 
 // curl -v --data '{"name": "Bob", "email": "Bob@google.com", "password": "Bobpass"}' -H "Content-Type: application/json" -X POST localhost:8080/user/register
@@ -37,12 +36,12 @@ async fn register(form: web::types::Json<Register>, state: AppState) -> impl Res
         Ok(res) => {
             debug!("register {:?} res: {}", form, res);
             // TODO: move it out to a common logic
-            let smtp_credentials = Credentials::new(
-                 state.config.mail_username.clone(),
-                 state.config.mail_password.clone(),
+            let _smtp_credentials = Credentials::new(
+                state.config.mail_username.clone(),
+                state.config.mail_password.clone(),
             );
 
-                        let mailer =
+            let mailer =
                         // For production
                         // AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&state.config.mail_host)
                             //     .unwrap()
@@ -51,14 +50,14 @@ async fn register(form: web::types::Json<Register>, state: AppState) -> impl Res
                         // For development
                         AsyncSmtpTransport::<Tokio1Executor>::unencrypted_localhost()               ;
 
-                        let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
-                        let to = form.email.clone();
-                        let subject = "Registration at Kunjika";
+            let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
+            let to = form.email.clone();
+            let subject = "Registration at Kunjika";
 
-                        // Sign an arbitrary string.
-                        let token = sign(&form.email, &state).await;
-                        let body = format!(
-                            "Hi {},
+            // Sign an arbitrary string.
+            let token = sign(&form.email, &state).await;
+            let body = format!(
+                "Hi {},
 
 Thank you for registering at Kunjika.
 Your email confirmation link is https://{}/confirm-email/{}.
@@ -66,25 +65,27 @@ This email will expire in one day.
 
 Thanks,
 Shiv",
-                             form.username, state.config.host, token
-                        );
-                        debug!("{:?}, {:?}", from, to);
-                        let email = Message::builder()
-                           .from(from.parse().unwrap())
-                           .to(to.parse().unwrap())
-                           .subject(subject)
-                           .body(body.to_string())
-                           .unwrap();
+                form.username, state.config.host, token
+            );
+            debug!("{:?}, {:?}", from, to);
+            let email = Message::builder()
+                .from(from.parse().unwrap())
+                .to(to.parse().unwrap())
+                .subject(subject)
+                .body(body.to_string())
+                .unwrap();
 
-                        debug!("Sending email");
-                        match mailer.send(email).await {
-                            Ok(_r) => {
-                                debug!("{:?}", _r);
+            debug!("Sending email");
+            match mailer.send(email).await {
+                Ok(_r) => {
+                    debug!("{:?}", _r);
                     HttpResponse::Ok().json(&json!({"data": res}))
                 }
                 Err(_e) => {
                     debug!("{:?}", _e);
-                    HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": "Passwords are bad!"}))
+                    HttpResponse::InternalServerError().json(
+                        &json!({"status": "fail", "message": "Something went wrong, try again!"}),
+                    )
                 }
             }
         }
@@ -117,7 +118,7 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
                         return HttpResponse::BadGateway()
                             .json(&json!({"status": "fail", "message": format_args!("{}", e)}));
                     }
-                };      
+                };
 
                 info!("Access token built");
                 let refresh_token_details = match token::generate_jwt_token(
@@ -134,10 +135,11 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
 
                 let mut redis_client = match state.kv.get().await {
                     Ok(redis_client) => redis_client,
-                    Err(e) => {
+                    Err(_e) => {
                         // debug!("{}",             format_args!(e));
-                        return HttpResponse::InternalServerError()
-                            .json(&json!({"status": "fail", "message": "An internal server occurred!"}));
+                        return HttpResponse::InternalServerError().json(
+                            &json!({"status": "fail", "message": "An internal server occurred!"}),
+                        );
                     }
                 };
 
@@ -345,12 +347,13 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
 
     drop(redis_client);
 
-    let access_cookie = Cookie::build(("access_token", access_token_details.token.clone().unwrap()))
-        .domain(&state.config.host)
-        .path("/")
-        .secure(true)
-        .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
-        .http_only(true);
+    let access_cookie =
+        Cookie::build(("access_token", access_token_details.token.clone().unwrap()))
+            .domain(&state.config.host)
+            .path("/")
+            .secure(true)
+            .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
+            .http_only(true);
 
     let refresh_cookie = Cookie::build(("refresh_token", refresh_token_details.token.unwrap()))
         .domain(&state.config.host)
@@ -501,7 +504,9 @@ async fn confirm_email(form: web::types::Path<String>, state: AppState) -> impl 
 async fn get_users(form: web::types::Json<UsersReq>, state: AppState) -> impl Responder {
     let last_user = form.into_inner();
     match state.get_ref().get_users(&last_user).await {
-        Ok((user_res, count)) => HttpResponse::Ok().json(&json!({"message": "", "data": user_res, "count": count})),
+        Ok((user_res, count)) => {
+            HttpResponse::Ok().json(&json!({"message": "", "data": user_res, "count": count}))
+        }
         Err(e) => {
             debug!("{:?}", e.to_string());
             HttpResponse::InternalServerError()

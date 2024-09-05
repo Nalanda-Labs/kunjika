@@ -16,15 +16,16 @@
 		addUnorderedListCommand,
 		addWarningCommand,
 		parseMarkdown,
-		useKeyCombinations
+		useKeyCombinations,
+		openForm
 	} from '../../lib/utils/editor/utils.editor';
-    import hljs from 'highlight.js';
+	import hljs from 'highlight.js';
 
 	let contentTextArea;
 	export let contentValue;
 	export let markup;
-    export let minlength;
-    export let maxlength;
+	export let minlength;
+	export let maxlength;
 
 	const handlePreview = async () => {
 		const bodyEditor = {
@@ -139,7 +140,8 @@
 		<p
 			class="tooltip"
 			on:click={() => {
-				addImageCommand(contentTextArea);
+				// addImageCommand(contentTextArea);
+				openForm();
 			}}
 		>
 			<i class="fa-solid fa-image" />
@@ -201,15 +203,21 @@
 			useKeyCombinations(event, contentTextArea);
 		}
 	}}
-    on:input={() => { handlePreview(); hljs.highlightAll()}}
-    on:keyup={() => { handlePreview(); hljs.highlightAll()}}
+	on:input={() => {
+		handlePreview();
+		hljs.highlightAll();
+	}}
+	on:keyup={() => {
+		handlePreview();
+		hljs.highlightAll();
+	}}
 	name="content"
-	class="form-control"  
-    rows="10"
-    style="min-height: 300px"
+	class="form-control"
+	rows="10"
+	style="min-height: 300px"
 	id="textAreaContent"
-    minlength="{minlength}"
-    maxlength="{maxlength}"
+	{minlength}
+	{maxlength}
 	placeholder="Write your article content here (markdown supported)..."
 	data-input-field
 	required

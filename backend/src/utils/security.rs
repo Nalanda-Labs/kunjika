@@ -1,6 +1,6 @@
-use std::time::Duration;
 use crate::state::AppState;
-use itsdangerous::{default_builder, IntoTimestampSigner, Signer, TimestampSigner};
+use itsdangerous::{default_builder, IntoTimestampSigner, TimestampSigner};
+use std::time::Duration;
 
 pub async fn sign(text: &str, state: &AppState) -> String {
     let signer = default_builder(state.config.secret_key.clone())
@@ -17,6 +17,9 @@ pub async fn check_signature(text: &str, state: &AppState) -> String {
 
     let unsigned = signer.unsign(&text).expect("Signature was not valid");
     unsigned
-        .value_if_not_expired(Duration::from_secs(state.config.email_verification_expiry_time))
-        .expect("Signature was expired").to_string()
+        .value_if_not_expired(Duration::from_secs(
+            state.config.email_verification_expiry_time,
+        ))
+        .expect("Signature was expired")
+        .to_string()
 }

@@ -1,13 +1,21 @@
+use std::{fs, io::Write};
+
 use super::dao::IQuestion;
 use super::question::*;
-use crate::users::user::{User, UserCookie};
-use crate::{middlewares::auth::AuthorizationService, users::user};
+use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
+use crate::users::user::UserCookie;
 use crate::utils::slug::create_slug;
 
+use futures::{StreamExt, TryStreamExt};
 use chrono::*;
-use ntex::{http::HttpMessage, web::{get, post, HttpRequest, HttpResponse, Responder}};
+use ntex::{
+    http::HttpMessage,
+    web::{self, get, post, HttpRequest, HttpResponse, Responder},
+};
+use ntex_multipart::Multipart;
 use serde_json::json;
+use uuid::Uuid;
 
 #[post("/create-question")]
 async fn insert_question(
@@ -60,8 +68,8 @@ async fn get_question(
     state: AppState,
 ) -> impl Responder {
     let remote_address = match req.peer_addr() {
-        Some (ra) => ra.to_string(),
-        None => "".to_owned()
+        Some(ra) => ra.to_string(),
+        None => "".to_owned(),
     };
 
     let parts: Vec<&str> = remote_address.split(":").collect();
@@ -73,7 +81,7 @@ async fn get_question(
 
     let logged_in = match req.cookie("logged_in") {
         Some(s) => s.to_string(),
-        None => "".to_owned()
+        None => "".to_owned(),
     };
 
     debug!("{:?}", logged_in);
@@ -83,8 +91,7 @@ async fn get_question(
 
     if cookie_str.len() != 2 {
         // the user is not logged in
-    }
-    else {
+    } else {
         u = serde_json::from_str(cookie_str[1]).unwrap();
         uid = u.user.id;
     }
@@ -107,7 +114,7 @@ async fn get_questions(
     let up_at;
     debug!("{:?}", &updated_at.updated_at);
     if updated_at.updated_at == "" {
-        up_at = chrono::offset::Utc::now();                 
+        up_at = chrono::offset::Utc::now();
         debug!("{:?}", up_at);
     } else {
         up_at = chrono::DateTime::parse_from_rfc3339(&updated_at.updated_at)
@@ -174,11 +181,7 @@ async fn answer(
         &answer.id, &answer.value, &answer.reply_to
     );
 
-    match state
-        .get_ref()
-        .insert_answer(&answer, &auth.user.id)
-        .await
-    {
+    match state.get_ref().insert_answer(&answer, &auth.user.id).await {
         Ok(answer_res) => HttpResponse::Ok().json(&json!({"data": answer_res.to_string()})),
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": "fail", "message": e.to_string()})),
@@ -228,6 +231,42 @@ async fn update_post(
     }
 }
 
+#[post("/image-upload")]
+async fn image_upload(mut payload: Multipart, state: AppState) -> impl Responder {
+    // This will panic in case of error, which is a good thing because it means it is broken.
+    // It must not panic in general for the app to be usable.
+
+    let current_date = chrono::Utc::now();
+    let year = current_date.year();
+    let month = current_date.month();
+    let day = current_date.day();
+    // relative path from root
+    let path = format!("{}/{}/{}/{}", state.config.upload_folder, year, month, day);
+    fs::create_dir_all(&path).unwrap();
+    let filename = Uuid::new_v4().to_string();
+    let filepath = format!("{}/{}", &path, filename);
+
+    // iterate over multipart stream
+    while let Ok(Some(mut field)) = payload.try_next().await {
+        // File::create is blocking operation, use threadpool
+        // TODO: fix this
+        let filepath1 = format!("{}/{}", &path, filename);
+        let mut f = web::block(|| std::fs::File::create(filepath1))
+            .await
+            .unwrap();
+        // Field in turn is stream of *Bytes* object
+        while let Some(chunk) = field.next().await {
+            let data = chunk.unwrap();
+            // filesystem operations are blocking, we have to use threadpool
+            f = web::block(move || f.write_all(&data).map(|_| f)).await.unwrap();
+        }
+    }
+
+    let url = state.config.backend_url.clone() + &filepath;
+
+    return HttpResponse::Ok().json(&json!({"success": "true", "url": url}));
+}
+
 pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(insert_question);
     cfg.service(get_question);
@@ -237,4 +276,5 @@ pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(get_questions_by_tag);
     cfg.service(get_edit_post);
     cfg.service(update_post);
+    cfg.service(image_upload);
 }

@@ -2001,6 +2001,8 @@ dependencies = [
  "nonblock-logger",
  "ntex",
  "ntex-cors",
+ "ntex-files",
+ "ntex-multipart",
  "num_cpus",
  "rand",
  "ring",
@@ -2017,6 +2019,12 @@ dependencies = [
  "validator",
  "vergen",
 ]
+
+[[package]]
+name = "language-tags"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4345964bb142484797b161f473a503a434de77149dd8c7427788c6e13379388"
 
 [[package]]
 name = "lazy_static"
@@ -2200,6 +2208,16 @@ name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
+
+[[package]]
+name = "mime_guess"
+version = "2.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7c44f8e672c00fe5308fa235f821cb4198414e1c77935c1ab6948d3fd78550e"
+dependencies = [
+ "mime",
+ "unicase",
+]
 
 [[package]]
 name = "minimal-lexical"
@@ -2515,6 +2533,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "ntex-files"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c37d129e1b93c30c12fe7f7ce3e1770ce7a9d11c5a7dcf1264a8ade8e254db41"
+dependencies = [
+ "bitflags 2.6.0",
+ "derive_more",
+ "futures",
+ "http",
+ "httpdate",
+ "language-tags",
+ "log",
+ "mime",
+ "mime_guess",
+ "ntex",
+ "ntex-http",
+ "percent-encoding",
+ "unicase",
+ "v_htmlescape",
+]
+
+[[package]]
 name = "ntex-h2"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2573,6 +2613,21 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "ntex-multipart"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8dd0a3006402a1d1284ae45f489e4be6605d664cf2aeb1c187b1d3fe0b13fd94"
+dependencies = [
+ "derive_more",
+ "futures",
+ "httparse",
+ "log",
+ "mime",
+ "ntex",
+ "twoway",
 ]
 
 [[package]]
@@ -4388,6 +4443,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "twoway"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c57ffb460d7c24cd6eda43694110189030a3d1dfe418416d9468fd1c1d290b47"
+dependencies = [
+ "memchr",
+ "unchecked-index",
+]
+
+[[package]]
 name = "typenum"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4408,6 +4473,21 @@ dependencies = [
  "memoffset 0.9.1",
  "tempfile",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "unchecked-index"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eeba86d422ce181a719445e51872fa30f1f7413b62becb52e95ec91aa262d85c"
+
+[[package]]
+name = "unicase"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7d2d4dafb69621809a81864c9c1b864479e1235c0dd4e199924b9742439ed89"
+dependencies = [
+ "version_check",
 ]
 
 [[package]]
@@ -4505,6 +4585,12 @@ dependencies = [
  "getrandom",
  "serde",
 ]
+
+[[package]]
+name = "v_htmlescape"
+version = "0.15.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e8257fbc510f0a46eb602c10215901938b5c2a7d5e70fc11483b1d3c9b5b18c"
 
 [[package]]
 name = "validator"

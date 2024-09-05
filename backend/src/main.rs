@@ -11,6 +11,7 @@ extern crate serde;
 
 use ntex::{web, web::App, web::HttpServer};
 use ntex_cors::Cors;
+use ntex_files as fs;
 use num_cpus;
 
 // pub mod api;
@@ -51,12 +52,12 @@ async fn main() -> std::io::Result<()> {
             .wrap(web::middleware::Logger::default())
             .wrap(web::middleware::Compress::default())
             .service(
-                web::scope(apiv1)
+                (web::scope(apiv1)
                     .configure(users::routes::init)
                     .configure(tags::routes::init)
                     .configure(votes::routes::init)
                     .configure(questions::routes::init),
-            )
+            ))
     })
     .workers(num_cpus::get())
     .keep_alive(300)

@@ -35,11 +35,11 @@ impl ITag for &AppStateRaw {
         let tags;
 
         match direction {
-            Some(d) => {
+            Some(_d) => {
                 tags = sqlx::query_as!(
             Tag, r#"
             select t.id, t.name, t.info, t.post_count, w.count as weekly_count, d.count as daily_count from tags t
-            left join weekly_tags_by_popularity w on w.name=t.name 
+            left join weekly_tags_by_popularity w on w.name=t.name
             left join daily_tags_by_popularity d on d.name=t.name
             where t.name < $1 order by t.name desc limit $2
             "#,
@@ -52,7 +52,7 @@ impl ITag for &AppStateRaw {
                 tags = sqlx::query_as!(
             Tag, r#"
             select t.id, t.name, t.info, t.post_count, w.count as weekly_count, d.count as daily_count from tags t
-            left join weekly_tags_by_popularity w on w.name=t.name 
+            left join weekly_tags_by_popularity w on w.name=t.name
             left join daily_tags_by_popularity d on d.name=t.name
             where t.name > $1 order by t.name asc limit $2
             "#,

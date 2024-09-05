@@ -1,5 +1,3 @@
-use std::net::IpAddr;
-
 use super::question::*;
 use crate::state::AppStateRaw;
 
@@ -121,7 +119,7 @@ impl IQuestion for &AppStateRaw {
             .await?;
             viewed_by_user = match qr.count {
                 Some(0) => false,
-                Some(i) => true,
+                Some(_i) => true,
                 None => false,
             };
         } else if ipaddr != "" {
@@ -135,7 +133,7 @@ impl IQuestion for &AppStateRaw {
             .fetch_one(&mut *tx)
             .await?;
             viewed_by_user = match qr.count {
-                Some(i) => true,
+                Some(_i) => true,
                 None => false,
             };
         }
@@ -260,7 +258,7 @@ impl IQuestion for &AppStateRaw {
                 answer_accepted: q.answer_accepted,
                 reply_to_id: q.reply_to_id,
                 rusername: q.rusername,
-                rimage_url: q.rimage_url
+                rimage_url: q.rimage_url,
             };
             ars.questions.push(qr);
         }
@@ -398,7 +396,7 @@ impl IQuestion for &AppStateRaw {
         .await?;
 
         let mut tags = Vec::new();
-        let mut tags1 = "".to_owned();
+        let mut _tags1 = "".to_owned();
 
         let title = match r.title {
             Some(t) => t,
@@ -417,7 +415,7 @@ impl IQuestion for &AppStateRaw {
                 tags.push(t.name);
             }
 
-            tags1 = tags.iter().map(|e| e.to_string() + ",").collect();
+            _tags1 = tags.iter().map(|e| e.to_string() + ",").collect();
         }
 
         let pr = PostResponse {

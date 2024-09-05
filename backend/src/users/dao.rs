@@ -22,7 +22,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
             "SELECT id, username, email, password_hash, status, email_verified, image_url, created_date, modified_date,
             designation, location, git, website
             FROM users
-            where {} = {} and email_verified=true;",
+            where {} = {};",
             column, placeholder
         );
 
@@ -68,7 +68,7 @@ impl IUser for &AppStateRaw {
         let qr;
 
         match &form.direction {
-            Some(d) => {
+            Some(_d) => {
                 qr = sqlx::query_as!(
                     UR, r#"
                     select id, username, displayname, name, location, image_url, karma from users where
@@ -79,7 +79,7 @@ impl IUser for &AppStateRaw {
                 )
                 .fetch_all(&self.sql)
                 .await?;
-            },
+            }
             None => {
                 qr = sqlx::query_as!(
                     UR, r#"
@@ -107,7 +107,7 @@ impl IUser for &AppStateRaw {
             None => 0,
         };
 
-        let urs = UserResponse{users: qr};
+        let urs = UserResponse { users: qr };
         Ok((urs, c))
     }
 
@@ -330,13 +330,7 @@ fn column_placeholder(id_or_name_or_email: &str) -> (&'static str, &'static str)
         column = "username";
     }
 
-    // postgres: $1, $2 ..
-    // mysql/sqlite: ?, ? ..
-    let placeholder = if cfg!(feature = "postgres") {
-        "$1"
-    } else {
-        "?"
-    };
+    let placeholder = "$1";
 
     (column, placeholder)
 }

@@ -10,6 +10,7 @@
 	import Preview from '../../components/Editor/Preview.svelte';
 	import getCookie from '../../lib/cookie.js';
 	import '../../editor.css';
+	import { closeForm, addImageURL } from '../../lib/utils/editor/utils.editor';
 
 	let title = '';
 	let tagList = [];
@@ -89,54 +90,114 @@
 			}
 		}
 	}
+
+	async function onImageUpload(e) {
+		e.preventDefault();
+		let formData = new FormData();
+		let image = document.getElementById('image').files[0];
+
+		if (image.size > 2 * 1024 * 1024) {
+			alert('Max file size is 2MB');
+			return;
+		}
+
+		formData.append('file', image);
+
+		if (browser) {
+			console.log('hello');
+			let xsrf_token = getCookie('xsrf_token');
+			const response = await api.upload({
+				method: 'POST',
+				path: 'image-upload',
+				data: formData,
+				xsrf_token,
+				headers: null
+			});
+
+			let text = await response.text();
+			let j = text ? JSON.parse(text) : {};
+			console.log(j);
+
+			if (response.status === 200 && j.url) {
+				closeForm();
+				addImageURL(`![alt](${j.url})`);
+			} else {
+				alert(j.message);
+			}
+		}
+	}
 </script>
 
 <div class="row justify-content-center align-items-center" style="margin-top:20px">
 	<div class="col-8">
-	{#if showContentValueToast}
-		<Toast>Question length should be 20 to 1000000 Characters!</Toast>
-	{/if}
-	<h4>Post your question for discussion</h4>
-	<hr />
-	<form on:submit|preventDefault={onSubmit}>
-		<div>
-			<label for="title" class="form-label">Summary</label>
-			<input
-				bind:value={title}
-				label="Title"
-				class="form-control"
-				id="title"
-				type="text"
-				minlength="6"
-				maxlength="256"
-				style="min-width:100%"
-			/>
-		</div>
-		<Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />
-		<div style="margin:20px" />
-		<Preview {markup} />
-		<div style="margin:30px" />
-		<Tags
-			name={'tags'}
-			bind:tags={tagList}
-			addKeys={[9]}
-			maxTags={5}
-			allowPaste={true}
-			allowDrop={true}
-			splitWith={','}
-			onlyUnique={true}
-			removeKeys={[27, 8]}
-			placeholder="Tags, tab to complete"
-			allowBlur={true}
-			disable={false}
-			id={'tags'}
-			minChars={1}
-			autoComplete={ts}
-			class="form-control"
-		/>
-		<div class="b-wrapper">
-			<button type="submit" class="btn btn-primary"> Ask </button>
-		</div>
-	</form>
-	</div>
+		{#if showContentValueToast}
+			<Toast>Question length should be 20 to 1000000 Characters!</Toast>
+		{/if}
+		<h4>Post your question for discussion</h4>
+		<hr />
+		<form on:submit|preventDefault={onSubmit}>
+			<div>
+				<label for="title" class="form-label">Summary</label>
+				<input
+					bind:value={title}
+					label="Title"
+					class="form-control"
+					id="title"
+					type="text"
+					minlength="6"
+					maxlength="256"
+					style="min-width:100%"
+				/>
+			</div>
+			<Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />
+			<div class="modal" tabindex="-1" role="dialog" id="myForm" style="top:300px">
+				<div class="modal-dialog" role="document">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title">Image Upload</h5>
+						</div>
+						<div class="modal-body">
+							<form class="form-container" on:submit|preventDefault={onImageUpload}>
+								<h4>Uplaoad Image(Max 2MB)</h4>
+								<input type="file" name="image" accept="image/*" id="image" alt="image" /><br />
+
+								<div class="modal-footer">
+									<button type="submit" class="btn btn-primary">Upload</button>
+									<button
+										type="button"
+										class="btn btn-seconday"
+										on:click={() => {
+											document.getElementById('myForm').style.display = 'none';
+										}}>Close</button>
+								</div>
+							</form>
+						</div>
+					</div>
+				</div>
+		    </div>
+				<div style="margin:20px" />
+				<Preview {markup} />
+				<div style="margin:30px" />
+				<Tags
+					name={'tags'}
+					bind:tags={tagList}
+					addKeys={[9]}
+					maxTags={5}
+					allowPaste={true}
+					allowDrop={true}
+					splitWith={','}
+					onlyUnique={true}
+					removeKeys={[27, 8]}
+					placeholder="Tags, tab to complete"
+					allowBlur={true}
+					disable={false}
+					id={'tags'}
+					minChars={1}
+					autoComplete={ts}
+					class="form-control"
+				/>
+				<div class="b-wrapper">
+					<button type="submit" class="btn btn-primary"> Ask </button>
+				</div>
+			</div>
 </div>

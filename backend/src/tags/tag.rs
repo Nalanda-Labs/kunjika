@@ -1,5 +1,8 @@
+use chrono::Utc;
+
 #[cfg(any(feature = "postgres"))]
 type SqlID = i64;
+type SqlDateTime = chrono::DateTime<Utc>;
 
 #[derive(FromRow, Serialize, Deserialize, Debug, Validate)]
 pub struct Tag {

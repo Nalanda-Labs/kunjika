@@ -11,7 +11,6 @@ extern crate serde;
 
 use ntex::{web, web::App, web::HttpServer};
 use ntex_cors::Cors;
-use ntex_files as fs;
 use num_cpus;
 
 // pub mod api;

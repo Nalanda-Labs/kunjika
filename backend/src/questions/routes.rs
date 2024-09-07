@@ -7,8 +7,8 @@ use crate::state::AppState;
 use crate::users::user::UserCookie;
 use crate::utils::slug::create_slug;
 
-use futures::{StreamExt, TryStreamExt};
 use chrono::*;
+use futures::{StreamExt, TryStreamExt};
 use ntex::{
     http::HttpMessage,
     web::{self, get, post, HttpRequest, HttpResponse, Responder},
@@ -235,7 +235,8 @@ async fn update_post(
 async fn image_upload(mut payload: Multipart, state: AppState) -> impl Responder {
     // This will panic in case of error, which is a good thing because it means it is broken.
     // It must not panic in general for the app to be usable.
-
+    // we do not check for image size. This should be set at web server level
+    // by limiting client max body size.
     let current_date = chrono::Utc::now();
     let year = current_date.year();
     let month = current_date.month();
@@ -258,7 +259,9 @@ async fn image_upload(mut payload: Multipart, state: AppState) -> impl Responder
         while let Some(chunk) = field.next().await {
             let data = chunk.unwrap();
             // filesystem operations are blocking, we have to use threadpool
-            f = web::block(move || f.write_all(&data).map(|_| f)).await.unwrap();
+            f = web::block(move || f.write_all(&data).map(|_| f))
+                .await
+                .unwrap();
         }
     }
 

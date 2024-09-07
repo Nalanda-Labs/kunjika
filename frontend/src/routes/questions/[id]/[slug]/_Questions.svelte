@@ -2,7 +2,6 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import * as api from '$lib/api.js';
-	// import "bytemd/dist/index.min.css";
 	import TagList from '$lib/TagList.svelte';
 	import { page } from '$app/stores';
 	import { parseMarkdown } from '../../../../lib/utils/editor/utils.editor';
@@ -89,7 +88,7 @@
 				}
 				let asked_ts = Date.parse(questions[i].created_at);
 				let now = Date.now();
-				questions[i].		description = parseMarkdown(response.data.questions[i].description);
+				questions[i].description = parseMarkdown(response.data.questions[i].description);
 				let shown_ts = Math.floor((now - asked_ts) / 1000);
 				if (shown_ts >= 259200) {
 					asked_ts = new Date(questions[i].created_at);
@@ -271,7 +270,7 @@
 	<div style="clear:both;margin-bottom:10px" />
 	{#each questions as { question_id, description, votes, posted_by_id, username, initials, image_url, shown_ts, answer_accepted, reply_to_id, rusername, rimage_url }}
 		<hr style="border-bottom:1px solid;color:#ccc;" />
-		<div style="margin-top:10px" id="{question_id}">
+		<div style="margin-top:10px" id={question_id}>
 			<div style="float:left;margin-right:10px">
 				{#if image_url === '' || image_url === undefined}
 					<a href="/users/{posted_by_id}/{username}">
@@ -331,7 +330,11 @@
 				{#if reply_to_id}
 					<span style="float:right"
 						>reply to <a href="/users/{reply_to_id}/{rusername}"
-							><img src="{rimage_url}?s=32" alt={rusername} style="display:inline;margin-right:10px" /></a
+							><img
+								src="{rimage_url}?s=32"
+								alt={rusername}
+								style="display:inline;margin-right:10px"
+							/></a
 						></span
 					>
 				{/if}

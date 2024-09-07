@@ -75,7 +75,7 @@
 			}
 			inProgress = false;
 		} else {
-			M.toast({ html: 'You are not logged in.' });
+			alert('You are not logged in.');
 		}
 	}
 	onMount(async () => {

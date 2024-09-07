@@ -96,6 +96,10 @@
 		let formData = new FormData();
 		let image = document.getElementById('image').files[0];
 
+		if (!image) {
+			alert('No image selected!');
+		}
+
 		if (image.size > 2 * 1024 * 1024) {
 			alert('Max file size is 2MB');
 			return;
@@ -150,7 +154,13 @@
 				/>
 			</div>
 			<Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />
-			<div class="modal" tabindex="-1" role="dialog" id="myForm" style="top:300px">
+			<div
+				class="modal modal-dialog-centered"
+				tabindex="-1"
+				role="dialog"
+				id="myForm"
+				style="top:300px; display:none"
+			>
 				<div class="modal-dialog" role="document">
 					<div class="modal-content">
 						<div class="modal-header">
@@ -165,39 +175,41 @@
 									<button type="submit" class="btn btn-primary">Upload</button>
 									<button
 										type="button"
-										class="btn btn-seconday"
+										class="btn btn-primary"
 										on:click={() => {
 											document.getElementById('myForm').style.display = 'none';
-										}}>Close</button>
+										}}>Close</button
+									>
 								</div>
 							</form>
 						</div>
 					</div>
 				</div>
-		    </div>
-				<div style="margin:20px" />
-				<Preview {markup} />
-				<div style="margin:30px" />
-				<Tags
-					name={'tags'}
-					bind:tags={tagList}
-					addKeys={[9]}
-					maxTags={5}
-					allowPaste={true}
-					allowDrop={true}
-					splitWith={','}
-					onlyUnique={true}
-					removeKeys={[27, 8]}
-					placeholder="Tags, tab to complete"
-					allowBlur={true}
-					disable={false}
-					id={'tags'}
-					minChars={1}
-					autoComplete={ts}
-					class="form-control"
-				/>
-				<div class="b-wrapper">
-					<button type="submit" class="btn btn-primary"> Ask </button>
-				</div>
 			</div>
+			<div style="margin:20px" />
+			<Preview {markup} />
+			<div style="margin:30px" />
+			<Tags
+				name={'tags'}
+				bind:tags={tagList}
+				addKeys={[9]}
+				maxTags={5}
+				allowPaste={true}
+				allowDrop={true}
+				splitWith={','}
+				onlyUnique={true}
+				removeKeys={[27, 8]}
+				placeholder="Tags, tab to complete"
+				allowBlur={true}
+				disable={false}
+				id={'tags'}
+				minChars={1}
+				autoComplete={ts}
+				class="form-control"
+			/>
+			<div class="b-wrapper">
+				<button type="submit" class="btn btn-primary"> Ask </button>
+			</div>
+		</form>
+	</div>
 </div>

@@ -5,13 +5,13 @@ use crate::users::user::User;
 
 #[async_trait]
 pub trait IVote: std::ops::Deref<Target = AppStateRaw> {
-    async fn handle_vote(&self, data: &VoteRequest, user: &User) -> sqlx::Result<bool>;
+    async fn handle_vote(&self, data: &VoteRequest, user: &User) -> sqlx::Result<VoteResult>;
 }
 
 #[cfg(any(feature = "postgres"))]
 #[async_trait]
 impl IVote for &AppStateRaw {
-    async fn handle_vote(&self, data: &VoteRequest, user: &User) -> sqlx::Result<bool> {
+    async fn handle_vote(&self, data: &VoteRequest, user: &User) -> sqlx::Result<VoteResult> {
         let mut tx = self.sql.begin().await?;
         let query = sqlx::query!(
             r#"select posted_by_id from posts where id=$1 limit 1"#,
@@ -27,12 +27,12 @@ impl IVote for &AppStateRaw {
 
         if receiving_user == 0 {
             debug!("User receiving vote not found!");
-            return Ok(false);
+            return Ok(VoteResult{e: VoteEnum::ReceivingUserNotFound, vote_by_user: -2});
         }
 
         if receiving_user == user.id {
             debug!("You cannot vote on your own post!");
-            return Ok(false);
+            return Ok(VoteResult{e: VoteEnum::VoteYourOwnPost, vote_by_user: -2});
         }
 
         let query1 = sqlx::query!(r#"select karma from users where id=$1"#, receiving_user)
@@ -48,6 +48,8 @@ impl IVote for &AppStateRaw {
         )
         .fetch_all(&mut *tx)
         .await?;
+
+        let mut vote_by_user = 0;
 
         if vote.len() == 0 {
             sqlx::query!(
@@ -93,7 +95,7 @@ impl IVote for &AppStateRaw {
         } else {
             if data.vote == vote[0].vote {
                 debug!("You can cast upvote/downvote only once.");
-                return Ok(false);
+                return Ok(VoteResult{e: VoteEnum::VoteOnce, vote_by_user: -2});
             } else {
                 sqlx::query!(
                     r#"update votes set vote = vote + $1 where topic_id=$2 and from_user_id=$3"#,
@@ -135,9 +137,19 @@ impl IVote for &AppStateRaw {
                     }
                 }
             }
+
+            let vote = sqlx::query!(
+                "select * from votes where topic_id=$1 and from_user_id=$2",
+                data.id,
+                user.id
+            )
+            .fetch_one(&mut *tx)
+            .await?;
+
+            vote_by_user = vote.vote;
         }
 
         tx.commit().await?;
-        Ok(true)
+        Ok(VoteResult{e: VoteEnum::VoteSuccessful, vote_by_user})
     }
 }

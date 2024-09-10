@@ -125,27 +125,48 @@
 		}
 	}
 
+	function colorLink(elementID, count_by_user) {
+		if (count_by_user === 1) {
+			let voteElement = document.getElementById(`vu-${elementID}`);
+			voteElement.classList.remove('anchor');
+			voteElement.classList.add('vote');
+		} else if (count_by_user === 0) {
+			let voteUpElement = document.getElementById(`vu-${elementID}`);
+			let voteDownElement = document.getElementById(`vd-${elementID}`);
+			voteUpElement.classList.remove('vote');
+			voteDownElement.classList.remove('vote');
+			voteUpElement.classList.add('anchor');
+			voteDownElement.classList.add('anchor');
+		} else if (count_by_user === -1) {
+			let voteElement = document.getElementById(`vd-${elementID}`);
+			voteElement.classList.remove('anchor');
+			voteElement.classList.add('vote');
+		}
+	}
+
 	async function vote(vote, elementID) {
 		if (browser) {
 			let xsrf_token = getCookie('xsrf_token');
 			const response = await api.post('votes', { vote, id: parseInt(elementID) }, xsrf_token);
 			const j = JSON.parse(await response.text());
 
-			if (response.status === 200 && j.data) {
+			if (response.status === 200 && j.success && 'count_by_user' in j) {
 				if (elementID == id) {
 					votes = vote + parseInt(votes);
+					colorLink(elementID, j.count_by_user);
 				} else {
 					for (var i = 0; i < questions.length; i++) {
 						if (questions[i].question_id == elementID) {
 							questions[i].votes = vote + parseInt(questions[i].votes);
 							questions = questions;
+							vid.style.class = 'vote';
+							colorLink(elementID, j.count_by_user);
 							break;
 						}
 					}
 				}
 			} else {
-				let j = JSON.parse(await response.text());
-				errors = j.message;
+				alert(j.data);
 			}
 		}
 	}
@@ -200,13 +221,13 @@
 			<br />
 			<div style="text-align: center;font-size: 24px">
 				{#if $page.data.user && posted_by != $page.data.user.id}
-					<a href="/vote-up" class="anchor" on:click|preventDefault={vote(1, id)}>
+					<a href="/vote-up" class="anchor" id="vu-{id}" on:click|preventDefault={vote(1, id)}>
 						<i class="fas fa-angle-up" />
 					</a>
 				{/if}
 				<span style="text-align:center">{votes}</span>
 				{#if $page.data.user && posted_by != $page.data.user.id}
-					<a href="/vote-down" class="anchor" on:click|preventDefault={vote(-1, id)}>
+					<a href="/vote-down" class="anchor" id="vd-{id}" on:click|preventDefault={vote(-1, id)}>
 						<i class="fas fa-angle-down" />
 					</a>
 				{/if}
@@ -288,7 +309,7 @@
 				<br />
 				<div style="text-align: center;font-size: 24px">
 					{#if $page.data.user && posted_by_id != $page.data.user.id}
-						<a href="/vote-up" class="anchor" on:click|preventDefault={vote(1, question_id)}>
+						<a href="/vote-up" class="anchor" id="vu-{question_id}" on:click|preventDefault={vote(1, question_id)}>
 							<i class="fas fa-angle-up" />
 						</a>
 					{/if}
@@ -297,6 +318,7 @@
 						<a
 							href="/vote-down"
 							class="anchor"
+							id="vd-{question_id}"
 							style="display:block"
 							on:click|preventDefault={vote(-1, question_id)}
 						>

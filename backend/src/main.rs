@@ -12,6 +12,7 @@ extern crate serde;
 use ntex::{web, web::App, web::HttpServer};
 use ntex_cors::Cors;
 use num_cpus;
+use ntex_files as fs;
 
 // pub mod api;
 pub mod config;
@@ -43,6 +44,8 @@ async fn main() -> std::io::Result<()> {
                     .allowed_origin("http://localhost:5173")
                     // for node production server
                     .allowed_origin("http://localhost:3000")
+                    // when using nginx as a reverse proxy
+                    .allowed_origin("http://localhost")
                     .supports_credentials()
                     .max_age(3600)
                     .finish(),

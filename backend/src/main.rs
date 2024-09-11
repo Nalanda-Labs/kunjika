@@ -12,7 +12,7 @@ extern crate serde;
 use ntex::{web, web::App, web::HttpServer};
 use ntex_cors::Cors;
 use num_cpus;
-use ntex_files as fs;
+use ntex_files::Files;
 
 // pub mod api;
 pub mod config;
@@ -25,6 +25,7 @@ pub mod tags;
 pub mod users;
 pub mod utils;
 pub mod votes;
+pub mod uploads;
 
 use config::{Config, Opts};
 
@@ -58,7 +59,8 @@ async fn main() -> std::io::Result<()> {
                     .configure(users::routes::init)
                     .configure(tags::routes::init)
                     .configure(votes::routes::init)
-                    .configure(questions::routes::init),
+                    .configure(questions::routes::init)
+                    .configure(uploads::routes::init),
             ))
     })
     .workers(num_cpus::get())

@@ -157,12 +157,30 @@ async fn get_questions_by_tag(
 async fn get_answers(
     params: ntex::web::types::Path<i64>,
     q: ntex::web::types::Query<AnswersQuery>,
+    req: HttpRequest,
     state: AppState,
 ) -> impl Responder {
+    let logged_in = match req.cookie("logged_in") {
+        Some(s) => s.to_string(),
+        None => "".to_owned(),
+    };
+
+    debug!("{:?}", logged_in);
+    let cookie_str: Vec<&str> = logged_in.split("=").collect();
+    let u: UserCookie;
+    let mut uid = 0;
+
+    if cookie_str.len() != 2 {
+        // the user is not logged in
+    } else {
+        u = serde_json::from_str(cookie_str[1]).unwrap();
+        uid = u.user.id;
+    }
+
     let qid = params.into_inner();
     debug!("{:?}, {:?}, {:?}", &qid, q.time, q.limit);
 
-    match state.get_ref().get_answers(qid, &q.time, q.limit).await {
+    match state.get_ref().get_answers(qid, &q.time, q.limit, uid).await {
         Ok(db_answers) => HttpResponse::Ok().json(&json!({"data": db_answers})),
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": "fail", "message": e.to_string()})),

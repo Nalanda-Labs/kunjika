@@ -78,10 +78,6 @@
 			alert('You are not logged in.');
 		}
 	}
-	onMount(async () => {
-		// const bytemd = await import("bytemd");
-		// Editor = bytemd.Editor;
-	});
 
 	function handleChange(e) {
 		value = e.detail.value;

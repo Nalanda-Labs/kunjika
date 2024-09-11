@@ -67,6 +67,7 @@ pub struct QuestionResponse {
     pub tags: Vec<String>,
     pub username: String,
     pub image_url: String,
+    pub vote_by_current_user: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -119,6 +120,7 @@ pub struct AR {
     pub reply_to_id: Option<i64>,
     pub rusername: String,
     pub rimage_url: String,
+    pub vote_by_current_user: i64,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]

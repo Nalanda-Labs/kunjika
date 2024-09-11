@@ -31,6 +31,9 @@
 	let shown_ts;
 	let description = '';
 	let errors = '';
+	let vote_by_current_user = 0;
+	$: vote_class1 = 'anchor';
+	$: vote_class2 = 'anchor';
 
 	onMount(async () => {
 		let response = await api.get(`questions/${id}/${slug}`);
@@ -48,12 +51,17 @@
 			reply_to_id = response.data.posted_by_id;
 			user_replied = username;
 			image_url = response.data.image_url;
+			vote_by_current_user = response.data.vote_by_current_user;
+
 			if (image_url === '') {
 				initials = username[0];
 			}
+
 			let asked_ts = Date.parse(time);
 			let now = Date.now();
+
 			shown_ts = Math.floor((now - asked_ts) / 1000);
+
 			if (shown_ts >= 259200) {
 				asked_ts = new Date(time);
 				let year = asked_ts.getYear() + 1900;
@@ -69,6 +77,12 @@
 				shown_ts = 'asked ' + Math.floor(shown_ts / 60) + 'm ago';
 			} else {
 				shown_ts = 'asked ' + shown_ts + 's ago';
+			}
+
+			if (vote_by_current_user === 1) {
+				vote_class1 = 'vote';
+			} else if (vote_by_current_user === -1) {
+				vote_class2 = 'vote';
 			}
 		} else if (response.status === 404) {
 			goto('/404');
@@ -107,8 +121,19 @@
 					shown_ts = shown_ts + 's';
 				}
 				questions[i].shown_ts = shown_ts;
+
+				questions[i].vote_class1 = 'anchor';
+				questions[i].vote_class2 = 'anchor';
+
+				if (questions[i].vote_by_current_user === 1) {
+					questions[i].vote_class1 = 'vote';
+				} else if (questions[i].vote_by_current_user === -1) {
+					questions[i].vote_class2 = 'vote';
+				}
 			}
+
 			offset += limit;
+
 			if (response.data.questions.length) {
 				time = response.data.questions[response.data.questions.length - 1].created_at;
 			}
@@ -118,6 +143,7 @@
 	function show_editor(reply_to, username) {
 		reply_to_id = reply_to;
 		user_replied = username;
+
 		if (document.getElementById('editor').style.display === 'none') {
 			document.getElementById('editor').style.display = 'block';
 		} else {
@@ -159,7 +185,6 @@
 						if (questions[i].question_id == elementID) {
 							questions[i].votes = vote + parseInt(questions[i].votes);
 							questions = questions;
-							vid.style.class = 'vote';
 							colorLink(elementID, j.count_by_user);
 							break;
 						}
@@ -221,13 +246,18 @@
 			<br />
 			<div style="text-align: center;font-size: 24px">
 				{#if $page.data.user && posted_by != $page.data.user.id}
-					<a href="/vote-up" class="anchor" id="vu-{id}" on:click|preventDefault={vote(1, id)}>
+					<a href="/vote-up" class={vote_class1} id="vu-{id}" on:click|preventDefault={vote(1, id)}>
 						<i class="fas fa-angle-up" />
 					</a>
 				{/if}
 				<span style="text-align:center">{votes}</span>
 				{#if $page.data.user && posted_by != $page.data.user.id}
-					<a href="/vote-down" class="anchor" id="vd-{id}" on:click|preventDefault={vote(-1, id)}>
+					<a
+						href="/vote-down"
+						class={vote_class2}
+						id="vd-{id}"
+						on:click|preventDefault={vote(-1, id)}
+					>
 						<i class="fas fa-angle-down" />
 					</a>
 				{/if}
@@ -289,7 +319,7 @@
 		</div>
 	</div>
 	<div style="clear:both;margin-bottom:10px" />
-	{#each questions as { question_id, description, votes, posted_by_id, username, initials, image_url, shown_ts, answer_accepted, reply_to_id, rusername, rimage_url }}
+	{#each questions as { question_id, description, votes, posted_by_id, username, initials, image_url, shown_ts, answer_accepted, reply_to_id, rusername, rimage_url, vote_class1, vote_class2 }}
 		<hr style="border-bottom:1px solid;color:#ccc;" />
 		<div style="margin-top:10px" id={question_id}>
 			<div style="float:left;margin-right:10px">
@@ -309,7 +339,12 @@
 				<br />
 				<div style="text-align: center;font-size: 24px">
 					{#if $page.data.user && posted_by_id != $page.data.user.id}
-						<a href="/vote-up" class="anchor" id="vu-{question_id}" on:click|preventDefault={vote(1, question_id)}>
+						<a
+							href="/vote-up"
+							class={vote_class1}
+							id="vu-{question_id}"
+							on:click|preventDefault={vote(1, question_id)}
+						>
 							<i class="fas fa-angle-up" />
 						</a>
 					{/if}
@@ -317,7 +352,7 @@
 					{#if $page.data.user && posted_by_id != $page.data.user.id}
 						<a
 							href="/vote-down"
-							class="anchor"
+							class={vote_class2}
 							id="vd-{question_id}"
 							style="display:block"
 							on:click|preventDefault={vote(-1, question_id)}

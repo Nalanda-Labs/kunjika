@@ -17,6 +17,7 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         qid: i64,
         updated_at: &chrono::DateTime<Utc>,
         limit: i64,
+        uid: i64
     ) -> sqlx::Result<AnswersResponse>;
     async fn get_questions(
         &self,
@@ -107,6 +108,8 @@ impl IQuestion for &AppStateRaw {
     ) -> sqlx::Result<QuestionResponse> {
         let mut tx = self.sql.begin().await?;
         let mut viewed_by_user = false;
+        let mut vote_by_current_user = 0;
+
         if uid != 0 {
             let qr = sqlx::query!(
                 r#"
@@ -121,6 +124,20 @@ impl IQuestion for &AppStateRaw {
                 Some(0) => false,
                 Some(_i) => true,
                 None => false,
+            };
+            let vr = sqlx::query!(
+                r#"
+                select vote from votes where from_user_id=$1 and topic_id=$2
+                "#r,
+                uid,
+                qid
+            )
+            .fetch_optional(&mut *tx)
+            .await?;
+
+            vote_by_current_user = match vr {
+                Some(v) => v.vote,
+                None => 0,
             };
         } else if ipaddr != "" {
             let qr = sqlx::query!(
@@ -217,6 +234,7 @@ impl IQuestion for &AppStateRaw {
             username: question.username,
             image_url: image_url,
             tags: trs,
+            vote_by_current_user,
         };
 
         Ok(qr)
@@ -227,22 +245,27 @@ impl IQuestion for &AppStateRaw {
         qid: i64,
         updated_at: &chrono::DateTime<Utc>,
         limit: i64,
+        uid: i64
     ) -> sqlx::Result<AnswersResponse> {
         let questions = sqlx::query!(
             r#"
             select count(1) over(), t.id, t.description, t.visible, t.created_at, t.posted_by_id, t.updated_at,
             t.votes, t.answer_accepted, t.reply_to_id, u.username, u.image_url,
-            u1.username as rusername, u1.image_url as rimage_url
+            u1.username as rusername, u1.image_url as rimage_url,
+            (CASE WHEN v.vote IS NULL THEN 0
+            ELSE vote::bigint END) as vote
             from posts t left join users as u on t.posted_by_id=u.id
             left join users as u1 on t.reply_to_id=u1.id
+            left join votes as v on v.from_user_id=$4 and v.topic_id=t.id
             where t.op_id=$1  and t.created_at > $2 order by t.created_at asc limit $3
-            "#, qid, updated_at, limit
+            "#, qid, updated_at, limit, uid
         ).fetch_all(&self.sql)
         .await?;
 
         let mut ars: AnswersResponse = AnswersResponse {
             questions: Vec::new(),
         };
+
         for q in questions {
             let image_url = q.image_url;
             let qr = AR {
@@ -259,6 +282,7 @@ impl IQuestion for &AppStateRaw {
                 reply_to_id: q.reply_to_id,
                 rusername: q.rusername,
                 rimage_url: q.rimage_url,
+                vote_by_current_user: Option::expect(q.vote, "Error, which will never happen.")
             };
             ars.questions.push(qr);
         }

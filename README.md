@@ -27,5 +27,5 @@ There are some software projects being done in Golang for efficiency. However, I
 that the philosophy behind development of Golang is horribly wrong. Rust is the
 silver bullet of programming.
 
-*Kunjika will not integrate with any closed-source applications. Please do not create
+*Kunjika will not integrate with any closed-source/non-GPL applications. Please do not create
 issues for such integrations.*

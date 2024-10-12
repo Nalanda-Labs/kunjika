@@ -71,7 +71,7 @@ ALTER TABLE public.tags OWNER TO shiv;
 -- Name: daily_tags_by_popularity; Type: MATERIALIZED VIEW; Schema: public; Owner: shiv
 --
 
-CREATE MATERIALIZED VIEW public.daily_tags_by_popularity AS
+CREATE VIEW public.daily_tags_by_popularity AS
  SELECT post_tags.tag_id,
     count(post_tags.tag_id) AS count,
     t.name
@@ -79,11 +79,10 @@ CREATE MATERIALIZED VIEW public.daily_tags_by_popularity AS
      LEFT JOIN public.tags t ON ((t.id = post_tags.tag_id)))
   WHERE (post_tags.created_at > (CURRENT_DATE - '1 day'::interval))
   GROUP BY post_tags.tag_id, t.name
-  ORDER BY (count(post_tags.tag_id))
-  WITH NO DATA;
+  ORDER BY (count(post_tags.tag_id));
 
 
-ALTER MATERIALIZED VIEW public.daily_tags_by_popularity OWNER TO shiv;
+ALTER VIEW public.daily_tags_by_popularity OWNER TO shiv;
 
 --
 -- Name: post_tags_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
@@ -156,13 +155,12 @@ ALTER SEQUENCE public.posts_id_seq OWNED BY public.posts.id;
 -- Name: tags_count; Type: MATERIALIZED VIEW; Schema: public; Owner: shiv
 --
 
-CREATE MATERIALIZED VIEW public.tags_count AS
+CREATE VIEW public.tags_count AS
  SELECT count(1) AS count
-   FROM public.tags
-  WITH NO DATA;
+   FROM public.tags;
 
 
-ALTER MATERIALIZED VIEW public.tags_count OWNER TO shiv;
+ALTER VIEW public.tags_count OWNER TO shiv;
 
 --
 -- Name: tags_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
@@ -289,7 +287,7 @@ ALTER TABLE public.votes OWNER TO shiv;
 -- Name: weekly_tags_by_popularity; Type: MATERIALIZED VIEW; Schema: public; Owner: shiv
 --
 
-CREATE MATERIALIZED VIEW public.weekly_tags_by_popularity AS
+CREATE VIEW public.weekly_tags_by_popularity AS
  SELECT post_tags.tag_id,
     count(post_tags.tag_id) AS count,
     t.name
@@ -297,11 +295,10 @@ CREATE MATERIALIZED VIEW public.weekly_tags_by_popularity AS
      LEFT JOIN public.tags t ON ((t.id = post_tags.tag_id)))
   WHERE (post_tags.created_at > (CURRENT_DATE - '7 days'::interval))
   GROUP BY post_tags.tag_id, t.name
-  ORDER BY (count(post_tags.tag_id))
-  WITH NO DATA;
+  ORDER BY (count(post_tags.tag_id));
 
 
-ALTER MATERIALIZED VIEW public.weekly_tags_by_popularity OWNER TO shiv;
+ALTER VIEW public.weekly_tags_by_popularity OWNER TO shiv;
 
 --
 -- Name: post_tags id; Type: DEFAULT; Schema: public; Owner: shiv

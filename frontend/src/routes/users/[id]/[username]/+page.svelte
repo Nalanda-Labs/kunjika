@@ -13,7 +13,7 @@
 	let imageUrl = '';
 	let displayname = '';
 	let designation = '';
-	let git = '';
+	let git = 'git url';
 	let website = '';
 	let location = '';
 	let created_date = '';
@@ -66,6 +66,8 @@
 				<a href={git} title={git.split('/').slice(-1)}>
 					<i class="fa-brands fa-github" style="margin-right:5px"></i></a
 				>
+			{:else if id == $page.data.user.id}
+			<div contenteditable="true" bind:textContent={git}>git url</div>
 			{/if}
 			{#if website}
 				<a href={website}

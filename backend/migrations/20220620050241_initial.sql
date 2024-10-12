@@ -343,7 +343,6 @@ ALTER TABLE ONLY public.views ALTER COLUMN id SET DEFAULT nextval('public.views_
 --
 
 COPY public.post_tags (id, post_id, tag_id, created_at, updated_at) FROM stdin;
-\.
 
 
 --
@@ -351,7 +350,6 @@ COPY public.post_tags (id, post_id, tag_id, created_at, updated_at) FROM stdin;
 --
 
 COPY public.posts (id, title, description, created_at, updated_at, visible, op_id, votes, slug, views, answer_accepted, answer_count, posted_by_id, reply_to_id, updated_by_id) FROM stdin;
-\.
 
 
 --
@@ -359,7 +357,6 @@ COPY public.posts (id, title, description, created_at, updated_at, visible, op_i
 --
 
 COPY public.tags (id, name, info, post_count, created_date, updated_date) FROM stdin;
-\.
 
 
 --
@@ -367,7 +364,6 @@ COPY public.tags (id, name, info, post_count, created_date, updated_date) FROM s
 --
 
 COPY public.users (id, username, email, password_hash, created_date, modified_date, status, image_url, location, name, karma, title, designation, website, git, twitter, email_verified, deleted, displayname) FROM stdin;
-\.
 
 
 --
@@ -375,7 +371,6 @@ COPY public.users (id, username, email, password_hash, created_date, modified_da
 --
 
 COPY public.views (userid, ipaddress, qid, created_date, id) FROM stdin;
-\.
 
 
 --
@@ -383,7 +378,6 @@ COPY public.views (userid, ipaddress, qid, created_date, id) FROM stdin;
 --
 
 COPY public.votes (topic_id, to_user_id, from_user_id, vote) FROM stdin;
-\.
 
 
 --
@@ -567,4 +561,5 @@ ALTER TABLE ONLY public.posts
 --
 -- PostgreSQL database dump complete
 --
+
 

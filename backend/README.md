@@ -8,6 +8,9 @@ migrations to create the database.
 Then `cargo build && cargo watch -x 'run -- -v 2 -c template.json'` will get the backend up and
 running.
 
+Make sure to run the migrations. There is no script at the moment as entire schema is in one
+file. You will also need to setup three materialized view refresh scripts in tools directory.
+
 ## Details
 
 This is backend for Kunjika, a minimal QA or forum. This backend is written using `Rust + ntex`

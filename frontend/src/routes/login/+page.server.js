@@ -45,17 +45,18 @@ export const actions = {
 				const cookie_value = split_cookie[0].slice(i + 1);
 
 				split_cookie.forEach((e) => {
-					console.log(e);
 					var i = e.indexOf('=');
 					if (i !== -1) {
 						let name = e.slice(0, i).trim();
 						let value = e.slice(i + 1);
+						console.log(name, value);
 						if (name === 'Path') {
 							path = value;
 						} else if (name === 'Domain') {
 							domain = value;
 						} else if (name === 'Max-Age') {
 							maxAge = parseInt(value);
+							console.log(maxAge);
 						}
 					}
 				});

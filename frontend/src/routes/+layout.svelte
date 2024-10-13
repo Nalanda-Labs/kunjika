@@ -34,7 +34,7 @@
 				goto('/');
 			}
 		}
-		return async () => await refresh;
+		return async () => await refresh();
 	});
 
 	onDestroy(async () => {

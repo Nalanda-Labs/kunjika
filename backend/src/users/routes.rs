@@ -173,25 +173,28 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
 
                 let access_cookie =
                     Cookie::build(("access_token", access_token_details.token.clone().unwrap()))
-                        .domain(&state.config.host)
+                        .domain(state.config.host.clone())
                         .path("/")
                         .secure(true)
-                        .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
-                        .http_only(true);
+                        .max_age(Duration::seconds(state.config.access_token_max_age * 60))
+                        .http_only(true)
+                        .same_site(cookie::SameSite::None);
                 let refresh_cookie =
                     Cookie::build(("refresh_token", refresh_token_details.token.unwrap()))
-                        .domain(&state.config.host)
+                        .domain(state.config.host.clone())
                         .path("/")
                         .secure(true)
-                        .max_age(Duration::new(state.config.refresh_token_max_age * 60, 0))
-                        .http_only(true);
+                        .max_age(Duration::seconds(state.config.refresh_token_max_age * 60))
+                        .http_only(true)
+                        .same_site(cookie::SameSite::None);
                 let xsrf_cookie =
                     Cookie::build(("xsrf_token", access_token_details.token_uuid.to_string()))
-                        .domain(&state.config.host)
+                        .domain(state.config.host.clone())
+                        .max_age(Duration::seconds(state.config.access_token_max_age * 60))
                         .path("/")
                         .secure(true)
-                        .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
-                        .http_only(false);
+                        .http_only(false)
+                        .same_site(cookie::SameSite::None);
 
                 let r: LoginResponse = LoginResponse {
                     user,
@@ -199,17 +202,17 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
                 };
                 let resp = match serde_json::to_string(&r) {
                     Ok(json) => HttpResponse::Ok()
-                        .cookie(access_cookie.to_string())
-                        .cookie(refresh_cookie.to_string())
-                        .cookie(xsrf_cookie.to_string())
+                        .cookie(access_cookie)
+                        .cookie(refresh_cookie)
+                        .cookie(xsrf_cookie)
                         .cookie(
                             Cookie::build(("logged_in", json))
-                                .domain(&state.config.host)
+                                .domain(state.config.host.clone())
                                 .path("/")
                                 .secure(true)
                                 .http_only(true)
-                                .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
-                                .to_string(),
+                                .max_age(Duration::seconds(state.config.access_token_max_age * 60))
+                                .same_site(cookie::SameSite::None),
                         )
                         .content_type("application/json")
                         .body(""),
@@ -336,25 +339,30 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
 
     let access_cookie =
         Cookie::build(("access_token", access_token_details.token.clone().unwrap()))
-            .domain(&state.config.host)
+            .domain(state.config.host.clone())
             .path("/")
             .secure(true)
-            .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
-            .http_only(true);
+            .max_age(Duration::seconds(state.config.access_token_max_age * 60))
+            .http_only(true)
+            .same_site(cookie::SameSite::None);
 
     let refresh_cookie = Cookie::build(("refresh_token", refresh_token_details.token.unwrap()))
-        .domain(&state.config.host)
+        .domain(state.config.host.clone())
         .path("/")
         .secure(true)
-        .max_age(Duration::new(state.config.refresh_token_max_age * 60, 0))
-        .http_only(true);
+        .max_age(Duration::seconds(state.config.refresh_token_max_age * 60))
+        .http_only(true)
+        .same_site(cookie::SameSite::None);
 
     let xsrf_cookie = Cookie::build(("xsrf_token", access_token_details.token_uuid.to_string()))
-        .domain(&state.config.host)
+        .domain(state.config.host.clone())
         .path("/")
         .secure(true)
-        .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
-        .http_only(false);
+        .max_age(cookie::time::Duration::seconds(
+            state.config.access_token_max_age * 60,
+        ))
+        .http_only(false)
+        .same_site(cookie::SameSite::None);
 
     let r: LoginResponse = LoginResponse {
         user,
@@ -365,17 +373,17 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
             .header("Cache-Control", "no-cache, no-store, must-revalidate")
             .header("Pragma", "no-cache")
             .header("Expires", 0)
-            .cookie(access_cookie.to_string())
-            .cookie(refresh_cookie.to_string())
-            .cookie(xsrf_cookie.to_string())
+            .cookie(access_cookie)
+            .cookie(refresh_cookie)
+            .cookie(xsrf_cookie)
             .cookie(
                 Cookie::build(("logged_in", json))
-                    .domain(&state.config.host)
+                    .domain(state.config.host.clone())
                     .path("/")
                     .secure(true)
                     .http_only(true)
-                    .max_age(Duration::new(state.config.access_token_max_age * 60, 0))
-                    .to_string(),
+                    .max_age(Duration::seconds(state.config.access_token_max_age * 60))
+                    .same_site(cookie::SameSite::None),
             )
             .content_type("application/json")
             .body(""),
@@ -401,9 +409,9 @@ fn delete_cookie() -> HttpResponse {
         .http_only(true);
 
     HttpResponse::Ok()
-        .cookie(access_cookie.to_string())
-        .cookie(refresh_cookie.to_string())
-        .cookie(logged_in_cookie.to_string())
+        .cookie(access_cookie)
+        .cookie(refresh_cookie)
+        .cookie(logged_in_cookie)
         .json(&json!({"status": true}))
 }
 
@@ -413,8 +421,6 @@ async fn logout_handler(
     auth_guard: auth::AuthorizationService,
     state: AppState,
 ) -> impl Responder {
-    let message = "Token is invalid or session has expired";
-
     let refresh_token = match req.cookie("refresh_token") {
         Some(c) => c.value().to_string(),
         None => return delete_cookie(),

@@ -1998,6 +1998,7 @@ dependencies = [
  "md5",
  "mobc",
  "mobc-redis",
+ "nix 0.29.0",
  "nonblock-logger",
  "ntex",
  "ntex-cors",

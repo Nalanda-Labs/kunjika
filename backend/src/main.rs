@@ -9,10 +9,11 @@ extern crate sqlx;
 #[macro_use]
 extern crate serde;
 
+use nix::unistd::Uid;
 use ntex::{web, web::App, web::HttpServer};
 use ntex_cors::Cors;
-use num_cpus;
 use ntex_files::Files;
+use num_cpus;
 
 // pub mod api;
 pub mod config;
@@ -22,15 +23,18 @@ pub mod middlewares;
 pub mod questions;
 pub mod state;
 pub mod tags;
+pub mod uploads;
 pub mod users;
 pub mod utils;
 pub mod votes;
-pub mod uploads;
 
 use config::{Config, Opts};
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
+    if Uid::effective().is_root() {
+        panic!("You must not run this program as root!");
+    }
     // Config::show();
     let (_handle, opt) = Opts::parse_from_args();
     let state = Config::parse_from_file(&opt.config).into_state().await;
@@ -54,14 +58,12 @@ async fn main() -> std::io::Result<()> {
             .state(state.clone())
             .wrap(web::middleware::Logger::default())
             .wrap(web::middleware::Compress::default())
-            .service(
-                (web::scope(apiv1)
-                    .configure(users::routes::init)
-                    .configure(tags::routes::init)
-                    .configure(votes::routes::init)
-                    .configure(questions::routes::init)
-                    .configure(uploads::routes::init),
-            ))
+            .service((web::scope(apiv1)
+                .configure(users::routes::init)
+                .configure(tags::routes::init)
+                .configure(votes::routes::init)
+                .configure(questions::routes::init)
+                .configure(uploads::routes::init),))
     })
     .workers(num_cpus::get())
     .keep_alive(300)

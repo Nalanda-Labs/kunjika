@@ -402,7 +402,7 @@ fn delete_cookie() -> HttpResponse {
         .max_age(Duration::new(-1, 0))
         .http_only(true);
 
-    HttpResponse::Forbidden()
+    HttpResponse::Ok()
         .cookie(access_cookie.to_string())
         .cookie(refresh_cookie.to_string())
         .cookie(logged_in_cookie.to_string())

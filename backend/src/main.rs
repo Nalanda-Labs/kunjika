@@ -12,7 +12,6 @@ extern crate serde;
 use nix::unistd::Uid;
 use ntex::{web, web::App, web::HttpServer};
 use ntex_cors::Cors;
-use ntex_files::Files;
 use num_cpus;
 
 // pub mod api;

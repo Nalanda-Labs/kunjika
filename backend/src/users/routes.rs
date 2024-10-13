@@ -230,8 +230,6 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
 
 #[get("/auth/refresh")]
 async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl Responder {
-    let message = "could not refresh access token";
-
     let refresh_token = match req.cookie("refresh_token") {
         Some(c) => c.value().to_string(),
         None => {
@@ -245,7 +243,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         &refresh_token,
     ) {
         Ok(token_details) => token_details,
-        Err(e) => {
+        Err(_e) => {
             info!("step 2");
             return delete_cookie();
         }
@@ -254,7 +252,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
     let result = state.kv.get().await;
     let mut redis_client = match result {
         Ok(redis_client) => redis_client,
-        Err(e) => {
+        Err(_e) => {
             info!("step 3");
             return delete_cookie();
         }
@@ -265,7 +263,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
 
     let user_id = match redis_result {
         Ok(value) => value,
-        Err(e) => {
+        Err(_e) => {
             info!("step 4");
             return delete_cookie();
         }
@@ -294,7 +292,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         state.config.access_token_private_key.to_owned(),
     ) {
         Ok(token_details) => token_details,
-        Err(e) => {
+        Err(_e) => {
             return delete_cookie();
         }
     };
@@ -305,7 +303,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         state.config.refresh_token_private_key.to_owned(),
     ) {
         Ok(token_details) => token_details,
-        Err(e) => {
+        Err(_e) => {
             return delete_cookie();
         }
     };
@@ -427,7 +425,7 @@ async fn logout_handler(
         &refresh_token,
     ) {
         Ok(token_details) => token_details,
-        Err(e) => return delete_cookie(),
+        Err(_e) => return delete_cookie(),
     };
 
     let mut redis_client = state.kv.get().await.unwrap();
@@ -509,6 +507,30 @@ async fn get_profile(
     state: AppState,
 ) -> impl Responder {
     let uid = &params.0.parse::<i64>().unwrap();
+    debug!("{}", uid);
+    match state.get_ref().get_profile(&uid).await {
+        Ok(profile) => HttpResponse::Ok().json(&json!({"message": "", "data": profile})),
+        Err(e) => {
+            debug!("{:?}", e.to_string());
+            HttpResponse::InternalServerError()
+                .json(&json!({"status": "fail", "message": e.to_string()}))
+        }
+    }
+}
+
+#[get("/user/{id}")]
+async fn get_user(
+    params: web::types::Path<String>,
+    auth_guard: auth::AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let uid = params.parse::<i64>().unwrap();
+
+    if auth_guard.user.id != uid {
+        return HttpResponse::Forbidden()
+            .json(&json!({"success": false, "message": "Only self can update user!"}));
+    }
+
     debug!("{}", uid);
     match state.get_ref().get_profile(&uid).await {
         Ok(profile) => HttpResponse::Ok().json(&json!({"message": "", "data": profile})),
@@ -697,4 +719,5 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(update_location);
     cfg.service(get_links);
     cfg.service(update_links);
+    cfg.service(get_user);
 }

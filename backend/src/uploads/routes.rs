@@ -1,7 +1,7 @@
 use std::fs;
 
 use crate::state::AppState;
-use ntex::web::{self, get, Error, HttpRequest, HttpResponse, Responder};
+use ntex::web::{self, get, HttpResponse, Responder};
 
 #[get("/uploads/{year}/{month}/{day}/{image_id}")]
 async fn get_image(
@@ -20,7 +20,7 @@ async fn get_image(
         + &image_id;
 
     error!("{}", path);
-    
+
     match web::block(|| fs::read(path)).await {
         Ok(d) => {
             return HttpResponse::Ok().body(d);

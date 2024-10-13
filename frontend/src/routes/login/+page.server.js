@@ -21,8 +21,12 @@ export const actions = {
 		let j = text ? JSON.parse(text) : {};
 
 		if (resp.status === 401) {
-			return fail(401, { success: false, errors: 'Either email or password is wrong or you have not verified your email!', email: data.get('email') });
-		}	
+			return fail(401, {
+				success: false,
+				errors: 'Either email or password is wrong or you have not verified your email!',
+				email: data.get('email')
+			});
+		}
 
 		for (const pair of resp.headers.entries()) {
 			// this is not general cookie parsing logic but specific to what we use
@@ -36,12 +40,12 @@ export const actions = {
 				let domain = '';
 				let maxAge = 0;
 
-
 				let i = split_cookie[0].indexOf('=');
 				const cookie_name = split_cookie[0].slice(0, i);
 				const cookie_value = split_cookie[0].slice(i + 1);
 
 				split_cookie.forEach((e) => {
+					console.log(e);
 					var i = e.indexOf('=');
 					if (i !== -1) {
 						let name = e.slice(0, i).trim();
@@ -57,9 +61,23 @@ export const actions = {
 				});
 
 				if (cookie_name !== 'xsrf_token') {
-					cookies.set(cookie_name, cookie_value, { httpOnly: httpOnly, domain: domain, maxAge: maxAge, path: path, secure: secure, sameSite: 'lax' });
+					cookies.set(cookie_name, cookie_value, {
+						httpOnly: httpOnly,
+						domain: domain,
+						maxAge: maxAge,
+						path: path,
+						secure: secure,
+						sameSite: 'lax'
+					});
 				} else {
-					cookies.set(cookie_name, cookie_value, { httpOnly: false, domain: domain, maxAge: maxAge, path: path, secure: secure, sameSite: 'lax' });
+					cookies.set(cookie_name, cookie_value, {
+						httpOnly: false,
+						domain: domain,
+						maxAge: maxAge,
+						path: path,
+						secure: secure,
+						sameSite: 'lax'
+					});
 				}
 			}
 		}

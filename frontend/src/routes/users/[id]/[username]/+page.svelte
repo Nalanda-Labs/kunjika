@@ -6,7 +6,6 @@
 	import { page } from '$app/stores';
 	import * as api from '$lib/api.js';
 	import { afterUpdate, onMount } from 'svelte';
-	import { navigating } from '$app/stores';
 
 	let id = $page.params.id;
 	let username = '';
@@ -24,7 +23,6 @@
 		if (response.status === 200) {
 			const text = await response.text();
 			const j = text ? JSON.parse(text) : {};
-			console.log(j);
 			username = j.data.username;
 			imageUrl = j.data.image_url;
 			displayname = j.data.displayname;
@@ -46,10 +44,7 @@
 
 <div class="row justify-content-center align-items-center" style="margin-top:20px">
 	<div class="col-12">
-		<a
-			href="/users/{id}/{username}"
-			style="display:flex;float:left"
-		>
+		<a href="/users/{id}/{username}" style="display:flex;float:left">
 			<img src="{imageUrl}?s=128" alt="{displayname}'s avatar" style="display:flex;float:left" />
 		</a>
 		<h4 style="display:flex;flex-wrap: wrap !important;padding-left:5px">
@@ -67,7 +62,7 @@
 					<i class="fa-brands fa-github" style="margin-right:5px"></i></a
 				>
 			{:else if id == $page.data.user.id}
-			<div contenteditable="true" bind:textContent={git}>git url</div>
+				<div contenteditable="true" bind:textContent={git}>git url</div>
 			{/if}
 			{#if website}
 				<a href={website}

@@ -236,7 +236,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         Some(c) => c.value().to_string(),
         None => {
             info!("step 1");
-            return HttpResponse::Forbidden().json(&json!({"status": "fail", "message": message}));
+            return delete_cookie();
         }
     };
 
@@ -247,8 +247,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         Ok(token_details) => token_details,
         Err(e) => {
             info!("step 2");
-            return HttpResponse::Forbidden()
-                .json(&json!({"status": "fail", "message": format_args!("{:?}", e)}));
+            return delete_cookie();
         }
     };
 
@@ -257,9 +256,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         Ok(redis_client) => redis_client,
         Err(e) => {
             info!("step 3");
-            return HttpResponse::Forbidden().json(
-                &json!({"status": "fail", "message": format!("Could not connect to Redis: {}", e)}),
-            );
+            return delete_cookie();
         }
     };
     let redis_result: redis::RedisResult<String> = redis_client
@@ -270,8 +267,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         Ok(value) => value,
         Err(e) => {
             info!("step 4");
-            return HttpResponse::Forbidden()
-                .json(&json!({"status": "fail", "message": e.to_string()}));
+            return delete_cookie();
         }
     };
 
@@ -287,8 +283,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
     .unwrap();
 
     if query_result.is_none() {
-        return HttpResponse::Forbidden()
-            .json(&json!({"status": "fail", "message": "the user belonging to this token no logger exists"}));
+        return delete_cookie();
     }
 
     let user = query_result.unwrap();
@@ -300,8 +295,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
     ) {
         Ok(token_details) => token_details,
         Err(e) => {
-            return HttpResponse::BadGateway()
-                .json(&json!({"status": "fail", "message": format_args!("{:?}", e)}));
+            return delete_cookie();
         }
     };
 
@@ -312,8 +306,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
     ) {
         Ok(token_details) => token_details,
         Err(e) => {
-            return HttpResponse::BadGateway()
-                .json(&json!({"status": "fail", "message": format_args!("{}", e)}));
+            return delete_cookie();
         }
     };
 
@@ -326,9 +319,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         .await;
 
     if redis_result.is_err() {
-        return HttpResponse::UnprocessableEntity().json(
-            &json!({"status": "error", "message": format_args!("{:?}", redis_result.unwrap_err())}),
-        );
+        return delete_cookie();
     }
 
     let redis_result: redis::RedisResult<()> = redis_client
@@ -340,9 +331,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         .await;
 
     if redis_result.is_err() {
-        return HttpResponse::UnprocessableEntity().json(
-            &json!({"status": "error", "message": format_args!("{:?}", redis_result.unwrap_err())}),
-        );
+        return delete_cookie();
     }
 
     drop(redis_client);
@@ -397,48 +386,9 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
     resp
 }
 
-#[post("/auth/logout")]
-async fn logout_handler(
-    req: HttpRequest,
-    auth_guard: auth::AuthorizationService,
-    state: AppState,
-) -> impl Responder {
-    let message = "Token is invalid or session has expired";
-
-    let refresh_token = match req.cookie("refresh_token") {
-        Some(c) => c.value().to_string(),
-        None => {
-            return HttpResponse::Forbidden().json(&json!({"status": "fail", "message": message}));
-        }
-    };
-
-    let refresh_token_details = match token::verify_jwt_token(
-        state.config.refresh_token_public_key.to_owned(),
-        &refresh_token,
-    ) {
-        Ok(token_details) => token_details,
-        Err(e) => {
-            return HttpResponse::Forbidden()
-                .json(&json!({"status": "fail", "message": format_args!("{:?}", e)}));
-        }
-    };
-
-    let mut redis_client = state.kv.get().await.unwrap();
-    let redis_result: redis::RedisResult<usize> = redis_client
-        .del(&[
-            refresh_token_details.token_uuid.to_string(),
-            auth_guard.xsrf_token,
-        ])
-        .await;
-
-    if redis_result.is_err() {
-        return HttpResponse::UnprocessableEntity().json(
-            &json!({"status": "fail", "message": format_args!("{:?}", redis_result.unwrap_err())}),
-        );
-    }
-
-    drop(redis_client);
-
+fn delete_cookie() -> HttpResponse {
+    // in case of an error we simply delete cookie because it is not possible
+    // to recover from the error
     let access_cookie = Cookie::build(("access_token", ""))
         .path("/")
         .max_age(Duration::new(-1, 0))
@@ -452,11 +402,49 @@ async fn logout_handler(
         .max_age(Duration::new(-1, 0))
         .http_only(true);
 
-    HttpResponse::Ok()
+    HttpResponse::Forbidden()
         .cookie(access_cookie.to_string())
         .cookie(refresh_cookie.to_string())
         .cookie(logged_in_cookie.to_string())
-        .json(&json!({"status": "success"}))
+        .json(&json!({"status": true}))
+}
+
+#[post("/auth/logout")]
+async fn logout_handler(
+    req: HttpRequest,
+    auth_guard: auth::AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let message = "Token is invalid or session has expired";
+
+    let refresh_token = match req.cookie("refresh_token") {
+        Some(c) => c.value().to_string(),
+        None => return delete_cookie(),
+    };
+
+    let refresh_token_details = match token::verify_jwt_token(
+        state.config.refresh_token_public_key.to_owned(),
+        &refresh_token,
+    ) {
+        Ok(token_details) => token_details,
+        Err(e) => return delete_cookie(),
+    };
+
+    let mut redis_client = state.kv.get().await.unwrap();
+    let redis_result: redis::RedisResult<usize> = redis_client
+        .del(&[
+            refresh_token_details.token_uuid.to_string(),
+            auth_guard.xsrf_token,
+        ])
+        .await;
+
+    if redis_result.is_err() {
+        return delete_cookie();
+    }
+
+    drop(redis_client);
+
+    delete_cookie()
 }
 
 #[post("/check-username-availability")]

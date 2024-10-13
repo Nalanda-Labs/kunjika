@@ -180,7 +180,11 @@ async fn get_answers(
     let qid = params.into_inner();
     debug!("{:?}, {:?}, {:?}", &qid, q.time, q.limit);
 
-    match state.get_ref().get_answers(qid, &q.time, q.limit, uid).await {
+    match state
+        .get_ref()
+        .get_answers(qid, &q.time, q.limit, uid)
+        .await
+    {
         Ok(db_answers) => HttpResponse::Ok().json(&json!({"data": db_answers})),
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": "fail", "message": e.to_string()})),
@@ -267,15 +271,24 @@ async fn image_upload(mut payload: Multipart, state: AppState) -> impl Responder
 
     // iterate over multipart stream
     while let Ok(Some(mut field)) = payload.try_next().await {
-        // File::create is blocking operation, use threadpool
-        // TODO: fix this
+        let mut len = 0;
         let filepath1 = format!("{}/{}", &path, filename);
         let mut f = web::block(|| std::fs::File::create(filepath1))
             .await
             .unwrap();
         // Field in turn is stream of *Bytes* object
         while let Some(chunk) = field.next().await {
+            let filepath2 = format!("{}/{}", &path, filename);
             let data = chunk.unwrap();
+            len += data.len();
+            // file size is more than 2 MB so delete the file and return response
+            if len > state.config.image_max_size {
+                web::block(|| std::fs::remove_file(filepath2))
+                    .await
+                    .unwrap();
+
+                return HttpResponse::BadRequest().json(&json!({"success": false}));
+            }
             // filesystem operations are blocking, we have to use threadpool
             f = web::block(move || f.write_all(&data).map(|_| f))
                 .await
@@ -285,7 +298,7 @@ async fn image_upload(mut payload: Multipart, state: AppState) -> impl Responder
 
     let url = state.config.backend_url.clone() + &filepath;
 
-    return HttpResponse::Ok().json(&json!({"success": "true", "url": url}));
+    return HttpResponse::Ok().json(&json!({"success": true, "url": url}));
 }
 
 pub fn init(cfg: &mut ntex::web::ServiceConfig) {

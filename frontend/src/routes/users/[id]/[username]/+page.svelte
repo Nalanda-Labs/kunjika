@@ -84,7 +84,7 @@
 		</p>
 		<p style="display:flex;color:#666;padding-left:5px;float:right">
 			{#if id == $page.data.user.id}
-				<a class="btn" href="/users/edit/{id}">Edit Profile</a>
+				<a class="btn" href="/users/edit/{id}"><i class="fa-solid fa-edit"></i> Edit Profile</a>
 			{/if}
 		</p>
 		<div style="clear:both;" />

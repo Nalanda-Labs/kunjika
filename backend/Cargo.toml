@@ -8,24 +8,24 @@ edition = "2021"
 
 # https://docs.rs/vergen/4.1.0/vergen/
 [build-dependencies]
-vergen = { version = "9.0.0-beta.1" }
+vergen = { version = "9.0.1" }
 
 [features]
 default = ["postgres"]
 postgres = ["sqlx/postgres"]
 
 [dependencies.sqlx]
-version = "0.7.3"
+version = "0.8.2"
 default-features = false
-features = ["macros", "chrono", "uuid", "json", "time", "runtime-tokio"]
+features = ["macros", "chrono", "uuid", "json", "time", "runtime-tokio", "bigdecimal"]
 # git = "https://github.com/launchbadge/sqlx"
 # path = "../sqlx"
 
 [dependencies]
-ntex = { version = "2.3.0", features = ["tokio", "cookie", "compress"] }
+ntex = { version = "2.6.0", features = ["tokio", "cookie", "compress"] }
 ntex-cors = { version = "2.0.0" }
-clap = { version = "4.5.16", features = ["derive"] }
-lettre = { version = "0.11.8", features = [
+clap = { version = "4.5.20", features = ["derive"] }
+lettre = { version = "0.11.9", features = [
     "tokio1-native-tls",
     "hostname",
     "builder",
@@ -38,9 +38,9 @@ uuid = { version = "1.10.0", features = ["serde", "v4"] }
 chrono = { version = "0.4.38", features = ["serde"] }
 rust_decimal = { version = "1.36.0", features = ["serde-float"] }
 validator = { version = "0.18.1", features = ["derive"] }
-serde = { version = "1.0.209", features = ["derive"] }
+serde = { version = "1.0.210", features = ["derive"] }
 serde_qs = "0.13.0"
-serde_json = "1.0.127"
+serde_json = "1.0.128"
 json5 = "0.4.1"
 rust-argon2 = "2.1.0"
 ring = "0.17.8"
@@ -48,16 +48,16 @@ rand = "0.8.5"
 hex = "0.4.3"
 jsonwebtoken = "9.3.0"
 lazy_static = "1.5.0"
-futures = "0.3.30"
-thiserror = "1.0.63"
+futures = "0.3.31"
+thiserror = "1.0.64"
 anyhow = "1.0.86"
 url = "2.5.2"
 itsdangerous = "0.4.1"
 num_cpus = "1.16.0"
-cargo-watch = "8.4.0"
+cargo-watch = "8.5.3"
 cookie = "0.18.1"
 rust-analyzer = "0.0.1"
-async-trait = "0.1.82"
+async-trait = "0.1.83"
 mobc = "0.8.4"
 mobc-redis = "0.8.2"
 base64 = "0.22.1"
@@ -65,3 +65,4 @@ md5 = "0.7.0"
 ntex-multipart = "2.0.0"
 ntex-files = "2.0.0"
 nix = "0.29.0"
+time = { version = "0.3.4", features = ["serde"] }

@@ -1,8 +1,6 @@
 use super::question::*;
 use crate::state::AppStateRaw;
 
-use chrono::*;
-
 #[async_trait]
 pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
     async fn insert_question(&self, name: &DbQuestion) -> sqlx::Result<u64>;
@@ -15,17 +13,14 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
     async fn get_answers(
         &self,
         qid: i64,
-        updated_at: &chrono::DateTime<Utc>,
+        updated_at: &SqlDateTime,
         limit: i64,
-        uid: i64
+        uid: i64,
     ) -> sqlx::Result<AnswersResponse>;
-    async fn get_questions(
-        &self,
-        updated_at: &chrono::DateTime<Utc>,
-    ) -> sqlx::Result<QuestionsResponse>;
+    async fn get_questions(&self, updated_at: &SqlDateTime) -> sqlx::Result<QuestionsResponse>;
     async fn get_questions_by_tag(
         &self,
-        updated_at: &chrono::DateTime<Utc>,
+        updated_at: &SqlDateTime,
         tag: &String,
     ) -> sqlx::Result<QuestionsResponse>;
     async fn get_post(&self, pid: i64) -> sqlx::Result<PostResponse>;
@@ -243,9 +238,9 @@ impl IQuestion for &AppStateRaw {
     async fn get_answers(
         &self,
         qid: i64,
-        updated_at: &chrono::DateTime<Utc>,
+        updated_at: &SqlDateTime,
         limit: i64,
-        uid: i64
+        uid: i64,
     ) -> sqlx::Result<AnswersResponse> {
         let questions = sqlx::query!(
             r#"
@@ -282,21 +277,19 @@ impl IQuestion for &AppStateRaw {
                 reply_to_id: q.reply_to_id,
                 rusername: q.rusername,
                 rimage_url: q.rimage_url,
-                vote_by_current_user: Option::expect(q.vote, "Error, which will never happen.")
+                vote_by_current_user: Option::expect(q.vote, "Error, which will never happen."),
             };
             ars.questions.push(qr);
         }
         Ok(ars)
     }
 
-    async fn get_questions(
-        &self,
-        updated_at: &chrono::DateTime<Utc>,
-    ) -> sqlx::Result<QuestionsResponse> {
+    async fn get_questions(&self, updated_at: &SqlDateTime) -> sqlx::Result<QuestionsResponse> {
         let questions = sqlx::query!(
             r#"
             select t.id, t.visible, t.title, t.created_at , t.posted_by_id, t.updated_at, t.votes, t.views, t.slug, users.image_url,
-            users.username as username, users.id as uid, array_agg(post_tags.tag_id) as tag_id, array_agg(tags.name) as tags, t.answer_count from posts t left
+            users.username as username, users.id as uid, array_agg(post_tags.tag_id) as tag_id, array_agg(tags.name) as tags, t.answer_count 
+            from posts t left
             join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
             tags on post_tags.tag_id = tags.id where t.op_id=0 and t.updated_at < $1 group by t.id, users.id order by
             t.updated_at desc limit $2
@@ -342,15 +335,18 @@ impl IQuestion for &AppStateRaw {
                 uid: q.uid.to_string(),
                 tid,
                 answers: q.answer_count,
+                uat: q.updated_at.unix_timestamp(),
+                cat: q.created_at.unix_timestamp(),
             };
             qrs.questions.push(qr);
+            info!("{}", q.created_at);
         }
         Ok(qrs)
     }
 
     async fn get_questions_by_tag(
         &self,
-        updated_at: &chrono::DateTime<Utc>,
+        updated_at: &SqlDateTime,
         tag: &String,
     ) -> sqlx::Result<QuestionsResponse> {
         let questions = sqlx::query!(
@@ -403,6 +399,8 @@ impl IQuestion for &AppStateRaw {
                 uid: q.uid.to_string(),
                 tid,
                 answers: q.answer_count,
+                uat: q.updated_at.unix_timestamp(),
+                cat: q.created_at.unix_timestamp(),
             };
             qrs.questions.push(qr);
         }

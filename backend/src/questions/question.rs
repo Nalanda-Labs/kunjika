@@ -1,9 +1,10 @@
-use chrono::{DateTime, Utc};
+use sqlx::types::BigDecimal;
+use time;
 
 #[cfg(any(feature = "postgres"))]
 type SqlID = i64;
 
-type SqlDateTime = DateTime<Utc>;
+pub type SqlDateTime = time::OffsetDateTime;
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct Question {
@@ -92,6 +93,8 @@ pub struct QR {
     pub tid: String,
     pub tags: String,
     pub answers: i64,
+    pub uat: i64,
+    pub cat: i64,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
@@ -101,7 +104,7 @@ pub struct QuestionsResponse {
 
 #[derive(Deserialize)]
 pub struct AnswersQuery {
-    pub time: chrono::DateTime<Utc>,
+    pub time: SqlDateTime,
     pub limit: i64,
 }
 

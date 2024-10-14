@@ -7,7 +7,6 @@ use crate::state::AppState;
 use crate::users::user::UserCookie;
 use crate::utils::slug::create_slug;
 
-use chrono::*;
 use futures::{StreamExt, TryStreamExt};
 use ntex::{
     http::HttpMessage,
@@ -15,6 +14,7 @@ use ntex::{
 };
 use ntex_multipart::Multipart;
 use serde_json::json;
+use time::format_description::well_known::Rfc3339;
 use uuid::Uuid;
 
 #[post("/create-question")]
@@ -114,12 +114,10 @@ async fn get_questions(
     let up_at;
     debug!("{:?}", &updated_at.updated_at);
     if updated_at.updated_at == "" {
-        up_at = chrono::offset::Utc::now();
+        up_at = time::OffsetDateTime::now_utc();
         debug!("{:?}", up_at);
     } else {
-        up_at = chrono::DateTime::parse_from_rfc3339(&updated_at.updated_at)
-            .unwrap()
-            .with_timezone(&Utc);
+        up_at = time::OffsetDateTime::parse(&updated_at.updated_at, &Rfc3339).unwrap();
     }
     match state.get_ref().get_questions(&up_at).await {
         Ok(db_questions) => HttpResponse::Ok().json(&json!({"data": db_questions})),
@@ -139,12 +137,10 @@ async fn get_questions_by_tag(
     let up_at;
     debug!("{:?}", &updated_at.updated_at);
     if updated_at.updated_at == "" {
-        up_at = chrono::offset::Utc::now();
+        up_at = time::OffsetDateTime::now_utc();
         debug!("{:?}", up_at);
     } else {
-        up_at = chrono::DateTime::parse_from_rfc3339(&updated_at.updated_at)
-            .unwrap()
-            .with_timezone(&Utc);
+        up_at = time::OffsetDateTime::parse(&updated_at.updated_at, &Rfc3339).unwrap();
     }
     match state.get_ref().get_questions_by_tag(&up_at, &tag).await {
         Ok(db_questions) => HttpResponse::Ok().json(&json!({"data": db_questions})),
@@ -259,7 +255,7 @@ async fn image_upload(mut payload: Multipart, state: AppState) -> impl Responder
     // It must not panic in general for the app to be usable.
     // we do not check for image size. This should be set at web server level
     // by limiting client max body size.
-    let current_date = chrono::Utc::now();
+    let current_date = time::OffsetDateTime::now_utc();
     let year = current_date.year();
     let month = current_date.month();
     let day = current_date.day();

@@ -1,6 +1,6 @@
 // PBKDF2 < bcrypt < scrypt < argon2
 use argon2::{self, Config};
-use chrono::Utc;
+use time;
 use ring::digest;
 
 fn passhash(pass: &str) -> String {
@@ -18,7 +18,8 @@ fn passhash_verify(pass: &str, hash: &str) -> bool {
 #[cfg(any(feature = "postgres"))]
 type SqlID = i64;
 
-type SqlDateTime = chrono::DateTime<Utc>;
+
+type SqlDateTime = time::OffsetDateTime;
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct User {

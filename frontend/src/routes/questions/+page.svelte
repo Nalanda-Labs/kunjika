@@ -3,7 +3,7 @@
 </script>
 
 <script>
-	import { page } from '$app/stores';
+	import { page, updated } from '$app/stores';
 	import * as api from '$lib/api.js';
 	import InfiniteLoading from 'svelte-infinite-loading';
 
@@ -11,11 +11,12 @@
 	let data = [];
 
 	async function infiniteHandler({ detail: { loaded, complete } }) {
-		let updated_at = '';
+		let uat = '';
 		if (questions.length) {
-			updated_at = questions[questions.length - 1].updated_at;
+			uat = questions[questions.length - 1].uat;
+			uat = new Date(uat * 1000);
 		}
-		let response = await api.post(`questions/`, { updated_at });
+		let response = await api.post(`questions/`, { updated_at: uat });
 
 		if (response.status !== 200) {
 			complete();
@@ -29,18 +30,18 @@
 		}
 		if (questions.length) {
 			for (let i = 0; i < questions.length; i++) {
-				// questions[i]["tags"] = questions[i]["tags"].slice(1, -1);
 				questions[i]['tags'] = questions[i]['tags'].split(',');
-				// questions[i]["tid"] = questions[i]["tid"].slice(1, -1);
 				questions[i]['tid'] = questions[i]['tid'].split(',');
-				let asked_ts = Date.parse(questions[i].created_at);
-				let updated_ts = Date.parse(questions[i].updated_at);
+				let asked_ts = new Date(questions[i].cat * 1000);
+				let updated_ts = new Date(questions[i].uat * 1000);
 				let now = new Date();
+				console.log(asked_ts, updated_ts, now);
 
 				if (asked_ts == updated_ts) {
 					let shown_ts = Math.floor((now - asked_ts) / 1000);
+					console.log(shown_ts);
 					if (shown_ts >= 259200) {
-						asked_ts = new Date(questions[i].created_at);
+						asked_ts = new Date(questions[i].cat);
 						let year = asked_ts.getYear() + 1900;
 						let month = asked_ts.getMonth() + 1;
 						shown_ts = 'asked on ' + asked_ts.getDate() + '/' + month + '/' + year;
@@ -59,7 +60,7 @@
 				} else {
 					let shown_ts = Math.floor((now - updated_ts) / 1000);
 					if (shown_ts >= 259200) {
-						asked_ts = new Date(questions[i].created_at);
+						asked_ts = new Date(questions[i].cat);
 						let year = updated_ts.getYear() + 1900;
 						let month = updated_ts.getMonth() + 1;
 						shown_ts = 'modified on ' + updated_ts.getDay() + '/' + month + '/' + year;

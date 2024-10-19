@@ -17,6 +17,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn verify_email(&self, who: &str) -> sqlx::Result<bool>;
     async fn update_profile_image(&self, uid: i64, url: &String) -> sqlx::Result<bool>;
     async fn update_profile(&self, uid: &i64, data: &ProfileReq) -> sqlx::Result<bool>;
+    async fn get_summary(&self, uid: i64) -> sqlx::Result<SummaryResponse>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 
@@ -353,6 +354,32 @@ impl IUser for &AppStateRaw {
         .await?;
 
         Ok(true)
+    }
+
+    async fn get_summary(&self, uid: i64) -> sqlx::Result<SummaryResponse> {
+        let answers_count = sqlx::query!(
+            r#"
+            select count(1) as answers_count from posts where posted_by_id=$1 and op_id!=0
+            "#,
+            uid
+        )
+        .fetch_one(&self.sql)
+        .await?;
+        let questions_count = sqlx::query!(
+            r#"
+            select count(1) as questions_count from posts where posted_by_id=$1 and op_id=0
+            "#,
+            uid
+        )
+        .fetch_one(&self.sql)
+        .await?;
+
+        let sr = SummaryResponse {
+            answers_count: answers_count.answers_count,
+            questions_count: questions_count.questions_count,
+        };
+
+        Ok(sr)
     }
 }
 

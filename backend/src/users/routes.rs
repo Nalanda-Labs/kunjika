@@ -547,7 +547,7 @@ async fn update_profile(
     }
 
     match state.get_ref().update_profile(&uid, &f).await {
-        Ok(profile) => HttpResponse::Ok().json(&json!({"success": true})),
+        Ok(_profile) => HttpResponse::Ok().json(&json!({"success": true})),
         Err(e) => {
             debug!("{:?}", e.to_string());
             HttpResponse::InternalServerError()
@@ -809,6 +809,20 @@ async fn image_upload(
     }
 }
 
+#[get("/{id}/summary")]
+async fn user_summary(params: web::types::Path<String>, state: AppState) -> impl Responder {
+    let uid = params.parse::<i64>().unwrap();
+
+    match state.get_ref().get_summary(uid).await {
+        Ok(r) => HttpResponse::Ok().json(&json!({"success": true, "data": r})),
+        Err(e) => {
+            debug!("{:?}", e.to_string());
+            HttpResponse::InternalServerError()
+                .json(&json!({"status": false, "message": e.to_string()}))
+        }
+    }
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(login);
     cfg.service(refresh_access_token_handler);
@@ -828,4 +842,5 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(get_user);
     cfg.service(image_upload);
     cfg.service(update_profile);
+    cfg.service(user_summary);
 }

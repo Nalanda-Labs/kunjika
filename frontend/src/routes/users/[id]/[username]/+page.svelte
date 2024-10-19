@@ -7,6 +7,7 @@
 	import * as api from '$lib/api.js';
 	import { afterUpdate, onMount } from 'svelte';
 	import Edit from './_Edit.svelte';
+	import Summary from './_Summary.svelte';
 
 	let id = $page.params.id;
 	$: username = '';
@@ -64,8 +65,8 @@
 		<p style="display:flex;color:#666;padding-left:5px;margin-top:-5px;float:left">
 			{#if git}
 				<a href={git} title={git.split('//').slice(-1)}>
-					<i class="fa-brands fa-github" style="margin-right:5px"></i>{git.split('//').slice(-1)}</a
-				>
+					<i class="fa-brands fa-github" style="margin-right:5px"></i>{git.split('//').slice(-1)}
+				</a>
 			{:else if $page.data.user != null && id == $page.data.user.id}
 				<div contenteditable="true" bind:textContent={git}>git url</div>
 			{/if}
@@ -114,7 +115,9 @@
 					<!-- Repo Tabs -->
 
 					<div class="tab-content">
-						<div class="tab-pane active" id="summary1">Not implemented</div>
+						<div class="tab-pane active" id="summary1">
+							<Summary {id} {username} />
+						</div>
 						<div class="tab-pane" id="questions">Not implemented</div>
 						<div class="tab-pane" id="answers">Not implemented</div>
 					</div>

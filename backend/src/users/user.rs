@@ -183,3 +183,9 @@ pub struct LoginResponse {
     pub user: User,
     pub success: bool,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SummaryResponse {
+    pub answers_count: Option<i64>,
+    pub questions_count: Option<i64>,
+}

@@ -6,8 +6,8 @@
 	import { page } from '$app/stores';
 	import * as api from '$lib/api.js';
 	import { afterUpdate, onMount } from 'svelte';
-	import Edit from './_Edit.svelte';
 	import Summary from './_Summary.svelte';
+	let edit;
 
 	let id = $page.params.id;
 	$: username = '';
@@ -36,8 +36,10 @@
 		}
 	}
 
+	function loadEdit() {
+		edit = import('./_Edit.svelte');
+	}
 	onMount(async () => await getUser());
-	afterUpdate(async () => await getUser());
 </script>
 
 <svelte:head>
@@ -87,9 +89,6 @@
 		<div style="margin-top:20px">
 			<ul class="nav nav-tabs">
 				<li class="nav-item">
-					<a class="nav-link" aria-current="page" href="#profile" data-bs-toggle="tab">Profile</a>
-				</li>
-				<li class="nav-item">
 					<a class="nav-link active" href="#activity" data-bs-toggle="tab">Activity</a>
 				</li>
 				<li class="nav-item">
@@ -97,7 +96,9 @@
 				</li>
 				{#if $page.data.user != null && id == $page.data.user.id}
 					<li class="nav-item">
-						<a class="nav-link" href="#settings" data-bs-toggle="tab">Settings</a>
+						<a class="nav-link" href="#settings" data-bs-toggle="tab" on:click={loadEdit}
+							>Settings</a
+						>
 					</li>
 				{/if}
 			</ul>
@@ -105,7 +106,6 @@
 			<div class="tab-content">
 				<!-- Repo -->
 				<div class="tab-pane active" id="activity">
-					<!-- Repo Tabs --->
 					<ul class="nav nav-tabs" id="repoTabs">
 						<li><a class="nav-link active" href="#summary1" data-bs-toggle="tab">Summary</a></li>
 						<li><a class="nav-link" href="#questions" data-bs-toggle="tab">Questions</a></li>
@@ -122,7 +122,6 @@
 						<div class="tab-pane" id="answers">Not implemented</div>
 					</div>
 				</div>
-				<div class="tab-pane" id="profile">Not implemented</div>
 				<div class="tab-pane" id="bookmarks">Not implemented</div>
 				<div class="tab-pane" id="settings">
 					<ul class="nav nav-tabs">
@@ -134,7 +133,11 @@
 					</ul>
 					<div class="tab-content">
 						<div class="tab-pane active" id="edit-profile">
-							<Edit {id} {username} {imageUrl} {location} {git} {website} {designation} />
+							{#if edit}
+								{#await edit then { default: Edit }}
+									<Edit {id} {username} {imageUrl} {location} {git} {website} {designation} />
+								{/await}
+							{/if}
 						</div>
 						<div class="tab-pane" id="delete-profile">Not implemented</div>
 						<div class="tab-pane" id="settings1">Not implemented</div>

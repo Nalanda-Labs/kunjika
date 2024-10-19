@@ -323,7 +323,7 @@
 	<div style="clear:both;margin-bottom:10px" />
 	{#each questions as { question_id, description, votes, posted_by_id, username, initials, image_url, shown_ts, answer_accepted, reply_to_id, rusername, rimage_url, vote_class1, vote_class2 }}
 		<hr style="border-bottom:1px solid;color:#ccc;" />
-		<div style="margin-top:10px" id={question_id}>
+		<div style="margin-top:10px" id={question_id} href="#{question_id}">
 			<div style="float:left;margin-right:10px">
 				{#if image_url === '' || image_url === undefined}
 					<a href="/users/{posted_by_id}/{username}">

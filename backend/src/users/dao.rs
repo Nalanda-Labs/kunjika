@@ -15,6 +15,8 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn get_links(&self, uid: i64) -> sqlx::Result<LinksResponse>;
     async fn update_links(&self, uid: i64, form: &LinksResponse) -> sqlx::Result<bool>;
     async fn verify_email(&self, who: &str) -> sqlx::Result<bool>;
+    async fn update_profile_image(&self, uid: i64, url: &String) -> sqlx::Result<bool>;
+    async fn update_profile(&self, uid: &i64, data: &ProfileReq) -> sqlx::Result<bool>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 
@@ -313,6 +315,38 @@ impl IUser for &AppStateRaw {
             form.website,
             form.git,
             form.twitter,
+            uid
+        )
+        .execute(&self.sql)
+        .await?;
+
+        Ok(true)
+    }
+
+    async fn update_profile_image(&self, uid: i64, url: &String) -> sqlx::Result<bool> {
+        sqlx::query!(
+            r#"
+            update users set image_url=$1 where id=$2
+            "#,
+            url,
+            uid
+        )
+        .execute(&self.sql)
+        .await?;
+
+        Ok(true)
+    }
+
+    async fn update_profile(&self, uid: &i64, data: &ProfileReq) -> sqlx::Result<bool> {
+        sqlx::query!(
+            r#"
+            update users set designation=$1, username=$2, git=$3, website=$4, location=$5 where id=$6
+            "#,
+            data.designation,
+            data.username,
+            data.git,
+            data.website,
+            data.location,
             uid
         )
         .execute(&self.sql)

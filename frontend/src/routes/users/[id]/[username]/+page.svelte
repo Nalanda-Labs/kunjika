@@ -6,15 +6,15 @@
 	import { page } from '$app/stores';
 	import * as api from '$lib/api.js';
 	import { afterUpdate, onMount } from 'svelte';
+	import Edit from './_Edit.svelte';
 
 	let id = $page.params.id;
-	let username = '';
-	let imageUrl = '';
-	let displayname = '';
-	let designation = '';
-	let git = 'git url';
-	let website = '';
-	let location = '';
+	$: username = '';
+	$: imageUrl = '';
+	$: designation = '';
+	$: git = 'git url';
+	$: website = '';
+	$: location = '';
 	let created_date = '';
 	let cat = '';
 
@@ -26,15 +26,12 @@
 			const j = text ? JSON.parse(text) : {};
 			username = j.data.username;
 			imageUrl = j.data.image_url;
-			displayname = j.data.displayname;
 			designation = j.data.designation;
 			git = j.data.git;
 			website = j.data.website;
 			location = j.data.location;
 			created_date = j.data.created_date;
-			console.log(j);
 			cat = new Date(j.data.cat * 1000).toISOString();
-			console.log(cat);
 		}
 	}
 
@@ -49,10 +46,14 @@
 <div class="row justify-content-center align-items-center" style="margin-top:20px">
 	<div class="col-12">
 		<a href="/users/{id}/{username}" style="display:flex;float:left">
-			<img src="{imageUrl}?s=128" alt="{displayname}'s avatar" style="display:flex;float:left" />
+			<img
+				src={imageUrl}
+				alt="{username}'s avatar"
+				style="display:flex;float:left;width:128px;height:128px"
+			/>
 		</a>
 		<h4 style="display:flex;flex-wrap: wrap !important;padding-left:5px">
-			{displayname || username}
+			{username}
 		</h4>
 		<h5 style="display:flex;color:#666;padding-left:5px;margin-top:-5px">
 			{designation}
@@ -62,28 +63,23 @@
 		</p>
 		<p style="display:flex;color:#666;padding-left:5px;margin-top:-5px;float:left">
 			{#if git}
-				<a href={git} title={git.split('/').slice(-1)}>
-					<i class="fa-brands fa-github" style="margin-right:5px"></i></a
+				<a href={git} title={git.split('//').slice(-1)}>
+					<i class="fa-brands fa-github" style="margin-right:5px"></i>{git.split('//').slice(-1)}</a
 				>
-			{:else if id == $page.data.user.id}
+			{:else if $page.data.user != null && id == $page.data.user.id}
 				<div contenteditable="true" bind:textContent={git}>git url</div>
 			{/if}
 			{#if website}
-				<a href={website}
-					><i class="fa-solid fa-link"></i>
+				<a href={website}>
+					<i class="fa-solid fa-link"></i>
 					{website.split('//').slice(-1)}
 				</a>
 			{/if}
 			{#if location}
-				<a href={location}
-					><i class="fa-solid fa-location-dot" style="margin-left:5px"></i>
+				<a href={location}>
+					<i class="fa-solid fa-location-dot" style="margin-left:5px"></i>
 					{location}
 				</a>
-			{/if}
-		</p>
-		<p style="display:flex;color:#666;padding-left:5px;float:right">
-			{#if id == $page.data.user.id}
-				<a class="btn" href="/users/edit/{id}"><i class="fa-solid fa-edit"></i> Edit Profile</a>
 			{/if}
 		</p>
 		<div style="clear:both;" />
@@ -98,9 +94,11 @@
 				<li class="nav-item">
 					<a class="nav-link" href="#bookmarks" data-bs-toggle="tab">Bookmarks</a>
 				</li>
-				<li class="nav-item">
-					<a class="nav-link" href="#settings" data-bs-toggle="tab">Settings</a>
-				</li>
+				{#if $page.data.user != null && id == $page.data.user.id}
+					<li class="nav-item">
+						<a class="nav-link" href="#settings" data-bs-toggle="tab">Settings</a>
+					</li>
+				{/if}
 			</ul>
 			<div style="margin-top:10px" />
 			<div class="tab-content">
@@ -125,12 +123,16 @@
 				<div class="tab-pane" id="bookmarks">Not implemented</div>
 				<div class="tab-pane" id="settings">
 					<ul class="nav nav-tabs">
-						<li><a class="nav-link active" href="#edit-profile" data-bs-toggle="tab">Edit</a></li>
+						<li>
+							<a class="nav-link active" href="#edit-profile" data-bs-toggle="tab"> Edit </a>
+						</li>
 						<li><a class="nav-link" href="#delete-profile" data-bs-toggle="tab">Delete</a></li>
 						<li><a class="nav-link" href="#settings1" data-bs-toggle="tab">Settings</a></li>
 					</ul>
 					<div class="tab-content">
-						<div class="tab-pane active" id="edit-profile">Not implemented</div>
+						<div class="tab-pane active" id="edit-profile">
+							<Edit {id} {username} {imageUrl} {location} {git} {website} {designation} />
+						</div>
 						<div class="tab-pane" id="delete-profile">Not implemented</div>
 						<div class="tab-pane" id="settings1">Not implemented</div>
 					</div>

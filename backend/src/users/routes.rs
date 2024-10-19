@@ -1,3 +1,5 @@
+use std::{fs, io::Write};
+
 use super::dao::IUser;
 use super::user::*;
 use crate::middlewares::auth::{self, AuthorizationService};
@@ -8,6 +10,7 @@ use crate::utils::verify_user::verify_profile_user;
 
 use cookie::time::Duration;
 use cookie::Cookie;
+use futures::{StreamExt, TryStreamExt};
 use lettre::{
     transport::smtp::authentication::Credentials, AsyncSmtpTransport, AsyncTransport, Message,
     Tokio1Executor,
@@ -15,7 +18,9 @@ use lettre::{
 use mobc_redis::redis::{self, AsyncCommands};
 use ntex::http::HttpMessage;
 use ntex::web::{self, get, post, Error, HttpRequest, HttpResponse, Responder};
+use ntex_multipart::Multipart;
 use serde_json::json;
+use uuid::Uuid;
 use validator::Validate;
 
 // curl -v --data '{"name": "Bob", "email": "Bob@google.com", "password": "Bobpass"}' -H "Content-Type: application/json" -X POST localhost:8080/user/register
@@ -524,6 +529,33 @@ async fn get_profile(
     }
 }
 
+#[post("/{id}/update-profile")]
+async fn update_profile(
+    params: web::types::Path<String>,
+    form: web::types::Json<ProfileReq>,
+    state: AppState,
+    auth: auth::AuthorizationService,
+) -> impl Responder {
+    let uid = params.parse::<i64>().unwrap();
+    let f = form.into_inner();
+    debug!("{}", uid);
+    let self_user = verify_profile_user(uid, &auth).await;
+
+    if !self_user {
+        return HttpResponse::Unauthorized()
+            .json(&json!({"success": false, "message": "Only self can update the profile!"}));
+    }
+
+    match state.get_ref().update_profile(&uid, &f).await {
+        Ok(profile) => HttpResponse::Ok().json(&json!({"success": true})),
+        Err(e) => {
+            debug!("{:?}", e.to_string());
+            HttpResponse::InternalServerError()
+                .json(&json!({"status": false, "message": e.to_string()}))
+        }
+    }
+}
+
 #[get("/user/{id}")]
 async fn get_user(
     params: web::types::Path<String>,
@@ -709,6 +741,74 @@ async fn update_links(
     }
 }
 
+#[post("/{id}/profile-image-upload")]
+async fn image_upload(
+    params: web::types::Path<String>,
+    mut payload: Multipart,
+    state: AppState,
+    auth: AuthorizationService,
+) -> impl Responder {
+    let uid = params.parse::<i64>().unwrap();
+    let self_user = verify_profile_user(uid, &auth).await;
+
+    if !self_user {
+        return HttpResponse::Unauthorized().json(
+            &json!({"success": false, "message": "Only self can update the profile image!"}),
+        );
+    }
+    // This will panic in case of error, which is a good thing because it means it is broken.
+    // It must not panic in general for the app to be usable.
+    // we do not check for image size. This should be set at web server level
+    // by limiting client max body size.
+    let current_date = time::OffsetDateTime::now_utc();
+    let year = current_date.year();
+    let month = current_date.month();
+    let day = current_date.day();
+    // relative path from root
+    let path = format!("{}/{}/{}/{}", state.config.upload_folder, year, month, day);
+    fs::create_dir_all(&path).unwrap();
+    let filename = Uuid::new_v4().to_string();
+    let filepath = format!("{}/{}", &path, filename);
+
+    // iterate over multipart stream
+    while let Ok(Some(mut field)) = payload.try_next().await {
+        let mut len = 0;
+        let filepath1 = format!("{}/{}", &path, filename);
+        let mut f = web::block(|| std::fs::File::create(filepath1))
+            .await
+            .unwrap();
+        // Field in turn is stream of *Bytes* object
+        while let Some(chunk) = field.next().await {
+            let filepath2 = format!("{}/{}", &path, filename);
+            let data = chunk.unwrap();
+            len += data.len();
+            // file size is more than 2 MB so delete the file and return response
+            if len > state.config.image_max_size {
+                web::block(|| std::fs::remove_file(filepath2))
+                    .await
+                    .unwrap();
+
+                return HttpResponse::BadRequest().json(&json!({"success": false}));
+            }
+            // filesystem operations are blocking, we have to use threadpool
+            f = web::block(move || f.write_all(&data).map(|_| f))
+                .await
+                .unwrap();
+        }
+    }
+
+    let url = state.config.backend_url.clone() + &filepath;
+
+    match state.get_ref().update_profile_image(uid, &url).await {
+        Ok(_r) => HttpResponse::Ok().json(&json!({"success": true, "url": url})),
+        Err(e) => {
+            debug!("{:?}", e.to_string());
+            HttpResponse::InternalServerError()
+                .json(&json!({"status": false, "message": e.to_string()}))
+        }
+    }
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(login);
     cfg.service(refresh_access_token_handler);
@@ -726,4 +826,6 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(get_links);
     cfg.service(update_links);
     cfg.service(get_user);
+    cfg.service(image_upload);
+    cfg.service(update_profile);
 }

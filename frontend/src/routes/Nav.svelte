@@ -32,35 +32,17 @@
 		<div class="collapse navbar-collapse" id="navbarSupportedContent">
 			<ul class="navbar-nav me-auto mb-2 mb-lg-0">
 				<li class="nav-item">
-					<a
-						rel="prefetch"
-						class="nav-link"
-						href="/questions"
-					>Questions
-					</a>
+					<a rel="prefetch" class="nav-link" href="/questions">Questions </a>
 				</li>
 				<li class="nav-item">
-					<a
-						rel="prefetch"
-						class="nav-link"
-						href="/tags"
-					>Tags
-					</a>
+					<a rel="prefetch" class="nav-link" href="/tags">Tags </a>
 				</li>
 				<li class="nav-item">
-					<a
-						rel="prefetch"
-						class="nav-link"
-						href="/users"
-					>Users
-					</a>
+					<a rel="prefetch" class="nav-link" href="/users">Users </a>
 				</li>
 				<li class="nav-item">
-					<a
-						class="nav-link"
-						href="https://github.com/Nalanda-Labs/kunjika"
-						target="_blank"
-					><i class="fa-brands fa-github"></i>
+					<a class="nav-link" href="https://github.com/Nalanda-Labs/kunjika" target="_blank"
+						><i class="fa-brands fa-github"></i>
 					</a>
 				</li>
 			</ul>
@@ -72,11 +54,7 @@
 							class="nav-link"
 							href="/users/{$page.data.user.id}/{$page.data.user.username}"
 						>
-							<img
-								src="{$page.data.user.image_url}?s=32"
-								alt="profile"
-								height="32px"
-							/>
+							<img src={$page.data.user.image_url} alt="profile" style="width:32px;height:32px" />
 						</a>
 					</li>
 					<li class="nav-item">

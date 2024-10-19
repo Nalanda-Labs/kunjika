@@ -233,11 +233,11 @@
 	<div style="margin-top:10px">
 		<div style="float:left;margin-right:10px;z-index:2;">
 			{#if image_url === ''}
-				<a href="/user/{posted_by}/{username}">
+				<a href="/users/{posted_by}/{username}">
 					<p data-letters={initials.toUpperCase()} />
 				</a>
 			{:else}
-				<a href="/user/{posted_by}/{username}">
+				<a href="/users/{posted_by}/{username}">
 					<img
 						src={image_url}
 						alt="profile pic"

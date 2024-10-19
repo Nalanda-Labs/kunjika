@@ -9,8 +9,8 @@
 	let users_per_page = 20;
 	let user = '';
 
-    async function getUsers() {
-        let response = await api.post('users', { last_user: user });
+	async function getUsers() {
+		let response = await api.post('users', { last_user: user });
 
 		if (response.status === 200) {
 			response = JSON.parse(await response.text());
@@ -21,7 +21,7 @@
 				pages += 1;
 			}
 		}
-    }
+	}
 	onMount(async () => await getUsers());
 
 	async function nextPage() {
@@ -91,23 +91,26 @@
 				<div class="col-sm-3">
 					<div class="card">
 						<div class="card-body">
-							<a
-								href="/users/{id}/{username}"
-								style="display:flex;float:left"
-							>
+							<a href="/users/{id}/{username}" style="display:flex;float:left">
 								<img
-									src="{image_url}?s=48"
+									src={image_url}
 									alt="{displayname}'s avatar"
-									style="display:flex;float:left"
+									style="display:flex;float:left;height:48px;width:48px"
 								/>
 							</a>
-							<p style="display:flex;flex-wrap: wrap !important;padding-left:5px;margin-bottom:5px;font-size:12px">
+							<p
+								style="display:flex;flex-wrap: wrap !important;padding-left:5px;margin-bottom:5px;font-size:12px"
+							>
 								{displayname || username}
-                            </p>
-							<p style="display:flex;color:#666;padding-left:5px;margin-top:-5px;margin-bottom:5px;font-size:12px">
+							</p>
+							<p
+								style="display:flex;color:#666;padding-left:5px;margin-top:-5px;margin-bottom:5px;font-size:12px"
+							>
 								{location}
 							</p>
-                            <p style="display:flex;color:#666;padding-left:5px;margin-top:-5px;margin-bottom:5px;font-size:12px">
+							<p
+								style="display:flex;color:#666;padding-left:5px;margin-top:-5px;margin-bottom:5px;font-size:12px"
+							>
 								{karma}
 							</p>
 						</div>

@@ -37,7 +37,6 @@
 
 				let text = await response.text();
 				let j = text ? JSON.parse(text) : {};
-				console.log(j);
 
 				if (response.status === 200 && j.data.id) {
 					let id = j.data.id;
@@ -130,6 +129,10 @@
 			}
 		}
 	}
+
+	closeForm = () => {
+		document.getElementById('myForm').style.display = 'none';
+	};
 </script>
 
 <div class="row justify-content-center align-items-center" style="margin-top:20px">

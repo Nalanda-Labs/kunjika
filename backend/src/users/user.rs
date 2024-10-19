@@ -163,6 +163,15 @@ pub struct ProfileResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct ProfileReq {
+    pub username: String,
+    pub designation: String,
+    pub location: String,
+    pub git: String,
+    pub website: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LinksResponse {
     pub website: String,
     pub git: String,

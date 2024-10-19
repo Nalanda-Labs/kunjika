@@ -167,6 +167,7 @@ impl IUser for &AppStateRaw {
             twitter,
             karma,
             created_date,
+            cat: created_date.unix_timestamp(),
         };
         Ok(p)
     }

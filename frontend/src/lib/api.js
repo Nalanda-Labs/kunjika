@@ -1,7 +1,7 @@
 // import { error } from '@sveltejs/kit';
 
 // change this to point it to a different host
-const base = 'http://localhost/api/v1';
+const base = 'http://localhost:8000/api/v1';
 
 async function send({ method, path, data, xsrf_token, headers }) {
 	const opts = { method, headers: {}, credentials: 'include' };

@@ -31,6 +31,7 @@
 	let shown_ts;
 	let description = '';
 	let errors = '';
+	let asked_ts = '';
 	let vote_by_current_user = 0;
 	$: vote_class1 = 'anchor';
 	$: vote_class2 = 'anchor';
@@ -57,13 +58,13 @@
 				initials = username[0];
 			}
 
-			let asked_ts = Date.parse(time);
+			asked_ts = new Date(response.data.cat * 1000);
 			let now = Date.now();
 
 			shown_ts = Math.floor((now - asked_ts) / 1000);
+			console.log(shown_ts);
 
 			if (shown_ts >= 259200) {
-				asked_ts = new Date(time);
 				let year = asked_ts.getYear() + 1900;
 				let month = asked_ts.getMonth() + 1;
 				shown_ts = asked_ts.getDate() + '/' + month + '/' + year;
@@ -88,7 +89,9 @@
 			goto('/404');
 		}
 
-		response = await api.get(`question/get-answers/${id}/?time=${time}&limit=${limit}`);
+		response = await api.post(`question/get-answers/${id}/?limit=${limit}`, {
+			cat: asked_ts
+		});
 
 		response = JSON.parse(await response.text());
 
@@ -100,12 +103,11 @@
 				if (questions[i].image_url === '') {
 					questions[i].initials = response.data.questions[i].username[0];
 				}
-				let asked_ts = Date.parse(questions[i].created_at);
+				let asked_ts = new Date(questions[i].cat * 1000);
 				let now = Date.now();
 				questions[i].description = parseMarkdown(response.data.questions[i].description);
 				let shown_ts = Math.floor((now - asked_ts) / 1000);
 				if (shown_ts >= 259200) {
-					asked_ts = new Date(questions[i].created_at);
 					let year = asked_ts.getYear() + 1900;
 					let month = asked_ts.getMonth() + 1;
 					shown_ts = asked_ts.getDate() + '/' + month + '/' + year;
@@ -390,7 +392,7 @@
 							><img
 								src="{rimage_url}?s=32"
 								alt={rusername}
-								style="display:inline;margin-right:10px"
+								style="display:inline;margin-right:10px;width: 32px;"
 							/></a
 						></span
 					>

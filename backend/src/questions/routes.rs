@@ -149,8 +149,9 @@ async fn get_questions_by_tag(
     }
 }
 
-#[get("/question/get-answers/{id}/")]
+#[post("/question/get-answers/{id}/")]
 async fn get_answers(
+    cat: ntex::web::types::Json<AnswersReq>,
     params: ntex::web::types::Path<i64>,
     q: ntex::web::types::Query<AnswersQuery>,
     req: HttpRequest,
@@ -173,14 +174,20 @@ async fn get_answers(
         uid = u.user.id;
     }
 
-    let qid = params.into_inner();
-    debug!("{:?}, {:?}, {:?}", &qid, q.time, q.limit);
+    let created_at = cat.into_inner();
+    let time;
+    debug!("{:?}", &created_at.cat);
+    if created_at.cat == "" {
+        time = time::OffsetDateTime::now_utc();
+        debug!("{:?}", time);
+    } else {
+        time = time::OffsetDateTime::parse(&created_at.cat, &Rfc3339).unwrap();
+    }
 
-    match state
-        .get_ref()
-        .get_answers(qid, &q.time, q.limit, uid)
-        .await
-    {
+    let qid = params.into_inner();
+    debug!("{:?}, {:?}, {:?}", &qid, &time, q.limit);
+
+    match state.get_ref().get_answers(qid, &time, q.limit, uid).await {
         Ok(db_answers) => HttpResponse::Ok().json(&json!({"data": db_answers})),
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": "fail", "message": e.to_string()})),

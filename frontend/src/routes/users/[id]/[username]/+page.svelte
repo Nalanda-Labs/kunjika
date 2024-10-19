@@ -16,6 +16,7 @@
 	let website = '';
 	let location = '';
 	let created_date = '';
+	let cat = '';
 
 	async function getUser() {
 		const response = await api.get(`user/${$page.params.id}/${$page.params.username}`);
@@ -31,6 +32,9 @@
 			website = j.data.website;
 			location = j.data.location;
 			created_date = j.data.created_date;
+			console.log(j);
+			cat = new Date(j.data.cat * 1000).toISOString();
+			console.log(cat);
 		}
 	}
 
@@ -54,7 +58,7 @@
 			{designation}
 		</h5>
 		<p style="display:flex;color:#666;padding-left:5px;margin-top:-5px">
-			Member since {created_date.split('T')[0]}
+			Member since {cat.split('T')[0]}
 		</p>
 		<p style="display:flex;color:#666;padding-left:5px;margin-top:-5px;float:left">
 			{#if git}

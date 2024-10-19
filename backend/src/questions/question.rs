@@ -69,6 +69,8 @@ pub struct QuestionResponse {
     pub username: String,
     pub image_url: String,
     pub vote_by_current_user: i64,
+    pub cat: i64,
+    pub uat: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -103,8 +105,12 @@ pub struct QuestionsResponse {
 }
 
 #[derive(Deserialize)]
+pub struct AnswersReq {
+    pub cat: String,
+}
+
+#[derive(Deserialize)]
 pub struct AnswersQuery {
-    pub time: SqlDateTime,
     pub limit: i64,
 }
 
@@ -124,6 +130,7 @@ pub struct AR {
     pub rusername: String,
     pub rimage_url: String,
     pub vote_by_current_user: i64,
+    pub cat: i64,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]

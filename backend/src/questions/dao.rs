@@ -230,6 +230,8 @@ impl IQuestion for &AppStateRaw {
             image_url: image_url,
             tags: trs,
             vote_by_current_user,
+            cat: question.created_at.unix_timestamp(),
+            uat: question.updated_at.unix_timestamp(),
         };
 
         Ok(qr)
@@ -278,6 +280,7 @@ impl IQuestion for &AppStateRaw {
                 rusername: q.rusername,
                 rimage_url: q.rimage_url,
                 vote_by_current_user: Option::expect(q.vote, "Error, which will never happen."),
+                cat: q.created_at.unix_timestamp(),
             };
             ars.questions.push(qr);
         }
@@ -288,7 +291,7 @@ impl IQuestion for &AppStateRaw {
         let questions = sqlx::query!(
             r#"
             select t.id, t.visible, t.title, t.created_at , t.posted_by_id, t.updated_at, t.votes, t.views, t.slug, users.image_url,
-            users.username as username, users.id as uid, array_agg(post_tags.tag_id) as tag_id, array_agg(tags.name) as tags, t.answer_count 
+            users.username as username, users.id as uid, array_agg(post_tags.tag_id) as tag_id, array_agg(tags.name) as tags, t.answer_count
             from posts t left
             join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
             tags on post_tags.tag_id = tags.id where t.op_id=0 and t.updated_at < $1 group by t.id, users.id order by

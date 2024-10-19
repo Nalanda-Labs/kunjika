@@ -1,7 +1,7 @@
 // PBKDF2 < bcrypt < scrypt < argon2
 use argon2::{self, Config};
-use time;
 use ring::digest;
+use time;
 
 fn passhash(pass: &str) -> String {
     let config = Config::default();
@@ -17,7 +17,6 @@ fn passhash_verify(pass: &str, hash: &str) -> bool {
 
 #[cfg(any(feature = "postgres"))]
 type SqlID = i64;
-
 
 type SqlDateTime = time::OffsetDateTime;
 
@@ -39,12 +38,12 @@ pub struct User {
     pub designation: Option<String>,
     pub location: Option<String>,
     pub git: Option<String>,
-    pub website: Option<String>
+    pub website: Option<String>,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct UserCookie {
-    pub user: User
+    pub user: User,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -68,7 +67,7 @@ pub struct Claims {
     pub username: String,
     pub id: i64,
     pub xsrf_token: String,
-    pub image_url: String
+    pub image_url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Validate)]
@@ -126,7 +125,7 @@ pub struct UserName {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UsersReq {
     pub last_user: String,
-    pub direction: Option<String>
+    pub direction: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -137,12 +136,12 @@ pub struct UR {
     pub name: String,
     pub location: String,
     pub image_url: String,
-    pub karma: i64
+    pub karma: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UserResponse {
-    pub users: Vec<UR>
+    pub users: Vec<UR>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -160,13 +159,14 @@ pub struct ProfileResponse {
     pub twitter: String,
     pub karma: i64,
     pub created_date: SqlDateTime,
+    pub cat: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LinksResponse {
     pub website: String,
     pub git: String,
-    pub twitter: String
+    pub twitter: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

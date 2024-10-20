@@ -2,7 +2,7 @@ use core::fmt;
 use mobc_redis::redis::AsyncCommands;
 use nonblock_logger::info;
 use ntex::http::HttpMessage;
-use ntex::web::{FromRequest, HttpRequest, DefaultError};
+use ntex::web::{DefaultError, FromRequest, HttpRequest};
 use serde::{Deserialize, Serialize};
 
 use crate::state::AppStateRaw;
@@ -36,7 +36,10 @@ impl<Err> FromRequest<Err> for AuthorizationService {
     type Error = ntex::web::error::InternalError<ErrorResponse, DefaultError>;
     // type Future = std::pin::Pin<Box<dyn Future<Output=Result<Self,Self::Error>>>> ;
 
-    async fn from_request(req: &HttpRequest, _: &mut ntex::http::Payload) -> Result<Self, Self::Error> {
+    async fn from_request(
+        req: &HttpRequest,
+        _: &mut ntex::http::Payload,
+    ) -> Result<Self, Self::Error> {
         let state = req.app_state::<AppStateRaw>().unwrap().clone();
 
         let xsrf_token_header = req
@@ -49,7 +52,8 @@ impl<Err> FromRequest<Err> for AuthorizationService {
             None => {
                 return Err(ntex::web::error::ErrorBadRequest(ErrorResponse {
                     status: "fail".to_string(),
-                    message: format!("Wrong XSRF token.")}));
+                    message: format!("Wrong XSRF token."),
+                }));
             }
         };
 
@@ -59,7 +63,8 @@ impl<Err> FromRequest<Err> for AuthorizationService {
                 info!("semi step 2");
                 return Err(ntex::web::error::ErrorBadRequest(ErrorResponse {
                     status: "fail".to_string(),
-                    message: format!("Wrong XSRF token.")}));
+                    message: format!("Wrong XSRF token."),
+                }));
             }
         };
 
@@ -68,7 +73,8 @@ impl<Err> FromRequest<Err> for AuthorizationService {
             None => {
                 return Err(ntex::web::error::ErrorBadRequest(ErrorResponse {
                     status: "fail".to_string(),
-                        message: format!("Wrong access token.")}));
+                    message: format!("Wrong access token."),
+                }));
             }
         };
 
@@ -81,18 +87,20 @@ impl<Err> FromRequest<Err> for AuthorizationService {
             Err(e) => {
                 return Err(ntex::web::error::ErrorUnauthorized(ErrorResponse {
                     status: "fail".to_string(),
-                    message: format!("{}", e)}));
+                    message: format!("{}", e),
+                }));
             }
         };
 
         info!("step 3");
         let access_token_uuid =
             uuid::Uuid::parse_str(&access_token_details.token_uuid.to_string()).unwrap();
-        
+
         if xsrf_token != access_token_uuid.clone().to_string() {
             return Err(ntex::web::error::ErrorBadRequest(ErrorResponse {
                 status: "fail".to_string(),
-                message: format!("Wrong XSRF token.")}));
+                message: format!("Wrong XSRF token."),
+            }));
         }
 
         info!("step 4");
@@ -119,18 +127,21 @@ impl<Err> FromRequest<Err> for AuthorizationService {
                 }));
             }
         };
-        let query_result =
-            sqlx::query_as!(User, 
-                "SELECT id, username, email, password_hash, created_date, modified_date, 
+        let query_result = sqlx::query_as!(
+            User,
+            "SELECT id, username, email, password_hash, created_date, modified_date, 
                 status, email_verified, image_url, designation, location, git,
                 website FROM users WHERE id = $1 and deleted=false",
-                user_id.parse::<i64>().unwrap()
-            )
-            .fetch_optional(&state.sql)
-            .await;
+            user_id.parse::<i64>().unwrap()
+        )
+        .fetch_optional(&state.sql)
+        .await;
 
         match query_result {
-            Ok(Some(user)) => Ok(AuthorizationService { user, xsrf_token: access_token_uuid.to_string() }),
+            Ok(Some(user)) => Ok(AuthorizationService {
+                user,
+                xsrf_token: access_token_uuid.to_string(),
+            }),
             Ok(None) => {
                 let json_error = ErrorResponse {
                     status: "fail".to_string(),

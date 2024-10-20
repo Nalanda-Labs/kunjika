@@ -22,7 +22,8 @@ async fn get_tags(
         }
         Err(e) => {
             error!("find user error: {:?}", e);
-            HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": e.to_string()}))
+            HttpResponse::InternalServerError()
+                .json(&json!({"status": "fail", "message": e.to_string()}))
         }
     }
 }
@@ -31,7 +32,11 @@ async fn get_tags(
 async fn get_all_tags(form: web::types::Json<TagRequest>, state: AppState) -> impl Responder {
     let tag = form.into_inner();
 
-    match state.get_ref().get_all_tags_by_name(&tag.tag, &tag.direction).await {
+    match state
+        .get_ref()
+        .get_all_tags_by_name(&tag.tag, &tag.direction)
+        .await
+    {
         Ok((t, count)) => {
             debug!("find tags {:?} ", t);
 
@@ -39,7 +44,8 @@ async fn get_all_tags(form: web::types::Json<TagRequest>, state: AppState) -> im
         }
         Err(e) => {
             debug!("tags error: {:?}", e);
-            HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": e.to_string()}))
+            HttpResponse::InternalServerError()
+                .json(&json!({"status": "fail", "message": e.to_string()}))
         }
     }
 }
@@ -56,7 +62,8 @@ async fn get_tag_info(
         Ok(info) => HttpResponse::Ok().json(&json!({"data": info})),
         Err(e) => {
             debug!("update tag info: {:?}", e);
-            HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": e.to_string()}))
+            HttpResponse::InternalServerError()
+                .json(&json!({"status": "fail", "message": e.to_string()}))
         }
     }
 }
@@ -78,7 +85,8 @@ async fn update_tag_info(
         Ok(_t) => HttpResponse::Ok().json(&json!({"data": id})),
         Err(e) => {
             debug!("update tag info: {:?}", e);
-            HttpResponse::InternalServerError().json(&json!({"status": "fail", "message": e.to_string()}))
+            HttpResponse::InternalServerError()
+                .json(&json!({"status": "fail", "message": e.to_string()}))
         }
     }
 }

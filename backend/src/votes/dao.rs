@@ -27,12 +27,18 @@ impl IVote for &AppStateRaw {
 
         if receiving_user == 0 {
             debug!("User receiving vote not found!");
-            return Ok(VoteResult{e: VoteEnum::ReceivingUserNotFound, vote_by_user: -2});
+            return Ok(VoteResult {
+                e: VoteEnum::ReceivingUserNotFound,
+                vote_by_user: -2,
+            });
         }
 
         if receiving_user == user.id {
             debug!("You cannot vote on your own post!");
-            return Ok(VoteResult{e: VoteEnum::VoteYourOwnPost, vote_by_user: -2});
+            return Ok(VoteResult {
+                e: VoteEnum::VoteYourOwnPost,
+                vote_by_user: -2,
+            });
         }
 
         let query1 = sqlx::query!(r#"select karma from users where id=$1"#, receiving_user)
@@ -95,7 +101,10 @@ impl IVote for &AppStateRaw {
         } else {
             if data.vote == vote[0].vote {
                 debug!("You can cast upvote/downvote only once.");
-                return Ok(VoteResult{e: VoteEnum::VoteOnce, vote_by_user: -2});
+                return Ok(VoteResult {
+                    e: VoteEnum::VoteOnce,
+                    vote_by_user: -2,
+                });
             } else {
                 sqlx::query!(
                     r#"update votes set vote = vote + $1 where topic_id=$2 and from_user_id=$3"#,
@@ -150,6 +159,9 @@ impl IVote for &AppStateRaw {
         }
 
         tx.commit().await?;
-        Ok(VoteResult{e: VoteEnum::VoteSuccessful, vote_by_user})
+        Ok(VoteResult {
+            e: VoteEnum::VoteSuccessful,
+            vote_by_user,
+        })
     }
 }

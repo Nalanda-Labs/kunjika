@@ -227,7 +227,7 @@ impl IQuestion for &AppStateRaw {
             created_at: question.created_at,
             updated_at: question.updated_at,
             username: question.username,
-            image_url: image_url,
+            image_url,
             tags: trs,
             vote_by_current_user,
             cat: question.created_at.unix_timestamp(),
@@ -446,7 +446,7 @@ impl IQuestion for &AppStateRaw {
         let pr = PostResponse {
             title,
             description: r.description,
-            tags: tags,
+            tags,
         };
 
         Ok(pr)

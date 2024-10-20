@@ -1,4 +1,4 @@
-pub async fn create_slug(text: &str) ->String {
+pub async fn create_slug(text: &str) -> String {
     let mut slug = "".to_string();
     let mut prev_dash = false;
     for c in text.chars() {

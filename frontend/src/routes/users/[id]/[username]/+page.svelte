@@ -7,7 +7,9 @@
 	import * as api from '$lib/api.js';
 	import { afterUpdate, onMount } from 'svelte';
 	import Summary from './_Summary.svelte';
+
 	let edit;
+	let questions;
 
 	let id = $page.params.id;
 	$: username = '';
@@ -39,6 +41,11 @@
 	function loadEdit() {
 		edit = import('./_Edit.svelte');
 	}
+
+	function loadQuestions() {
+		questions = import('./_Questions.svelte');
+	}
+
 	onMount(async () => await getUser());
 </script>
 
@@ -108,7 +115,11 @@
 				<div class="tab-pane active" id="activity">
 					<ul class="nav nav-tabs" id="repoTabs">
 						<li><a class="nav-link active" href="#summary1" data-bs-toggle="tab">Summary</a></li>
-						<li><a class="nav-link" href="#questions" data-bs-toggle="tab">Questions</a></li>
+						<li>
+							<a class="nav-link" href="#questions" data-bs-toggle="tab" on:click={loadQuestions}
+								>Questions</a
+							>
+						</li>
 						<li><a class="nav-link" href="#answers" data-bs-toggle="tab">Answers</a></li>
 					</ul>
 
@@ -118,7 +129,13 @@
 						<div class="tab-pane active" id="summary1">
 							<Summary {id} {username} />
 						</div>
-						<div class="tab-pane" id="questions">Not implemented</div>
+						<div class="tab-pane" id="questions">
+							{#if questions}
+								{#await questions then { default: Questions }}
+									<Questions {id} />
+								{/await}
+							{/if}
+						</div>
 						<div class="tab-pane" id="answers">Not implemented</div>
 					</div>
 				</div>

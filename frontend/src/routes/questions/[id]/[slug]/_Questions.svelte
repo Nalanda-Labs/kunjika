@@ -8,7 +8,7 @@
 	import Preview from '../../../../components/Editor/Preview.svelte';
 	import getCookie from '../../../../lib/cookie';
 	import { browser } from '$app/environment';
-	import ListErrors from '../../../../lib/ListErrors.svelte';
+	import { closeForm, addImageURL } from '../../../../lib/utils/editor/utils.editor';
 
 	export let id;
 	export let slug;
@@ -146,11 +146,12 @@
 		reply_to_id = reply_to;
 		user_replied = username;
 
-		if (document.getElementById('editor').style.display === 'none') {
-			document.getElementById('editor').style.display = 'block';
-		} else {
-			document.getElementById('editor').style.display = 'none';
+		let editor = document.getElementById('editor');
+		if (editor.style.display === 'none') {
+			editor.style.display = 'block';
 		}
+
+		editor.scrollIntoView(false);
 	}
 
 	function colorLink(elementID, count_by_user) {

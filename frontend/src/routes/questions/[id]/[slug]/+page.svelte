@@ -5,13 +5,13 @@
 <script>
 	import Questions from './_Questions.svelte';
 	import { page } from '$app/stores';
-	import { onMount } from 'svelte';
 	import * as api from '$lib/api.js';
 	import Editor from '../../../../components/Editor/Editor.svelte';
 	import '../../../../editor.css';
 	import Preview from '../../../../components/Editor/Preview.svelte';
 	import { browser } from '$app/environment';
 	import getCookie from '../../../../lib/cookie';
+	import { closeForm, addImageURL } from '../../../../lib/utils/editor/utils.editor';
 
 	let reply_to_id;
 	let user_replied;
@@ -29,15 +29,14 @@
 	function show_editor(reply_to, username) {
 		reply_to_id = reply_to;
 		user_replied = username;
-		if (document.getElementById('editor').style.display === 'none') {
-			document.getElementById('editor').style.display = 'block';
-		} else {
-			document.getElementById('editor').style.display = 'none';
+		let editor = document.getElementById('editor');
+		if (editor.style.display === 'none') {
+			editor.style.display = 'block';
 		}
-		// TODO: Fix scroll on showing editor
-		var editorDiv = document.getElementById('editor');
-		editorDiv.scrollTo({ left: 0, top: document.body.scrollHeight, behavior: 'smooth' });
+
+		editor.scrollIntoView(false);
 	}
+
 	async function reply() {
 		if ($page.data.user) {
 			inProgress = true;
@@ -82,6 +81,46 @@
 	function handleChange(e) {
 		value = e.detail.value;
 	}
+
+	async function onImageUpload(e) {
+		e.preventDefault();
+		let formData = new FormData();
+		let image = document.getElementById('image').files[0];
+
+		if (!image) {
+			alert('No image selected!');
+		}
+
+		if (image.size > 2 * 1024 * 1024) {
+			alert('Max file size is 2MB');
+			return;
+		}
+
+		formData.append('file', image);
+
+		if (browser) {
+			console.log('hello');
+			let xsrf_token = getCookie('xsrf_token');
+			const response = await api.upload({
+				method: 'POST',
+				path: 'image-upload',
+				data: formData,
+				xsrf_token,
+				headers: null
+			});
+
+			let text = await response.text();
+			let j = text ? JSON.parse(text) : {};
+			console.log(j);
+
+			if (response.status === 200 && j.url) {
+				closeForm();
+				addImageURL(`![alt](${j.url})`);
+			} else {
+				alert(j.message);
+			}
+		}
+	}
 </script>
 
 <svelte:head>
@@ -92,7 +131,6 @@
 	<div class="col-8">
 		<div class="col-xs-12">
 			<Questions {id} {slug} bind:reply_to_id bind:questions bind:user_replied />
-			<div id="questions-end" style="display:none" />
 			<hr style="border-bottom:1px solidl;color:#eee" />
 			{#if $page.data.user}
 				<a href="/edit/{id}" class="anchor" title="Edit your post" style="margin-right:5px"
@@ -147,6 +185,38 @@
 				</div>
 				<div style="min-height: 20px;" />
 			</form>
+			<div
+				class="modal modal-dialog-centered"
+				tabindex="-1"
+				role="dialog"
+				id="myForm"
+				style="top:300px; display:none"
+			>
+				<div class="modal-dialog" role="document">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title">Image Upload</h5>
+						</div>
+						<div class="modal-body">
+							<form class="form-container" on:submit|preventDefault={onImageUpload}>
+								<h4>Uplaoad Image(Max 2MB)</h4>
+								<input type="file" name="image" accept="image/*" id="image" alt="image" /><br />
+
+								<div class="modal-footer">
+									<button type="submit" class="btn btn-primary">Upload</button>
+									<button
+										type="button"
+										class="btn btn-primary"
+										on:click={() => {
+											document.getElementById('myForm').style.display = 'none';
+										}}>Close</button
+									>
+								</div>
+							</form>
+						</div>
+					</div>
+				</div>
+			</div>
 		</div>
 	</div>
 </div>

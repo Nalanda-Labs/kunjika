@@ -10,73 +10,72 @@
 	import Preview from '../../../../components/Editor/Preview.svelte';
 	import getCookie from '../../../../lib/cookie.js';
 	import '../../../../editor.css';
-    import { onMount } from "svelte";
-    import { parseMarkdown } from "../../../../lib/utils/editor/utils.editor";
+	import { onMount } from 'svelte';
+	import { parseMarkdown } from '../../../../lib/utils/editor/utils.editor';
 
-	let title = "";
-    let tagList = [];
-    let time = "";
-    let votes = 0;
-    let posted_by;
-    let username;
-    let image_url = "";
-    let initials = "";
-    let shown_ts;
-    let description = "";
-    let value = "";
-    let reply_to_id = "";
-    let user_replied;
-    let contentValue = '',
+	let title = '';
+	let tagList = [];
+	let time = '';
+	let votes = 0;
+	let posted_by;
+	let username;
+	let image_url = '';
+	let initials = '';
+	let shown_ts;
+	let description = '';
+	let value = '';
+	let reply_to_id = '';
+	let user_replied;
+	let contentValue = '',
 		markup = '';
 	let showContentValueToast = false;
 
-
-    onMount(async () => {
+	onMount(async () => {
 		let xsrf_token = getCookie('xsrf_token');
-        let response = await api.get(`edit/question/${$page.params.id}`, xsrf_token);
+		let response = await api.get(`edit/question/${$page.params.id}`, xsrf_token);
 
-        if (response.status === 200) {
-            response = JSON.parse(await response.text());
-            title = response.data.title;
-            description = response.data.description;
-            value = parseMarkdown(response.data.description);
-            contentValue = response.data.description;
-            tagList = response.data.tags.map((tag) => tag);
+		if (response.status === 200) {
+			response = JSON.parse(await response.text());
+			title = response.data.title;
+			description = response.data.description;
+			value = parseMarkdown(response.data.description);
+			contentValue = response.data.description;
+			tagList = response.data.tags.map((tag) => tag);
 			console.log(response.data.tags);
-            console.log(tagList);
-            time = response.data.created_at;
-            votes = response.data.votes;
-            posted_by = response.data.posted_by_id;
-            username = response.data.username;
-            reply_to_id = response.data.posted_by_id;
-            user_replied = username;
-            image_url = response.data.image_url;
-            if (image_url === "") {
-                initials = username[0];
-            }
-            let asked_ts = Date.parse(time);
-            let now = Date.now();
-            shown_ts = Math.floor((now - asked_ts) / 1000);
-            if (shown_ts >= 259200) {
-                asked_ts = new Date(time);
-                let year = asked_ts.getYear() + 1900;
-                let month = asked_ts.getMonth() + 1;
-                shown_ts = asked_ts.getDate() + "/" + month + "/" + year;
-            } else if (172800 <= shown_ts && shown_ts < 259200) {
-                shown_ts = "asked 2 days ago";
-            } else if (86400 <= shown_ts && shown_ts < 172800) {
-                shown_ts = "asked yesterday";
-            } else if (3600 <= shown_ts && shown_ts < 8640000) {
-                shown_ts = "asked " + Math.floor(shown_ts / 3600) + "h ago";
-            } else if (60 <= shown_ts && shown_ts < 3600) {
-                shown_ts = "asked " + Math.floor(shown_ts / 60) + "m ago";
-            } else {
-                shown_ts = "asked " + shown_ts + "s ago";
-            }
-        } else if (response.status === 404) {
-            goto("/404");
-        }
-    })
+			console.log(tagList);
+			time = response.data.created_at;
+			votes = response.data.votes;
+			posted_by = response.data.posted_by_id;
+			username = response.data.username;
+			reply_to_id = response.data.posted_by_id;
+			user_replied = username;
+			image_url = response.data.image_url;
+			if (image_url === '') {
+				initials = username[0];
+			}
+			let asked_ts = Date.parse(time);
+			let now = Date.now();
+			shown_ts = Math.floor((now - asked_ts) / 1000);
+			if (shown_ts >= 259200) {
+				asked_ts = new Date(time);
+				let year = asked_ts.getYear() + 1900;
+				let month = asked_ts.getMonth() + 1;
+				shown_ts = asked_ts.getDate() + '/' + month + '/' + year;
+			} else if (172800 <= shown_ts && shown_ts < 259200) {
+				shown_ts = 'asked 2 days ago';
+			} else if (86400 <= shown_ts && shown_ts < 172800) {
+				shown_ts = 'asked yesterday';
+			} else if (3600 <= shown_ts && shown_ts < 8640000) {
+				shown_ts = 'asked ' + Math.floor(shown_ts / 3600) + 'h ago';
+			} else if (60 <= shown_ts && shown_ts < 3600) {
+				shown_ts = 'asked ' + Math.floor(shown_ts / 60) + 'm ago';
+			} else {
+				shown_ts = 'asked ' + shown_ts + 's ago';
+			}
+		} else if (response.status === 404) {
+			goto('/404');
+		}
+	});
 
 	async function onSubmit() {
 		if ($page.data.user) {
@@ -150,6 +149,46 @@
 			}
 		}
 	}
+
+	async function onImageUpload(e) {
+		e.preventDefault();
+		let formData = new FormData();
+		let image = document.getElementById('image').files[0];
+
+		if (!image) {
+			alert('No image selected!');
+		}
+
+		if (image.size > 2 * 1024 * 1024) {
+			alert('Max file size is 2MB');
+			return;
+		}
+
+		formData.append('file', image);
+
+		if (browser) {
+			console.log('hello');
+			let xsrf_token = getCookie('xsrf_token');
+			const response = await api.upload({
+				method: 'POST',
+				path: 'image-upload',
+				data: formData,
+				xsrf_token,
+				headers: null
+			});
+
+			let text = await response.text();
+			let j = text ? JSON.parse(text) : {};
+			console.log(j);
+
+			if (response.status === 200 && j.url) {
+				closeForm();
+				addImageURL(`![alt](${j.url})`);
+			} else {
+				alert(j.message);
+			}
+		}
+	}
 </script>
 
 <div class="row">
@@ -161,44 +200,76 @@
 		<hr />
 		<form class="col s12" on:submit|preventDefault={onSubmit}>
 			{#if title}
-			<div class="input-field">
-				<input
-					bind:value={title}
-					label="Title"
-					id="title"
-					type="text"
-					minlength="6"
-					maxlength="256"
-					style="min-width:100%"
-				/>
-				<label for="title">Summary</label>
-			</div>
+				<div class="input-field">
+					<input
+						bind:value={title}
+						label="Title"
+						id="title"
+						type="text"
+						minlength="6"
+						maxlength="256"
+						style="min-width:100%"
+					/>
+					<label for="title">Summary</label>
+				</div>
 			{/if}
 			<Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />
 			<Preview {markup} />
 			{#if tagList}
-			<div style="margin:30px" />
-			<Tags
-				name={'tags'}
-				bind:tags={tagList}
-				addKeys={[9]}
-				maxTags={5}
-				allowPaste={true}
-				allowDrop={true}
-				splitWith={','}
-				onlyUnique={true}
-				removeKeys={[27, 8]}
-				placeholder="Tags, tab to complete"
-				allowBlur={true}
-				disable={false}
-				id={'tags'}
-				minChars={1}
-				autoComplete={ts}
-			/>
+				<div style="margin:30px" />
+				<Tags
+					name={'tags'}
+					bind:tags={tagList}
+					addKeys={[9]}
+					maxTags={5}
+					allowPaste={true}
+					allowDrop={true}
+					splitWith={','}
+					onlyUnique={true}
+					removeKeys={[27, 8]}
+					placeholder="Tags, tab to complete"
+					allowBlur={true}
+					disable={false}
+					id={'tags'}
+					minChars={1}
+					autoComplete={ts}
+				/>
 			{/if}
 			<div class="b-wrapper">
 				<button type="submit" class="btn">Edit</button>
 			</div>
 		</form>
+		<div
+			class="modal modal-dialog-centered"
+			tabindex="-1"
+			role="dialog"
+			id="myForm"
+			style="top:300px; display:none"
+		>
+			<div class="modal-dialog" role="document">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title">Image Upload</h5>
+					</div>
+					<div class="modal-body">
+						<form class="form-container" on:submit|preventDefault={onImageUpload}>
+							<h4>Uplaoad Image(Max 2MB)</h4>
+							<input type="file" name="image" accept="image/*" id="image" alt="image" /><br />
+
+							<div class="modal-footer">
+								<button type="submit" class="btn btn-primary">Upload</button>
+								<button
+									type="button"
+									class="btn btn-primary"
+									on:click={() => {
+										document.getElementById('myForm').style.display = 'none';
+									}}>Close</button
+								>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		</div>
 	</div>
 </div>

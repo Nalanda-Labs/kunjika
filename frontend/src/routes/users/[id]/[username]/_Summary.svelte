@@ -11,6 +11,7 @@
 	let questions_count = 0;
 	let flags_count = 0;
 	let votes_count = 0;
+	let karma = 0;
 
 	onMount(async () => {
 		const response = await api.get(`${id}/summary`);
@@ -21,12 +22,21 @@
 
 			answers_count = j.data.answers_count;
 			questions_count = j.data.questions_count;
+			karma = j.data.karma;
 		}
 	});
 </script>
 
 <div class="row justify-content-center align-items-center" style="margin-top:20px">
 	<div class="row col-12">
+		<div class="card" style="width: 18rem;margin: 10px;">
+			<div class="card-body">
+				<h5 class="card-title">Karma</h5>
+				<p class="card-text">
+					{karma} karma earned.
+				</p>
+			</div>
+		</div>
 		<div class="card" style="width: 18rem;margin: 10px;">
 			<div class="card-body">
 				<h5 class="card-title">Questions</h5>

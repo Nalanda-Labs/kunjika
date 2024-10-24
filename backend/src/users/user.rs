@@ -188,4 +188,5 @@ pub struct LoginResponse {
 pub struct SummaryResponse {
     pub answers_count: Option<i64>,
     pub questions_count: Option<i64>,
+    pub karma: i64,
 }

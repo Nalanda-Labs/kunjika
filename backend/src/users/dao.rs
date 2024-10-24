@@ -374,9 +374,19 @@ impl IUser for &AppStateRaw {
         .fetch_one(&self.sql)
         .await?;
 
+        let karma = sqlx::query!(
+            r#"
+            select karma from users where id=$1
+            "#,
+            uid
+        )
+        .fetch_one(&self.sql)
+        .await?;
+
         let sr = SummaryResponse {
             answers_count: answers_count.answers_count,
             questions_count: questions_count.questions_count,
+            karma: karma.karma,
         };
 
         Ok(sr)

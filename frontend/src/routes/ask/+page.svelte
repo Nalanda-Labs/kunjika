@@ -130,9 +130,9 @@
 		}
 	}
 
-	closeForm = () => {
-		document.getElementById('myForm').style.display = 'none';
-	};
+	// function closeForm() {
+	// 	document.getElementById('myForm').style.display = 'none';
+	// }
 </script>
 
 <div class="row justify-content-center align-items-center" style="margin-top:20px">

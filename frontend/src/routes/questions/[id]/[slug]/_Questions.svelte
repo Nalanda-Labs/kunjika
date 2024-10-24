@@ -198,27 +198,30 @@
 		}
 	}
 	async function acceptAnswer(elementID) {
-		const response = await api.post(
-			`accept-answer/${id}/${elementID}/`,
-			{},
-			$page.data.user.xsrf_token
-		);
+		if (browser) {
+			let xsrf_token = getCookie('xsrf_token');
+			const response = await api.post(`accept-answer/${id}/${elementID}/`, {}, xsrf_token);
 
-		if (response.data.code != 200) {
-			M.toast({ html: response.data.msg });
-		} else {
-			for (var i = 0; i < questions.length; i++) {
-				if (questions[i].question_id == elementID) {
-					if (questions[i].answer_accepted == false) {
-						questions[i].answer_accepted = true;
+			if (response.status === 200) {
+				for (var i = 0; i < questions.length; i++) {
+					let answerElement = document.getElementById(`a-${elementID}`);
+					if (questions[i].question_id == elementID) {
+						if (questions[i].answer_accepted == false) {
+							questions[i].answer_accepted = true;
+							answerElement.classList.add('answer');
+						} else {
+							questions[i].answer_accepted = false;
+							answerElement.classList.remove('answer');
+						}
 					} else {
 						questions[i].answer_accepted = false;
+						answerElement.classList.remove('answer');
 					}
-				} else {
-					questions[i].answer_accepted = false;
 				}
+				questions = questions;
+			} else {
+				alert(response.message);
 			}
-			questions = questions;
 		}
 	}
 </script>
@@ -366,18 +369,20 @@
 						{#if answer_accepted}
 							<a
 								href="/accept-answer"
-								class="anchor"
+								class="anchor answer"
+								id="a-{question_id}"
 								on:click|preventDefault={acceptAnswer(question_id)}
 							>
-								<i class="fas fa-check" style="color: #080" />
+								<i class="fas fa-check" />
 							</a>
 						{:else}
 							<a
 								href="/accept-answer"
 								class="anchor"
+								id="a-{question_id}"
 								on:click|preventDefault={acceptAnswer(question_id)}
 							>
-								<i class="fas fa-check" style="color: #ddd" />
+								<i class="fas fa-check" />
 							</a>
 						{/if}
 					{/if}

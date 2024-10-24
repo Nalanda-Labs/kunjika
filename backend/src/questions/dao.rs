@@ -1,5 +1,8 @@
+use std::thread::current;
+
 use super::question::*;
 use crate::state::AppStateRaw;
+use sqlx::error::Error;
 
 #[async_trait]
 pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
@@ -33,6 +36,7 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         title: &String,
         slug: &String,
     ) -> sqlx::Result<(u64, String)>;
+    async fn accept_answer(&self, qid: i64, aid: i64, uid: &i64) -> sqlx::Result<bool, Error>;
 }
 
 #[cfg(any(feature = "postgres"))]
@@ -630,5 +634,123 @@ impl IQuestion for &AppStateRaw {
 
         println!("The post id is {}", id);
         Ok((id as u64, slug))
+    }
+
+    async fn accept_answer(&self, qid: i64, aid: i64, uid: &i64) -> sqlx::Result<bool, Error> {
+        let mut tx = self.sql.begin().await?;
+
+        let posted_by_id = sqlx::query!(
+            r#"
+            select posted_by_id from posts where id=$1
+            "#,
+            qid,
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        if posted_by_id.posted_by_id != *uid {
+            // we have to construct an sqlx error due to signature of the function
+            return Err(Error::ColumnNotFound("posted_by_id".to_owned()));
+        }
+
+        let current_answer = sqlx::query!(
+            r#"
+            select id, posted_by_id from posts where op_id=$1 and answer_accepted=true
+            "#,
+            qid
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        match current_answer {
+            Some(s) => {
+                sqlx::query!(
+                    r#"
+                    update users set karma=karma - $2 where id=$1
+                    "#,
+                    s.posted_by_id,
+                    self.config.karma_gain_per_answer
+                )
+                .execute(&mut *tx)
+                .await?;
+
+                sqlx::query!(
+                    r#"
+                    update users set karma=1 where karma < 1 and id=$1
+                    "#,
+                    s.posted_by_id
+                )
+                .execute(&mut *tx)
+                .await?;
+                if s.id == aid {
+                    info!("{}, {}", s.id, s.posted_by_id);
+                    sqlx::query!(
+                        r#"
+                        update posts set answer_accepted=false where id=$1 or id=$2
+                        "#,
+                        aid,
+                        qid
+                    )
+                    .execute(&mut *tx)
+                    .await?;
+                }
+
+                tx.commit().await?;
+                return Ok(true);
+            }
+            None => {}
+        }
+
+        sqlx::query!(
+            r#"
+            update posts set answer_accepted=true where id=$1
+            "#,
+            qid
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            update posts set answer_accepted=false where op_id=$1
+            "#,
+            qid
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            update posts set answer_accepted=true where id=$1
+            "#,
+            aid
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        let user_receiving_acceptance = sqlx::query!(
+            r#"
+            select posted_by_id from posts where id=$1
+            "#,
+            aid
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        if user_receiving_acceptance.posted_by_id != *uid {
+            sqlx::query!(
+                r#"
+                update users set karma=karma + $2 where id in (select posted_by_id as id from posts where id=$1)
+                "#,
+                aid,
+                self.config.karma_gain_per_answer
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+
+        Ok(true)
     }
 }

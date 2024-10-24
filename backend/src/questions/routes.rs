@@ -304,6 +304,21 @@ async fn image_upload(mut payload: Multipart, state: AppState) -> impl Responder
     return HttpResponse::Ok().json(&json!({"success": true, "url": url}));
 }
 
+#[post("accept-answer/{qid}/{aid}/")]
+async fn accept_answer(
+    params: ntex::web::types::Path<(i64, i64)>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let (qid, aid) = params.into_inner();
+
+    match state.get_ref().accept_answer(qid, aid, &auth.user.id).await {
+        Ok(_t) => HttpResponse::Ok().json(&json!({"success": true})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
+    }
+}
+
 pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(insert_question);
     cfg.service(get_question);
@@ -314,4 +329,5 @@ pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(get_edit_post);
     cfg.service(update_post);
     cfg.service(image_upload);
+    cfg.service(accept_answer);
 }

@@ -34,6 +34,7 @@ pub struct Config {
     pub upload_folder: String,
     pub backend_url: String,
     pub image_max_size: usize,
+    pub karma_gain_per_answer: i64,
 }
 
 impl Config {

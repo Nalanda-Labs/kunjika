@@ -231,7 +231,6 @@
 	<title>{title}</title>
 </svelte:head>
 <div>
-	<ListErrors {errors} />
 	<h3>{title}</h3>
 	<hr />
 	<div style="margin-top:10px">

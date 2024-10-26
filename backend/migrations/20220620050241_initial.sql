@@ -297,9 +297,18 @@ CREATE VIEW public.weekly_tags_by_popularity AS
   GROUP BY post_tags.tag_id, t.name
   ORDER BY (count(post_tags.tag_id));
 
-
 ALTER VIEW public.weekly_tags_by_popularity OWNER TO shiv;
 
+CREATE VIEW public.questions_count AS
+ SELECT count(1) AS count
+   FROM public.posts;
+
+CREATE VIEW public.questions_count_by_user AS
+SELECT count(1) AS count,
+    posted_by_id
+    FROM public.posts p
+    WHERE ((posted_by_id = posted_by_id) AND (op_id = 0))
+    GROUP BY posted_by_id;
 --
 -- Name: post_tags id; Type: DEFAULT; Schema: public; Owner: shiv
 --
@@ -558,5 +567,3 @@ ALTER TABLE ONLY public.posts
 --
 -- PostgreSQL database dump complete
 --
-
-

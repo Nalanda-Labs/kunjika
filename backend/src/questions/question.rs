@@ -97,6 +97,7 @@ pub struct QR {
     pub answers: i64,
     pub uat: i64,
     pub cat: i64,
+    pub answer_accepted: bool,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
@@ -159,4 +160,9 @@ pub struct EditRequest {
     #[validate(length(min = 20, max = 100000))]
     pub description: String,
     pub tag_list: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UserQuestionsReq {
+    pub uat: String,
 }

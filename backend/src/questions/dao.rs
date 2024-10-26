@@ -37,6 +37,11 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         slug: &String,
     ) -> sqlx::Result<(u64, String)>;
     async fn accept_answer(&self, qid: i64, aid: i64, uid: &i64) -> sqlx::Result<bool, Error>;
+    async fn get_questions_by_user(
+        &self,
+        uid: i64,
+        uat: &SqlDateTime,
+    ) -> sqlx::Result<QuestionsResponse>;
 }
 
 #[cfg(any(feature = "postgres"))]
@@ -294,8 +299,10 @@ impl IQuestion for &AppStateRaw {
     async fn get_questions(&self, updated_at: &SqlDateTime) -> sqlx::Result<QuestionsResponse> {
         let questions = sqlx::query!(
             r#"
-            select t.id, t.visible, t.title, t.created_at , t.posted_by_id, t.updated_at, t.votes, t.views, t.slug, users.image_url,
-            users.username as username, users.id as uid, array_agg(post_tags.tag_id) as tag_id, array_agg(tags.name) as tags, t.answer_count
+            select t.id, t.visible, t.title, t.created_at, t.posted_by_id, t.updated_at, t.votes,
+            t.views, t.slug, t.answer_accepted, users.image_url,
+            users.username as username, users.id as uid, array_agg(post_tags.tag_id)
+            as tag_id, array_agg(tags.name) as tags, t.answer_count
             from posts t left
             join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
             tags on post_tags.tag_id = tags.id where t.op_id=0 and t.updated_at < $1 group by t.id, users.id order by
@@ -344,6 +351,7 @@ impl IQuestion for &AppStateRaw {
                 answers: q.answer_count,
                 uat: q.updated_at.unix_timestamp(),
                 cat: q.created_at.unix_timestamp(),
+                answer_accepted: q.answer_accepted,
             };
             qrs.questions.push(qr);
             info!("{}", q.created_at);
@@ -358,8 +366,10 @@ impl IQuestion for &AppStateRaw {
     ) -> sqlx::Result<QuestionsResponse> {
         let questions = sqlx::query!(
             r#"
-            select t.id, t.visible, t.title, t.created_at , t.posted_by_id, t.updated_at, t.votes, t.views, t.slug, users.image_url,
-            users.username as username, users.id as uid, array_agg(post_tags.tag_id) as tag_id, array_agg(tags.name) as tags, t.answer_count from posts t left
+            select t.id, t.visible, t.title, t.created_at , t.posted_by_id, t.updated_at, t.votes,
+            t.views, t.slug, t.answer_accepted, users.image_url,
+            users.username as username, users.id as uid, array_agg(post_tags.tag_id) as tag_id,
+            array_agg(tags.name) as tags, t.answer_count from posts t left
             join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
             tags on post_tags.tag_id = tags.id where t.id in(select post_id from post_tags
             left join tags on tags.id=post_tags.tag_id where name=$1) and t.updated_at < $2 group by t.id, users.id order by
@@ -408,6 +418,7 @@ impl IQuestion for &AppStateRaw {
                 answers: q.answer_count,
                 uat: q.updated_at.unix_timestamp(),
                 cat: q.created_at.unix_timestamp(),
+                answer_accepted: q.answer_accepted,
             };
             qrs.questions.push(qr);
         }
@@ -752,5 +763,73 @@ impl IQuestion for &AppStateRaw {
         tx.commit().await?;
 
         Ok(true)
+    }
+
+    async fn get_questions_by_user(
+        &self,
+        uid: i64,
+        updated_at: &SqlDateTime,
+    ) -> sqlx::Result<QuestionsResponse> {
+        let questions = sqlx::query!(
+            r#"
+            select t.id, t.visible, t.title, t.created_at, t.posted_by_id, t.updated_at, t.votes,
+            t.views, t.slug, t.answer_accepted, users.image_url,
+            users.username as username, users.id as uid, array_agg(post_tags.tag_id)
+            as tag_id, array_agg(tags.name) as tags, t.answer_count
+            from posts t left
+            join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
+            tags on post_tags.tag_id = tags.id where t.op_id=0 and t.posted_by_id=$1 and
+            t.updated_at < $2 group by t.id, users.id order by
+            t.updated_at desc limit $3
+            "#, uid, updated_at, self.config.questions_per_page as i64
+        ).fetch_all(&self.sql)
+        .await?;
+
+        let mut qrs: QuestionsResponse = QuestionsResponse {
+            questions: Vec::new(),
+        };
+
+        for q in questions {
+            let image_url = q.image_url;
+            let tags = match q.tags {
+                Some(t) => t.join(","),
+                None => "".to_owned(),
+            };
+            let tid = match q.tag_id {
+                Some(t) => t.iter().map(|&e| e.to_string() + ",").collect(),
+                None => "".to_owned(),
+            };
+            let slug = match q.slug {
+                Some(s) => s,
+                None => "".to_owned(),
+            };
+            let title = match q.title {
+                Some(t) => t,
+                None => "".to_owned(),
+            };
+            let qr = QR {
+                id: q.id.to_string(),
+                title,
+                visible: q.visible,
+                votes: q.votes,
+                views: q.views,
+                slug,
+                posted_by_id: q.posted_by_id.to_string(),
+                created_at: q.created_at,
+                updated_at: q.updated_at,
+                username: q.username,
+                image_url,
+                tags,
+                uid: q.uid.to_string(),
+                tid,
+                answers: q.answer_count,
+                uat: q.updated_at.unix_timestamp(),
+                cat: q.created_at.unix_timestamp(),
+                answer_accepted: q.answer_accepted,
+            };
+            qrs.questions.push(qr);
+            info!("{}", q.created_at);
+        }
+        Ok(qrs)
     }
 }

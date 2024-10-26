@@ -319,6 +319,32 @@ async fn accept_answer(
     }
 }
 
+#[post("/{id}/get-questions-by-user/")]
+async fn get_questions_by_user(
+    params: ntex::web::types::Path<i64>,
+    form: ntex::web::types::Json<UserQuestionsReq>,
+    state: AppState,
+) -> impl Responder {
+    let uid = params.into_inner();
+    let uat = form.into_inner();
+
+    let time;
+    debug!("{:?}", &uat.uat);
+
+    if uat.uat == "" {
+        time = time::OffsetDateTime::now_utc();
+        debug!("{:?}", time);
+    } else {
+        time = time::OffsetDateTime::parse(&uat.uat, &Rfc3339).unwrap();
+    }
+
+    match state.get_ref().get_questions_by_user(uid, &time).await {
+        Ok(user_questions) => HttpResponse::Ok().json(&json!({"data": user_questions})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
+    }
+}
+
 pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(insert_question);
     cfg.service(get_question);
@@ -330,4 +356,5 @@ pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(update_post);
     cfg.service(image_upload);
     cfg.service(accept_answer);
+    cfg.service(get_questions_by_user);
 }

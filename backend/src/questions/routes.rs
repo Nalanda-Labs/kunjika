@@ -25,12 +25,12 @@ async fn insert_question(
 ) -> impl Responder {
     let r = form.into_inner();
     if r.tag_list.len() == 0 {
-        HttpResponse::UnprocessableEntity()
+        return HttpResponse::UnprocessableEntity()
             .json(&json!({"status": "fail", "message": "All tags were not found"}));
     }
 
     if r.tag_list.len() > 5 {
-        HttpResponse::UnprocessableEntity()
+        return HttpResponse::UnprocessableEntity()
             .json(&json!({"status": "fail", "message": "Too many tags."}));
     }
 

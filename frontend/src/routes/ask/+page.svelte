@@ -25,7 +25,8 @@
 				showContentValueToast = true;
 			}
 			if (tagList.length < 1) {
-				// Toast('At least one tag should be supplied.');
+				alert('At least one tag should be supplied.');
+				return;
 			}
 
 			if (browser) {

@@ -21,7 +21,6 @@
 			let updated_ts = new Date(answers[i].uat * 1000);
 			let now = new Date();
 			answers[i].updated_ts = updated_ts;
-			answers[i].aid = answers[i].id;
 
 			if (asked_ts == updated_ts) {
 				let shown_ts = Math.floor((now - asked_ts) / 1000);
@@ -151,36 +150,13 @@
 
 <div style="margin:20px">
 	<div class="row">
-		{#each answers as { aid, slug, title, tags, shown_ts, answers, views, answer_accepted }}
+		{#each answers as { answer_id, question_id, slug, title, tags, shown_ts }}
 			<hr
 				style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
 			/>
-			{#if answer_accepted}
-				<div
-					style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left;background-color: green;color: white;"
-				>
-					<p style="text-align:center;font-size:16px;margin-top:5px">
-						{answers}
-					</p>
-					<p style="text-align:center;font-size:10px;margin-top:0px;float:left">answers</p>
-				</div>
-			{:else}
-				<div style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left;">
-					<p style="text-align:center;font-size:16px;margin-top:5px">
-						{answers}
-					</p>
-					<p style="text-align:center;font-size:10px;margin-top:0px;float:left">answers</p>
-				</div>
-			{/if}
-			<div style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left">
-				<p style="text-align:center;font-size:16px;margin-top:5px">
-					{views}
-				</p>
-				<p style="text-align:center;font-size:10px;margin-top:10px;">views</p>
-			</div>
 			<div style="width:85%;float:left;position:relative">
 				<a
-					href="/questions/{id}/{slug}#{aid}"
+					href="/questions/{question_id}/{slug}#{answer_id}"
 					class="blue-text text-darken-2"
 					style="text-decoration:none; font-size:16px; font-weight:400">{title}</a
 				>

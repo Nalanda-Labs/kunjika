@@ -41,8 +41,14 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         &self,
         uid: i64,
         uat: &SqlDateTime,
-        directio: &Option<String>,
+        direction: &Option<String>,
     ) -> sqlx::Result<(QuestionsResponse, i64)>;
+    async fn get_answers_by_user(
+        &self,
+        uid: i64,
+        uat: &SqlDateTime,
+        directio: &Option<String>,
+    ) -> sqlx::Result<(AnswersResponse1, i64)>;
 }
 
 #[cfg(any(feature = "postgres"))]
@@ -766,6 +772,8 @@ impl IQuestion for &AppStateRaw {
         Ok(true)
     }
 
+    // This function does a translation from QR1 to QR which are very similar.
+    // To see why this is necessary convert query_as to query.
     async fn get_questions_by_user(
         &self,
         uid: i64,
@@ -780,10 +788,12 @@ impl IQuestion for &AppStateRaw {
                     t.views, t.slug, t.answer_accepted, users.image_url,
                     users.username as username, users.id as uid, array_agg(post_tags.tag_id)
                     as tag_id, array_agg(tags.name) as tags, t.answer_count
-                    from posts t left
-                    join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
-                    tags on post_tags.tag_id = tags.id where t.op_id=0 and t.posted_by_id=$1 and
-                    t.updated_at < $2 group by t.id, users.id order by
+                    from posts t
+                    left join users on t.posted_by_id=users.id
+                    left join post_tags on post_tags.post_id=t.id
+                    left join tags on post_tags.tag_id = tags.id
+                    where t.op_id=0 and t.posted_by_id=$1 and
+                    t.updated_at > $2 group by t.id, users.id order by
                     t.updated_at desc limit $3
                     "#, uid, updated_at, self.config.questions_per_page as i64
                 ).fetch_all(&self.sql)
@@ -865,5 +875,114 @@ impl IQuestion for &AppStateRaw {
         };
 
         Ok((qrs, c))
+    }
+
+    async fn get_answers_by_user(
+        &self,
+        uid: i64,
+        uat: &SqlDateTime,
+        direction: &Option<String>,
+    ) -> sqlx::Result<(AnswersResponse1, i64)> {
+        let mut tx = self.sql.begin().await?;
+
+        let count = sqlx::query!(
+            r#"select count from answers_count where posted_by_id = $1"#,
+            uid
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let answers = match direction {
+            Some(_d) => {
+                sqlx::query_as!(
+                    AR1,
+                    r#"
+                select t.id as answer_id, t.visible, t.updated_at,
+                t.votes, t.answer_accepted, p.id as question_id, p.title, p.slug,
+                array_agg(post_tags.tag_id) as tag_id, array_agg(tags.name) as tags
+                from posts t left join users as u on t.posted_by_id=u.id
+                left join users as u1 on t.reply_to_id=u1.id
+                left join posts as p on p.id=t.op_id
+                left join post_tags on post_tags.post_id=p.id
+                left join tags on post_tags.tag_id = tags.id
+                where t.op_id!=0 and t.posted_by_id=$1 and t.updated_at > $2
+                group by p.id, t.id order by t.updated_at asc limit $3
+                "#,
+                    uid,
+                    uat,
+                    self.config.questions_per_page as i64
+                )
+                .fetch_all(&mut *tx)
+                .await?
+            }
+            None => {
+                sqlx::query_as!(
+                    AR1,
+                    r#"
+                select t.id as answer_id, t.visible, t.updated_at,
+                t.votes, t.answer_accepted, p.id as question_id, p.title, p.slug,
+                array_agg(post_tags.tag_id) as tag_id, array_agg(tags.name) as tags
+                from posts t left join users as u on t.posted_by_id=u.id
+                left join users as u1 on t.reply_to_id=u1.id
+                left join posts as p on p.id=t.op_id
+                left join post_tags on post_tags.post_id=p.id
+                left join tags on post_tags.tag_id = tags.id
+                where t.op_id!=0 and t.posted_by_id=$1 and t.updated_at < $2
+                group by p.id, t.id order by t.updated_at desc limit $3
+                "#,
+                    uid,
+                    uat,
+                    self.config.questions_per_page as i64
+                )
+                .fetch_all(&mut *tx)
+                .await?
+            }
+        };
+
+        tx.commit().await?;
+
+        let mut ars = AnswersResponse1 {
+            questions: Vec::new(),
+        };
+
+        for q in answers {
+            let title = match q.title {
+                Some(t) => t,
+                None => "".to_owned(),
+            };
+            let tags = match q.tags {
+                Some(t) => t.join(","),
+                None => "".to_owned(),
+            };
+            let tid = match q.tag_id {
+                Some(t) => t.iter().map(|&e| e.to_string() + ",").collect(),
+                None => "".to_owned(),
+            };
+            let slug = match q.slug {
+                Some(s) => s,
+                None => "".to_owned(),
+            };
+            let qr = AR2 {
+                question_id: q.question_id,
+                visible: q.visible,
+                answer_id: q.answer_id,
+                title,
+                tags,
+                tid,
+                slug,
+                votes: q.votes,
+                updated_at: q.updated_at,
+                answer_accepted: q.answer_accepted,
+                uat: q.updated_at.unix_timestamp(),
+            };
+            ars.questions.push(qr);
+        }
+
+        let c = match count.count {
+            Some(c) => c,
+            None => 0,
+        };
+
+        Ok((ars, c))
     }
 }

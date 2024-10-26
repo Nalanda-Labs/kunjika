@@ -155,6 +155,40 @@ pub struct AR {
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
+pub struct AR1 {
+    pub answer_id: i64,
+    pub question_id: i64,
+    pub title: Option<String>,
+    pub visible: bool,
+    pub votes: i64,
+    pub slug: Option<String>,
+    pub updated_at: SqlDateTime,
+    pub answer_accepted: bool,
+    pub tag_id: Option<Vec<i64>>,
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(FromRow, Serialize, Deserialize, Debug)]
+pub struct AR2 {
+    pub question_id: i64,
+    pub title: String,
+    pub answer_id: i64,
+    pub visible: bool,
+    pub votes: i64,
+    pub slug: String,
+    pub updated_at: SqlDateTime,
+    pub answer_accepted: bool,
+    pub uat: i64,
+    pub tid: String,
+    pub tags: String,
+}
+
+#[derive(FromRow, Serialize, Deserialize, Debug)]
+pub struct AnswersResponse1 {
+    pub questions: Vec<AR2>,
+}
+
+#[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct AnswersResponse {
     pub questions: Vec<AR>,
 }
@@ -184,6 +218,12 @@ pub struct EditRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UserQuestionsReq {
+    pub uat: String,
+    pub direction: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UserAnswersReq {
     pub uat: String,
     pub direction: Option<String>,
 }

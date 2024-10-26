@@ -351,6 +351,38 @@ async fn get_questions_by_user(
     }
 }
 
+#[post("/{id}/get-answers-by-user/")]
+async fn get_answers_by_user(
+    params: ntex::web::types::Path<i64>,
+    form: ntex::web::types::Json<UserAnswersReq>,
+    state: AppState,
+) -> impl Responder {
+    let uid = params.into_inner();
+    let form = form.into_inner();
+
+    let time;
+    debug!("{:?}", &form.uat);
+
+    if form.uat == "" {
+        time = time::OffsetDateTime::now_utc();
+        debug!("{:?}", time);
+    } else {
+        time = time::OffsetDateTime::parse(&form.uat, &Rfc3339).unwrap();
+    }
+
+    match state
+        .get_ref()
+        .get_answers_by_user(uid, &time, &form.direction)
+        .await
+    {
+        Ok((user_answers, count)) => {
+            HttpResponse::Ok().json(&json!({"data": user_answers.questions, "count": count}))
+        }
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
+    }
+}
+
 pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(insert_question);
     cfg.service(get_question);
@@ -363,4 +395,5 @@ pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(image_upload);
     cfg.service(accept_answer);
     cfg.service(get_questions_by_user);
+    cfg.service(get_answers_by_user);
 }

@@ -96,16 +96,27 @@
 		{/if}
 	</h4>
 	<div class="row">
-		{#each data as { id, slug, title, tags, shown_ts, uid, username, answers, views }}
+		{#each data as { id, slug, title, tags, shown_ts, uid, username, answers, views, answer_accepted }}
 			<hr
 				style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
 			/>
-			<div style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left">
-				<p style="text-align:center;font-size:16px;margin-top:5px">
-					{answers}
-				</p>
-				<p style="text-align:center;font-size:10px;margin-top:0px;float:left">answers</p>
-			</div>
+			{#if answer_accepted}
+				<div
+					style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left;background-color: green;color: white;"
+				>
+					<p style="text-align:center;font-size:16px;margin-top:5px">
+						{answers}
+					</p>
+					<p style="text-align:center;font-size:10px;margin-top:0px;float:left">answers</p>
+				</div>
+			{:else}
+				<div style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left;">
+					<p style="text-align:center;font-size:16px;margin-top:5px">
+						{answers}
+					</p>
+					<p style="text-align:center;font-size:10px;margin-top:0px;float:left">answers</p>
+				</div>
+			{/if}
 			<div style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left">
 				<p style="text-align:center;font-size:16px;margin-top:5px">
 					{views}

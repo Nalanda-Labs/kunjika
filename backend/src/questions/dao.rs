@@ -41,7 +41,7 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         &self,
         uid: i64,
         uat: &SqlDateTime,
-    ) -> sqlx::Result<QuestionsResponse>;
+    ) -> sqlx::Result<(QuestionsResponse, i64)>;
 }
 
 #[cfg(any(feature = "postgres"))]
@@ -769,7 +769,7 @@ impl IQuestion for &AppStateRaw {
         &self,
         uid: i64,
         updated_at: &SqlDateTime,
-    ) -> sqlx::Result<QuestionsResponse> {
+    ) -> sqlx::Result<(QuestionsResponse, i64)> {
         let questions = sqlx::query!(
             r#"
             select t.id, t.visible, t.title, t.created_at, t.posted_by_id, t.updated_at, t.votes,
@@ -830,6 +830,19 @@ impl IQuestion for &AppStateRaw {
             qrs.questions.push(qr);
             info!("{}", q.created_at);
         }
-        Ok(qrs)
+
+        let count = sqlx::query!(
+            r#"select count from questions_count_by_user where posted_by_id = $1"#,
+            uid
+        )
+        .fetch_one(&self.sql)
+        .await?;
+
+        let c = match count.count {
+            Some(c) => c,
+            None => 0,
+        };
+
+        Ok((qrs, c))
     }
 }

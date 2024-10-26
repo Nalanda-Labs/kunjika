@@ -4,17 +4,23 @@
 	import Edit from './_Edit.svelte';
 
 	export let id;
+	let data = [];
 	let questions = [];
 	let uat = '';
+	let count = 0;
+	let pages = 0; // total no. of pages
+	let page = 1; // current page
+	let questions_per_page = 30;
 
 	function processQuestions(data) {
-		questions = data.questions;
+		questions = data;
 		for (let i = 0; i < questions.length; i++) {
 			questions[i]['tags'] = questions[i]['tags'].split(',');
 			questions[i]['tid'] = questions[i]['tid'].split(',');
 			let asked_ts = new Date(questions[i].cat * 1000);
 			let updated_ts = new Date(questions[i].uat * 1000);
 			let now = new Date();
+			questions[i].updated_ts = updated_ts;
 
 			if (asked_ts == updated_ts) {
 				let shown_ts = Math.floor((now - asked_ts) / 1000);
@@ -60,22 +66,89 @@
 	}
 
 	onMount(async () => {
-		const response = await api.post(`${id}/get-questions-by-user/`, { uat });
+		let response = await api.post(`${id}/get-questions-by-user/`, { uat });
 
 		if (response.status === 200) {
-			const text = await response.text();
-			const j = text ? JSON.parse(text) : {};
+			response = JSON.parse(await response.text());
 
-			if (j.data) {
-				processQuestions(j.data);
+			let data = response.data.map((t) => t);
+			count = response.count;
+			pages = Math.floor(count / questions_per_page);
+			if (count % questions_per_page !== 0) {
+				pages += 1;
 			}
+
+			processQuestions(data);
 		} else {
 			alert(response.message);
 		}
 	});
+
+	async function nextPage() {
+		page += 1;
+		uat = questions[questions.length - 1].updated_ts;
+		let response = await api.post(`${id}/get-questions-by-user/`, { uat });
+
+		if (response.status === 200) {
+			response = JSON.parse(await response.text());
+
+			let data = response.data.map((t) => t);
+			count = response.count;
+			pages = Math.floor(count / questions_per_page);
+			if (count % questions_per_page !== 0) {
+				pages += 1;
+			}
+
+			processQuestions(data);
+		} else {
+			alert(response.message);
+		}
+	}
+
+	async function prevPage() {
+		page -= 1;
+		tag = questions[0].updated_ts;
+		let response = await api.post(`${id}/get-questions-by-user/`, { uat, direction: 'back' });
+
+		if (response.status === 200) {
+			response = JSON.parse(await response.text());
+
+			let data = response.data.map((t) => t);
+			count = response.count;
+			pages = Math.floor(count / questions_per_page);
+			if (count % questions_per_page !== 0) {
+				pages += 1;
+			}
+
+			processQuestions(data);
+		} else {
+			alert(response.message);
+		}
+	}
+
+	async function firstPage() {
+		page = 1;
+		uat = '';
+		let response = await api.post(`${id}/get-questions-by-user/`, { uat });
+
+		if (response.status === 200) {
+			response = JSON.parse(await response.text());
+
+			let data = response.data.map((t) => t);
+			count = response.count;
+			pages = Math.floor(count / questions_per_page);
+			if (count % questions_per_page !== 0) {
+				pages += 1;
+			}
+
+			processQuestions(data);
+		} else {
+			alert(response.message);
+		}
+	}
 </script>
 
-<div class="row" style="margin:20px">
+<div style="margin:20px">
 	<div class="row">
 		{#each questions as { id, slug, title, tags, shown_ts, uid, username, answers, views, answer_accepted }}
 			<hr
@@ -83,7 +156,7 @@
 			/>
 			{#if answer_accepted}
 				<div
-					style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left;background-color: #2a2;"
+					style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left;background-color: green;color: white;"
 				>
 					<p style="text-align:center;font-size:16px;margin-top:5px">
 						{answers}
@@ -124,5 +197,44 @@
 			<div style="clear:both" />
 		{/each}
 		<hr style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px" />
+	</div>
+	<div style="clear:both;margin:auto;width:100%;margin-top:20px" />
+	<div style="float: right;">
+		<ul class="pagination">
+			<!-- svelte-ignore a11y-invalid-attribute -->
+			{#if page == 1}
+				<li class="disabled"><i class="material-icons" title="first page">first_page</i></li>
+				<li class="disabled">
+					<i class="material-icons" title="previouse page">chevron_left</i>
+				</li>
+				{#if page != pages}
+					<li style="cursor:pointer" on:click={nextPage}>
+						<i class="material-icons" title="next page">chevron_right</i>
+					</li>
+				{/if}
+				{#if page == pages}
+					<li class="disabled"><i class="material-icons" title="last page">last_page</i></li>
+				{/if}
+			{:else if page != pages}
+				<li style="cursor:pointer" on:click={firstPage}>
+					<i class="material-icons" title="first page">first_page</i>
+				</li>
+				<li style="cursor:pointer" on:click={prevPage}>
+					<i class="material-icons" title="previouse page">chevron_left</i>
+				</li>
+				<li style="cursor:pointer" on:click={nextPage}>
+					<i class="material-icons" title="next page">chevron_right</i>
+				</li>
+			{:else if page == pages}
+				<li style="cursor:pointer" on:click={firstPage}>
+					<i class="material-icons" title="first page">first_page</i>
+				</li>
+				<li style="cursor:pointer" on:click={prevPage}>
+					<i class="material-icons" title="previouse page">chevron_left</i>
+				</li>
+				<li class="disabled"><i class="material-icons" title="next page">chevron_right</i></li>
+				<li class="disabled"><i class="material-icons" title="last page">last_page</i></li>
+			{/if}
+		</ul>
 	</div>
 </div>

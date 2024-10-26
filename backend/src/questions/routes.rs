@@ -339,7 +339,9 @@ async fn get_questions_by_user(
     }
 
     match state.get_ref().get_questions_by_user(uid, &time).await {
-        Ok(user_questions) => HttpResponse::Ok().json(&json!({"data": user_questions})),
+        Ok((user_questions, count)) => {
+            HttpResponse::Ok().json(&json!({"data": user_questions.questions, "count": count}))
+        }
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": "fail", "message": e.to_string()})),
     }

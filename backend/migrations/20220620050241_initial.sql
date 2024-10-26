@@ -316,6 +316,13 @@ select count(1),
     from posts
     where op_id!=0 and posted_by_id=posted_by_id
     group by posted_by_id;
+
+create table bookmarks(qid bigint, aid bigint, uid bigint, created_at timestamptz default now());
+
+create index bookmarks_uid_idx on bookmarks(uid);
+
+create index bookmarks_created_idx on bookmarks(created_at);
+
 --
 -- Name: post_tags id; Type: DEFAULT; Schema: public; Owner: shiv
 --

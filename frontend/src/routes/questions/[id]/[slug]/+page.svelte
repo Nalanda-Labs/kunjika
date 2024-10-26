@@ -11,7 +11,7 @@
 	import Preview from '../../../../components/Editor/Preview.svelte';
 	import { browser } from '$app/environment';
 	import getCookie from '../../../../lib/cookie';
-	import { closeForm, addImageURL } from '../../../../lib/utils/editor/utils.editor';
+	import { afterUpdate } from 'svelte';
 	import onImageUpload from '../../../../lib/imageUpload.js';
 
 	let reply_to_id;
@@ -82,6 +82,18 @@
 	function handleChange(e) {
 		value = e.detail.value;
 	}
+
+	afterUpdate(() => {
+		if ($page.url.hash !== '') {
+			let eid = $page.url.hash.slice(1, $page.url.hash.length);
+			let element = document.getElementById(eid);
+			if (element) {
+				element.scrollIntoView(false);
+				element.style.backgroundColor = '#0c0';
+				element.style.zIndex = 2;
+			}
+		}
+	});
 </script>
 
 <svelte:head>

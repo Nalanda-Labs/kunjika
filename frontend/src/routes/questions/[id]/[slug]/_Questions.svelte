@@ -1,9 +1,9 @@
 <script>
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { onMount, afterUpdate } from 'svelte';
 	import * as api from '$lib/api.js';
-	import TagList from '$lib/TagList.svelte';
 	import { page } from '$app/stores';
+	import TagList from '$lib/TagList.svelte';
 	import { parseMarkdown } from '../../../../lib/utils/editor/utils.editor';
 	import Preview from '../../../../components/Editor/Preview.svelte';
 	import getCookie from '../../../../lib/cookie';
@@ -325,7 +325,7 @@
 	<div style="clear:both;margin-bottom:10px" />
 	{#each questions as { question_id, description, votes, posted_by_id, username, initials, image_url, shown_ts, answer_accepted, reply_to_id, rusername, rimage_url, vote_class1, vote_class2 }}
 		<hr style="border-bottom:1px solid;color:#ccc;" />
-		<div style="margin-top:10px" id={question_id} href="#{question_id}">
+		<div style="margin-top:10px;" href="#{question_id}">
 			<div style="float:left;margin-right:10px">
 				{#if image_url === '' || image_url === undefined}
 					<a href="/users/{posted_by_id}/{username}">
@@ -402,7 +402,7 @@
 					>
 				{/if}
 				<div style="margin:10px" />
-				<div class="answers">
+				<div class="answers" id={question_id}>
 					<Preview markup={description} />
 				</div>
 				{#if $page.data.user}

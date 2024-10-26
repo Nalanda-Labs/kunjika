@@ -29,6 +29,11 @@ async fn insert_question(
             .json(&json!({"status": "fail", "message": "All tags were not found"}));
     }
 
+    if r.tag_list.len() > 5 {
+        HttpResponse::UnprocessableEntity()
+            .json(&json!({"status": "fail", "message": "Too many tags."}));
+    }
+
     let slug = create_slug(&r.title).await;
 
     let q = DbQuestion {
@@ -201,6 +206,7 @@ async fn answer(
     state: AppState,
 ) -> impl Responder {
     let answer = params.into_inner();
+
     debug!(
         "answer request is {:?}, {:?}, {:?}",
         &answer.id, &answer.value, &answer.reply_to

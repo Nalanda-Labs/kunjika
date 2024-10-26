@@ -193,9 +193,10 @@ pub struct AnswersResponse {
     pub questions: Vec<AR>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct AnswerReq {
     pub id: String,
+    #[validate(length(min = 20, max = 100000))]
     pub value: String,
     pub reply_to: String,
 }

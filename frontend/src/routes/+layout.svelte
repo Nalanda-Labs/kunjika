@@ -20,7 +20,7 @@
 				// TODO: remove this hardcoding. keep this interval less than access token max age
 			}
 		},
-		1 * 60 * 1000
+		55 * 60 * 1000
 	);
 
 	onMount(async () => {

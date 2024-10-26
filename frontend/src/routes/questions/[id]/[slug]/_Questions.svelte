@@ -8,7 +8,6 @@
 	import Preview from '../../../../components/Editor/Preview.svelte';
 	import getCookie from '../../../../lib/cookie';
 	import { browser } from '$app/environment';
-	import { closeForm, addImageURL } from '../../../../lib/utils/editor/utils.editor';
 
 	export let id;
 	export let slug;
@@ -197,6 +196,7 @@
 			}
 		}
 	}
+
 	async function acceptAnswer(elementID) {
 		if (browser) {
 			let xsrf_token = getCookie('xsrf_token');
@@ -221,6 +221,22 @@
 				questions = questions;
 			} else {
 				alert(response.message);
+			}
+		}
+	}
+
+	async function bookmark(qid, aid) {
+		if (browser) {
+			let xsrf_token = getCookie('xsrf_token');
+			const response = await api.post(`bookmark/${qid}/${aid}`, {}, xsrf_token);
+
+			if (response.status === 200) {
+				alert('The post has been bookmarked.');
+			} else {
+				const r = JSON.parse(await response.text());
+				alert(
+					r.message + '. Please send this message to support if this is not already bookmarked.'
+				);
 			}
 		}
 	}
@@ -304,10 +320,11 @@
 					>
 
 					<a
-						href="/bookmark/{id}"
+						href="/bookmark/{id}/0"
 						class="anchor"
 						title="Bookmark this post"
 						style="margin-right:5px"
+						on:click|preventDefault={bookmark(id, 0)}
 						><span class="material-icons" style="vertical-align:bottom">bookmark</span>Bookmark</a
 					>
 					<a
@@ -437,10 +454,11 @@
 							><span class="material-icons" style="vertical-align:bottom">share</span>Share</a
 						>
 						<a
-							href="/bookmark/{question_id}"
+							href="/bookmark/{id}/{question_id}"
 							class="anchor"
 							title="Bookmark this post"
 							style="margin-right:5px"
+							on:click|preventDefault={bookmark(id, question_id)}
 							><span class="material-icons" style="vertical-align:bottom">bookmark</span>Bookmark</a
 						>
 					</div>

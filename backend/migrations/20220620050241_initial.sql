@@ -319,10 +319,9 @@ select count(1),
 
 create table bookmarks(qid bigint, aid bigint, uid bigint, created_at timestamptz default now());
 
-create index bookmarks_uid_idx on bookmarks(uid);
-
 create index bookmarks_created_idx on bookmarks(created_at);
 
+create unique index bookmarks_ids on bookmarks(qid, aid, uid);
 --
 -- Name: post_tags id; Type: DEFAULT; Schema: public; Owner: shiv
 --

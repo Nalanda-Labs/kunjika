@@ -47,6 +47,7 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         uat: &SqlDateTime,
         directio: &Option<String>,
     ) -> sqlx::Result<(AnswersResponse1, i64)>;
+    async fn bookmark(&self, qid: i64, aid: i64, uid: i64) -> sqlx::Result<bool>;
 }
 
 #[cfg(any(feature = "postgres"))]
@@ -981,5 +982,20 @@ impl IQuestion for &AppStateRaw {
         };
 
         Ok((ars, c))
+    }
+
+    async fn bookmark(&self, qid: i64, aid: i64, uid: i64) -> sqlx::Result<bool> {
+        sqlx::query!(
+            r#"
+            insert into bookmarks(qid, aid, uid, created_at) VALUES($1, $2, $3, now())
+            "#,
+            qid,
+            aid,
+            uid
+        )
+        .execute(&self.sql)
+        .await?;
+
+        Ok(true)
     }
 }

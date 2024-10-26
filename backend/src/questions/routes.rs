@@ -389,6 +389,23 @@ async fn get_answers_by_user(
     }
 }
 
+#[post("/bookmark/{qid}/{aid}")]
+async fn bookmark(
+    params: ntex::web::types::Path<(String, String)>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let qid = params.0.parse::<i64>().unwrap();
+    let aid = params.1.parse::<i64>().unwrap();
+    let uid = auth.user.id;
+
+    match state.get_ref().bookmark(qid, aid, uid).await {
+        Ok(_t) => HttpResponse::Ok().json(&json!({})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
+    }
+}
+
 pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(insert_question);
     cfg.service(get_question);
@@ -402,4 +419,5 @@ pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(accept_answer);
     cfg.service(get_questions_by_user);
     cfg.service(get_answers_by_user);
+    cfg.service(bookmark);
 }

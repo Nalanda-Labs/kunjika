@@ -1,5 +1,3 @@
-use std::thread::current;
-
 use super::question::*;
 use crate::state::AppStateRaw;
 use sqlx::error::Error;
@@ -361,7 +359,6 @@ impl IQuestion for &AppStateRaw {
                 answer_accepted: q.answer_accepted,
             };
             qrs.questions.push(qr);
-            info!("{}", q.created_at);
         }
         Ok(qrs)
     }

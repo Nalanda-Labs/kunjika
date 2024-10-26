@@ -30,7 +30,6 @@
 
 		if (response.status === 200) {
 			response = JSON.parse(await response.text());
-			console.log(response);
 			tags = response.data.map((t) => t);
 			count = response.count;
 			pages = Math.floor(count / tags_per_page);
@@ -47,7 +46,6 @@
 
 		if (response.status === 200) {
 			response = JSON.parse(await response.text());
-			console.log(response);
 			tags = response.data.map((t) => t);
 			count = response.count;
 			pages = Math.floor(count / tags_per_page);
@@ -64,7 +62,6 @@
 
 		if (response.status === 200) {
 			response = JSON.parse(await response.text());
-			console.log(response);
 			tags = response.data.map((t) => t);
 			count = response.count;
 			pages = Math.floor(count / tags_per_page);
@@ -97,7 +94,9 @@
 				<div class="col-sm-3">
 					<div class="card">
 						<div class="card-body">
-							<span class="card-title"><a style="text-decoration:none" href="/questions/tagged/{name}">{name}</a></span>
+							<span class="card-title"
+								><a style="text-decoration:none" href="/questions/tagged/{name}">{name}</a></span
+							>
 							{#if info}
 								<p class="card-text">{info.slice(0, 40)}</p>
 							{:else}

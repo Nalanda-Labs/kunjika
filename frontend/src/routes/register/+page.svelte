@@ -33,7 +33,6 @@
 				errors = response.message;
 			}
 			response = JSON.parse(await response.text());
-			console.log(response.status);
 
 			if (response.message === 'username available') {
 				document.getElementById('username-helper').innerHTML = 'Username available!';

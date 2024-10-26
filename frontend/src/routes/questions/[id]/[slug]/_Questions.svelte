@@ -62,7 +62,6 @@
 			let now = Date.now();
 
 			shown_ts = Math.floor((now - asked_ts) / 1000);
-			console.log(shown_ts);
 
 			if (shown_ts >= 259200) {
 				let year = asked_ts.getYear() + 1900;

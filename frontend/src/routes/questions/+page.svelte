@@ -35,11 +35,10 @@
 				let asked_ts = new Date(questions[i].cat * 1000);
 				let updated_ts = new Date(questions[i].uat * 1000);
 				let now = new Date();
-				console.log(asked_ts, updated_ts, now);
 
 				if (asked_ts == updated_ts) {
 					let shown_ts = Math.floor((now - asked_ts) / 1000);
-					console.log(shown_ts);
+
 					if (shown_ts >= 259200) {
 						asked_ts = new Date(questions[i].cat);
 						let year = asked_ts.getYear() + 1900;

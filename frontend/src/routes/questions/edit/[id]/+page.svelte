@@ -12,6 +12,7 @@
 	import '../../../../editor.css';
 	import { onMount } from 'svelte';
 	import { parseMarkdown } from '../../../../lib/utils/editor/utils.editor';
+	import onImageUpload from '../../../../lib/imageUpload';
 
 	let title = '';
 	let tagList = [];
@@ -41,8 +42,6 @@
 			value = parseMarkdown(response.data.description);
 			contentValue = response.data.description;
 			tagList = response.data.tags.map((tag) => tag);
-			console.log(response.data.tags);
-			console.log(tagList);
 			time = response.data.created_at;
 			votes = response.data.votes;
 			posted_by = response.data.posted_by_id;
@@ -96,7 +95,6 @@
 
 				let text = await response.text();
 				let j = text ? JSON.parse(text) : {};
-				console.log(j);
 
 				if (response.status === 200 && j.data.id) {
 					let id = j.data.id;
@@ -110,21 +108,6 @@
 			throw redirect(307, '/questions');
 		}
 	}
-
-	// function handleTags(event) {
-	// 	tagList = event.detail.tags;
-	// 	console.log(tagList);
-	// 	let re = /[a-zA-Z0-0\-\+]+/;
-	// 	for (let i = 0; i < tagList.length; i++) {
-	// 		if (tagList[i].length > 32) {
-	// 			document.getElementById('tags-helper').innerHTML = '32 Characterx max.';
-	// 			document.getElementById('tags-helper').style.color = '#800';
-	// 			break;
-	// 		} else {
-	// 			document.getElementById('tags-helper').innerHTML = '';
-	// 		}
-	// 	}
-	// }
 
 	// function for auto-completing tags
 	async function ts() {
@@ -146,46 +129,6 @@
 				return tags;
 			} else {
 				return [];
-			}
-		}
-	}
-
-	async function onImageUpload(e) {
-		e.preventDefault();
-		let formData = new FormData();
-		let image = document.getElementById('image').files[0];
-
-		if (!image) {
-			alert('No image selected!');
-		}
-
-		if (image.size > 2 * 1024 * 1024) {
-			alert('Max file size is 2MB');
-			return;
-		}
-
-		formData.append('file', image);
-
-		if (browser) {
-			console.log('hello');
-			let xsrf_token = getCookie('xsrf_token');
-			const response = await api.upload({
-				method: 'POST',
-				path: 'image-upload',
-				data: formData,
-				xsrf_token,
-				headers: null
-			});
-
-			let text = await response.text();
-			let j = text ? JSON.parse(text) : {};
-			console.log(j);
-
-			if (response.status === 200 && j.url) {
-				closeForm();
-				addImageURL(`![alt](${j.url})`);
-			} else {
-				alert(j.message);
 			}
 		}
 	}

@@ -65,6 +65,19 @@
 		}
 	}
 
+	async function handleError(response) {
+		response = JSON.parse(await response.text());
+		if (
+			response.status == 'fail' &&
+			response.message == 'no rows returned by a query that expected to return at least one row'
+		) {
+			count = 0;
+			questions = [];
+		} else {
+			alert(response.message);
+		}
+	}
+
 	onMount(async () => {
 		let response = await api.post(`${id}/get-answers-by-user/`, { uat });
 
@@ -80,7 +93,7 @@
 
 			processQuestions(data);
 		} else {
-			alert(response.message);
+			handleError(response);
 		}
 	});
 
@@ -122,7 +135,7 @@
 
 			processQuestions(data);
 		} else {
-			alert(response.message);
+			handleError(response);
 		}
 	}
 
@@ -143,7 +156,7 @@
 
 			processQuestions(data);
 		} else {
-			alert(response.message);
+			handleError(response);
 		}
 	}
 </script>
@@ -184,12 +197,12 @@
 				<li class="disabled">
 					<i class="material-icons" title="previouse page">chevron_left</i>
 				</li>
-				{#if page != pages}
+				{#if pages > 1}
 					<li style="cursor:pointer" on:click={nextPage}>
 						<i class="material-icons" title="next page">chevron_right</i>
 					</li>
 				{/if}
-				{#if page == pages}
+				{#if page != pages && pages != 0}
 					<li class="disabled"><i class="material-icons" title="last page">last_page</i></li>
 				{/if}
 			{:else if page != pages}

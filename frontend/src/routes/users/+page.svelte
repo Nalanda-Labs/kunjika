@@ -125,12 +125,12 @@
 				<li class="disabled">
 					<i class="material-icons" title="previouse page">chevron_left</i>
 				</li>
-				{#if page != pages}
+				{#if pages > 1}
 					<li style="cursor:pointer" on:click={nextPage}>
 						<i class="material-icons" title="next page">chevron_right</i>
 					</li>
 				{/if}
-				{#if page == pages}
+				{#if page != pages && pages != 0}
 					<li class="disabled"><i class="material-icons" title="last page">last_page</i></li>
 				{/if}
 			{:else if page != pages}

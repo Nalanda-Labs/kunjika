@@ -5,11 +5,12 @@
 <script>
 	import { page } from '$app/stores';
 	import * as api from '$lib/api.js';
-	import { afterUpdate, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import Summary from './_Summary.svelte';
 
 	let edit;
 	let questions;
+	let answers;
 
 	let id = $page.params.id;
 	$: username = '';
@@ -42,8 +43,12 @@
 		edit = import('./_Edit.svelte');
 	}
 
-	function loadQuestions() {
-		questions = import('./_Questions.svelte');
+	async function loadQuestions() {
+		questions = await import('./_Questions.svelte');
+	}
+
+	async function loadAnswers() {
+		answers = import('./_Answers.svelte');
 	}
 
 	onMount(async () => await getUser());
@@ -120,7 +125,11 @@
 								>Questions</a
 							>
 						</li>
-						<li><a class="nav-link" href="#answers" data-bs-toggle="tab">Answers</a></li>
+						<li>
+							<a class="nav-link" href="#answers" data-bs-toggle="tab" on:click={loadAnswers}
+								>Answers</a
+							>
+						</li>
 					</ul>
 
 					<!-- Repo Tabs -->
@@ -136,7 +145,13 @@
 								{/await}
 							{/if}
 						</div>
-						<div class="tab-pane" id="answers">Not implemented</div>
+						<div class="tab-pane" id="answers">
+							{#if answers}
+								{#await answers then { default: Answers }}
+									<Answers {id} />
+								{/await}
+							{/if}
+						</div>
 					</div>
 				</div>
 				<div class="tab-pane" id="bookmarks">Not implemented</div>

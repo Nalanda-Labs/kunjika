@@ -326,19 +326,23 @@ async fn get_questions_by_user(
     state: AppState,
 ) -> impl Responder {
     let uid = params.into_inner();
-    let uat = form.into_inner();
+    let form = form.into_inner();
 
     let time;
-    debug!("{:?}", &uat.uat);
+    debug!("{:?}", &form.uat);
 
-    if uat.uat == "" {
+    if form.uat == "" {
         time = time::OffsetDateTime::now_utc();
         debug!("{:?}", time);
     } else {
-        time = time::OffsetDateTime::parse(&uat.uat, &Rfc3339).unwrap();
+        time = time::OffsetDateTime::parse(&form.uat, &Rfc3339).unwrap();
     }
 
-    match state.get_ref().get_questions_by_user(uid, &time).await {
+    match state
+        .get_ref()
+        .get_questions_by_user(uid, &time, &form.direction)
+        .await
+    {
         Ok((user_questions, count)) => {
             HttpResponse::Ok().json(&json!({"data": user_questions.questions, "count": count}))
         }

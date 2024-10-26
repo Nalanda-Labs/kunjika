@@ -41,6 +41,7 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         &self,
         uid: i64,
         uat: &SqlDateTime,
+        directio: &Option<String>,
     ) -> sqlx::Result<(QuestionsResponse, i64)>;
 }
 
@@ -769,22 +770,42 @@ impl IQuestion for &AppStateRaw {
         &self,
         uid: i64,
         updated_at: &SqlDateTime,
+        direction: &Option<String>,
     ) -> sqlx::Result<(QuestionsResponse, i64)> {
-        let questions = sqlx::query!(
-            r#"
-            select t.id, t.visible, t.title, t.created_at, t.posted_by_id, t.updated_at, t.votes,
-            t.views, t.slug, t.answer_accepted, users.image_url,
-            users.username as username, users.id as uid, array_agg(post_tags.tag_id)
-            as tag_id, array_agg(tags.name) as tags, t.answer_count
-            from posts t left
-            join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
-            tags on post_tags.tag_id = tags.id where t.op_id=0 and t.posted_by_id=$1 and
-            t.updated_at < $2 group by t.id, users.id order by
-            t.updated_at desc limit $3
-            "#, uid, updated_at, self.config.questions_per_page as i64
-        ).fetch_all(&self.sql)
-        .await?;
-
+        let questions = match direction {
+            Some(_d) => {
+                sqlx::query_as!(
+                    QR1, r#"
+                    select t.id, t.visible, t.title, t.created_at, t.posted_by_id, t.updated_at, t.votes,
+                    t.views, t.slug, t.answer_accepted, users.image_url,
+                    users.username as username, users.id as uid, array_agg(post_tags.tag_id)
+                    as tag_id, array_agg(tags.name) as tags, t.answer_count
+                    from posts t left
+                    join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
+                    tags on post_tags.tag_id = tags.id where t.op_id=0 and t.posted_by_id=$1 and
+                    t.updated_at < $2 group by t.id, users.id order by
+                    t.updated_at desc limit $3
+                    "#, uid, updated_at, self.config.questions_per_page as i64
+                ).fetch_all(&self.sql)
+                .await?
+            }
+            None => {
+                sqlx::query_as!(
+                    QR1, r#"
+                    select t.id, t.visible, t.title, t.created_at, t.posted_by_id, t.updated_at, t.votes,
+                    t.views, t.slug, t.answer_accepted, users.image_url,
+                    users.username as username, users.id as uid, array_agg(post_tags.tag_id)
+                    as tag_id, array_agg(tags.name) as tags, t.answer_count
+                    from posts t left
+                    join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
+                    tags on post_tags.tag_id = tags.id where t.op_id=0 and t.posted_by_id=$1 and
+                    t.updated_at < $2 group by t.id, users.id order by
+                    t.updated_at asc limit $3
+                    "#, uid, updated_at, self.config.questions_per_page as i64
+                ).fetch_all(&self.sql)
+                .await?
+            }
+        };
         let mut qrs: QuestionsResponse = QuestionsResponse {
             questions: Vec::new(),
         };

@@ -5,28 +5,29 @@
 
 	export let id;
 	let data = [];
-	let questions = [];
+	let answers = [];
 	let uat = '';
 	let count = 0;
 	let pages = 0; // total no. of pages
 	let page = 1; // current page
-	let questions_per_page = 30;
+	let answers_per_page = 30;
 
 	function processQuestions(data) {
-		questions = data;
-		for (let i = 0; i < questions.length; i++) {
-			questions[i]['tags'] = questions[i]['tags'].split(',');
-			questions[i]['tid'] = questions[i]['tid'].split(',');
-			let asked_ts = new Date(questions[i].cat * 1000);
-			let updated_ts = new Date(questions[i].uat * 1000);
+		answers = data;
+		for (let i = 0; i < answers.length; i++) {
+			answers[i]['tags'] = answers[i]['tags'].split(',');
+			answers[i]['tid'] = answers[i]['tid'].split(',');
+			let asked_ts = new Date(answers[i].cat * 1000);
+			let updated_ts = new Date(answers[i].uat * 1000);
 			let now = new Date();
-			questions[i].updated_ts = updated_ts;
+			answers[i].updated_ts = updated_ts;
+			answers[i].aid = answers[i].id;
 
 			if (asked_ts == updated_ts) {
 				let shown_ts = Math.floor((now - asked_ts) / 1000);
 
 				if (shown_ts >= 259200) {
-					asked_ts = new Date(questions[i].cat);
+					asked_ts = new Date(answers[i].cat);
 					let year = asked_ts.getYear() + 1900;
 					let month = asked_ts.getMonth() + 1;
 					shown_ts = 'asked on ' + asked_ts.getDate() + '/' + month + '/' + year;
@@ -41,11 +42,11 @@
 				} else {
 					shown_ts = 'asked ' + shown_ts + 's ago';
 				}
-				questions[i].shown_ts = shown_ts;
+				answers[i].shown_ts = shown_ts;
 			} else {
 				let shown_ts = Math.floor((now - updated_ts) / 1000);
 				if (shown_ts >= 259200) {
-					asked_ts = new Date(questions[i].cat);
+					asked_ts = new Date(answers[i].cat);
 					let year = updated_ts.getYear() + 1900;
 					let month = updated_ts.getMonth() + 1;
 					shown_ts = 'modified on ' + updated_ts.getDay() + '/' + month + '/' + year;
@@ -60,21 +61,21 @@
 				} else {
 					shown_ts = 'modified ' + shown_ts + 's ago';
 				}
-				questions[i].shown_ts = shown_ts;
+				answers[i].shown_ts = shown_ts;
 			}
 		}
 	}
 
 	onMount(async () => {
-		let response = await api.post(`${id}/get-questions-by-user/`, { uat });
+		let response = await api.post(`${id}/get-answers-by-user/`, { uat });
 
 		if (response.status === 200) {
 			response = JSON.parse(await response.text());
 
 			let data = response.data.map((t) => t);
 			count = response.count;
-			pages = Math.floor(count / questions_per_page);
-			if (count % questions_per_page !== 0) {
+			pages = Math.floor(count / answers_per_page);
+			if (count % answers_per_page !== 0) {
 				pages += 1;
 			}
 
@@ -86,16 +87,16 @@
 
 	async function nextPage() {
 		page += 1;
-		uat = questions[questions.length - 1].updated_ts;
-		let response = await api.post(`${id}/get-questions-by-user/`, { uat });
+		uat = answers[answers.length - 1].updated_ts;
+		let response = await api.post(`${id}/get-answers-by-user/`, { uat });
 
 		if (response.status === 200) {
 			response = JSON.parse(await response.text());
 
 			let data = response.data.map((t) => t);
 			count = response.count;
-			pages = Math.floor(count / questions_per_page);
-			if (count % questions_per_page !== 0) {
+			pages = Math.floor(count / answers_per_page);
+			if (count % answers_per_page !== 0) {
 				pages += 1;
 			}
 
@@ -107,16 +108,16 @@
 
 	async function prevPage() {
 		page -= 1;
-		tag = questions[0].updated_ts;
-		let response = await api.post(`${id}/get-questions-by-user/`, { uat, direction: 'back' });
+		tag = answers[0].updated_ts;
+		let response = await api.post(`${id}/get-answers-by-user/`, { uat, direction: 'back' });
 
 		if (response.status === 200) {
 			response = JSON.parse(await response.text());
 
 			let data = response.data.map((t) => t);
 			count = response.count;
-			pages = Math.floor(count / questions_per_page);
-			if (count % questions_per_page !== 0) {
+			pages = Math.floor(count / answers_per_page);
+			if (count % answers_per_page !== 0) {
 				pages += 1;
 			}
 
@@ -129,15 +130,15 @@
 	async function firstPage() {
 		page = 1;
 		uat = '';
-		let response = await api.post(`${id}/get-questions-by-user/`, { uat });
+		let response = await api.post(`${id}/get-answers-by-user/`, { uat });
 
 		if (response.status === 200) {
 			response = JSON.parse(await response.text());
 
 			let data = response.data.map((t) => t);
 			count = response.count;
-			pages = Math.floor(count / questions_per_page);
-			if (count % questions_per_page !== 0) {
+			pages = Math.floor(count / answers_per_page);
+			if (count % answers_per_page !== 0) {
 				pages += 1;
 			}
 
@@ -150,7 +151,7 @@
 
 <div style="margin:20px">
 	<div class="row">
-		{#each questions as { id, slug, title, tags, shown_ts, answers, views, answer_accepted }}
+		{#each answers as { aid, slug, title, tags, shown_ts, answers, views, answer_accepted }}
 			<hr
 				style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
 			/>
@@ -179,7 +180,7 @@
 			</div>
 			<div style="width:85%;float:left;position:relative">
 				<a
-					href="/questions/{id}/{slug}"
+					href="/questions/{id}/{slug}#{aid}"
 					class="blue-text text-darken-2"
 					style="text-decoration:none; font-size:16px; font-weight:400">{title}</a
 				>

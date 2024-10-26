@@ -101,6 +101,26 @@ pub struct QR {
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
+pub struct QR1 {
+    pub id: i64,
+    pub title: Option<String>,
+    pub visible: bool,
+    pub votes: i64,
+    pub views: i64,
+    pub slug: Option<String>,
+    pub posted_by_id: i64,
+    pub created_at: SqlDateTime,
+    pub updated_at: SqlDateTime,
+    pub username: String,
+    pub image_url: String,
+    pub uid: i64,
+    pub tags: Option<Vec<String>>,
+    pub answer_accepted: bool,
+    pub answer_count: i64,
+    pub tag_id: Option<Vec<i64>>,
+}
+
+#[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct QuestionsResponse {
     pub questions: Vec<QR>,
 }
@@ -165,4 +185,5 @@ pub struct EditRequest {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UserQuestionsReq {
     pub uat: String,
+    pub direction: Option<String>,
 }

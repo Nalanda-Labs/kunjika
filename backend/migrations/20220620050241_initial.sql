@@ -309,6 +309,13 @@ SELECT count(1) AS count,
     FROM public.posts p
     WHERE ((posted_by_id = posted_by_id) AND (op_id = 0))
     GROUP BY posted_by_id;
+
+create view public.answers_count as
+select count(1),
+    posted_by_id
+    from posts
+    where op_id!=0 and posted_by_id=posted_by_id
+    group by posted_by_id;
 --
 -- Name: post_tags id; Type: DEFAULT; Schema: public; Owner: shiv
 --

@@ -32,6 +32,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
 
         sqlx::query_as(&sql).bind(who).fetch_one(&self.sql).await
     }
+    
     async fn user_delete(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 

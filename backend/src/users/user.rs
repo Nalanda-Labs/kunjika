@@ -190,3 +190,9 @@ pub struct SummaryResponse {
     pub questions_count: Option<i64>,
     pub karma: i64,
 }
+
+#[derive(Serialize, Deserialize, Debug, Validate)]
+pub struct ForgotPasswordReq {
+    #[validate(email)]
+    pub email: String,
+}

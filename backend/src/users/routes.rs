@@ -72,7 +72,7 @@ Your email confirmation link is https://{}/confirm-email/{}.
 This email will expire in one day.
 
 Thanks,
-Shiv",
+Team Kunjika",
                         form.username, state.config.host, token
                     );
                     debug!("{:?}, {:?}", from, to);
@@ -553,10 +553,10 @@ async fn resend_confirmation_email(
 
 Thank you for registering at Kunjika.
 Your email confirmation link is https://{}/confirm-email/{}.
-This email will expire in one day.
+This link will expire in one day.
 
 Thanks,
-Shiv",
+Team Kunjika",
                     state.config.host, token
                 );
                 debug!("{:?}, {:?}", from, to);
@@ -586,6 +586,82 @@ Shiv",
                 HttpResponse::InternalServerError()
                     .json(&json!({"status": false, "message": _e.to_string()}))
             }
+        }
+    }
+}
+
+#[post("/forgot-password/")]
+async fn forgot_password(form: web::types::Json<ForgotPasswordReq>, state: AppState) -> impl Responder {
+    let email = form.into_inner().email;
+    
+    match state.get_ref().user_query(&email).await {
+        Ok(r) => {
+            let username = r.username;
+            let smtp_credentials = Credentials::new(
+                state.config.mail_username.clone(),
+                state.config.mail_password.clone(),
+            );
+    
+            let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&state.config.mail_host)
+                .unwrap()
+                .credentials(smtp_credentials)
+                .build();
+    
+            let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
+            let to = email.clone();
+            let subject = "Password reset at Kunjika";
+    
+            // Sign an arbitrary string.
+            let token = sign(&email, &state).await;
+            match state
+                .get_ref()
+                .save_confirmation_token(&email, &token)
+                .await
+            {
+                Ok(_t) => {
+                    // TODO: Get username from db to add to the email
+                    let body = format!(
+                        "Hi {},
+    
+Your link for resetting password is https://{}/reset-password/{}.
+This link will expire in one day.
+    
+Thanks,
+Team kunjika",
+                        &username, state.config.host, token
+                    );
+                    debug!("{:?}, {:?}", from, to);
+                    let email = Message::builder()
+                        .from(from.parse().unwrap())
+                        .to(to.parse().unwrap())
+                        .subject(subject)
+                        .body(body.to_string())
+                        .unwrap();
+    
+                    debug!("Sending email");
+                    match mailer.send(email).await {
+                        Ok(_r) => {
+                            debug!("{:?}", _r);
+                            HttpResponse::Ok().json(&json!({"success": true, "message": "Reset password email sent!"}))
+                        }
+                        Err(_e) => {
+                            info!("{:?}", _e);
+                            HttpResponse::InternalServerError().json(
+                            &json!({"status": false, "message": "Something went wrong. Please contact support."}),
+                        )
+                        }
+                    }
+                }
+                Err(_e) => {
+                    info!("{:?}", _e);
+                    HttpResponse::InternalServerError()
+                        .json(&json!({"status": false, "message": "Something went wrong. Please contact support."}))
+                }
+            }
+        }
+        Err(e) => {
+            info!("{:?}", e.to_string());
+            HttpResponse::InternalServerError().json(&json!({"success": false, "message": "Something went wrong. Please contact support."}))
         }
     }
 }
@@ -937,4 +1013,5 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(update_profile);
     cfg.service(user_summary);
     cfg.service(resend_confirmation_email);
+    cfg.service(forgot_password);
 }

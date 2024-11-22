@@ -9,4 +9,5 @@ fn main() {
 
     // // Generate the 'cargo:' key output
     // gen(ConstantsFlags::all()).expect("Unable to generate the cargo keys!");
+    println!("cargo::rustc-cfg=dev");
 }

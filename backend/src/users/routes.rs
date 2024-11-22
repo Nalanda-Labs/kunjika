@@ -61,8 +61,14 @@ async fn register(form: web::types::Json<Register>, state: AppState) -> impl Res
 
             // Sign an arbitrary string.
             let token = sign(&form.email, &state).await;
-            let body = format!(
-                "Hi {},
+            match state
+                .get_ref()
+                .save_confirmation_token(&form.email, &token)
+                .await
+            {
+                Ok(_t) => {
+                    let body = format!(
+                        "Hi {},
 
 Thank you for registering at Kunjika.
 Your email confirmation link is https://{}/confirm-email/{}.
@@ -70,24 +76,32 @@ This email will expire in one day.
 
 Thanks,
 Shiv",
-                form.username, state.config.host, token
-            );
-            debug!("{:?}, {:?}", from, to);
-            let email = Message::builder()
-                .from(from.parse().unwrap())
-                .to(to.parse().unwrap())
-                .subject(subject)
-                .body(body.to_string())
-                .unwrap();
+                        form.username, state.config.host, token
+                    );
+                    debug!("{:?}, {:?}", from, to);
+                    let email = Message::builder()
+                        .from(from.parse().unwrap())
+                        .to(to.parse().unwrap())
+                        .subject(subject)
+                        .body(body.to_string())
+                        .unwrap();
 
-            debug!("Sending email");
-            match mailer.send(email).await {
-                Ok(_r) => {
-                    debug!("{:?}", _r);
-                    HttpResponse::Ok().json(&json!({"data": res}))
+                    debug!("Sending email");
+                    match mailer.send(email).await {
+                        Ok(_r) => {
+                            debug!("{:?}", _r);
+                            HttpResponse::Ok().json(&json!({"data": res}))
+                        }
+                        Err(_e) => {
+                            info!("{:?}", _e);
+                            HttpResponse::InternalServerError().json(
+                            &json!({"status": "fail", "message": "Something went wrong, try again!"}),
+                        )
+                        }
+                    }
                 }
                 Err(_e) => {
-                    debug!("{:?}", _e);
+                    info!("{:?}", _e);
                     HttpResponse::InternalServerError().json(
                         &json!({"status": "fail", "message": "Something went wrong, try again!"}),
                     )
@@ -479,19 +493,20 @@ async fn confirm_email(form: web::types::Path<String>, state: AppState) -> impl 
     let token = form.into_inner();
     let email = check_signature(&token, &state).await;
     if &email == "Signature was expired" {
-        HttpResponse::BadRequest()
-            .json(&json!({"status": "fail", "message": "Signature has expired!"}))
+        HttpResponse::BadRequest().json(
+            &json!({"status": "fail", "message": "Signature has expired! 
+            You can get another token by clicking the resend email button."}),
+        )
     } else {
-        match state.get_ref().verify_email(&email).await {
+        match state.get_ref().verify_email(&email, &token).await {
             Ok(_user) => {
-                debug!("User found, username unavailable");
-                HttpResponse::Ok().json(&json!({"message": "username available"}))
+                debug!("Email verified!");
+                HttpResponse::Ok().json(&json!({"success": true, "message": "Email verified."}))
             }
             Err(e) => {
                 debug!("{:?}", e.to_string());
-                HttpResponse::BadRequest().json(
-                    &json!({"status": "fail", "message": "Your email is not registered with us!"}),
-                )
+                HttpResponse::BadRequest()
+                    .json(&json!({"status": false, "message": "Email not found!"}))
             }
         }
     }

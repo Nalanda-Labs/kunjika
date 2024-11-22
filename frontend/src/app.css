@@ -101,3 +101,8 @@ a {
 img {
 	width: 100%;
 }
+
+a.active {
+	font-weight: bold;
+	background-color: #ddd;
+}

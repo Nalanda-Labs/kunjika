@@ -13,6 +13,8 @@ vergen = { version = "9.0.1" }
 [features]
 default = ["postgres"]
 postgres = ["sqlx/postgres"]
+dev = []
+prod = []
 
 [dependencies.sqlx]
 version = "0.8.2"

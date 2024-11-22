@@ -14,10 +14,11 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn update_location(&self, uid: i64, location: &String) -> sqlx::Result<bool>;
     async fn get_links(&self, uid: i64) -> sqlx::Result<LinksResponse>;
     async fn update_links(&self, uid: i64, form: &LinksResponse) -> sqlx::Result<bool>;
-    async fn verify_email(&self, who: &str) -> sqlx::Result<bool>;
+    async fn verify_email(&self, email: &str, token: &str) -> sqlx::Result<bool>;
     async fn update_profile_image(&self, uid: i64, url: &String) -> sqlx::Result<bool>;
     async fn update_profile(&self, uid: &i64, data: &ProfileReq) -> sqlx::Result<bool>;
     async fn get_summary(&self, uid: i64) -> sqlx::Result<SummaryResponse>;
+    async fn save_confirmation_token(&self, email: &String, token: &String) -> sqlx::Result<bool>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 
@@ -207,16 +208,29 @@ impl IUser for &AppStateRaw {
         Ok(true)
     }
 
-    async fn verify_email(&self, email: &str) -> sqlx::Result<bool> {
+    async fn verify_email(&self, email: &str, token: &str) -> sqlx::Result<bool> {
+        let mut tx = self.sql.begin().await?;
+
         sqlx::query!(
             r#"
             update users set email_verified=true where email=$1
             "#,
             email
         )
-        .execute(&self.sql)
+        .execute(&mut *tx)
         .await?;
 
+        sqlx::query!(
+            r#"
+            delete from tokens where email=$1 and token=$2
+            "#,
+            email,
+            token
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
         Ok(true)
     }
 
@@ -390,6 +404,20 @@ impl IUser for &AppStateRaw {
         };
 
         Ok(sr)
+    }
+
+    async fn save_confirmation_token(&self, email: &String, token: &String) -> sqlx::Result<bool> {
+        sqlx::query!(
+            r#"
+            insert into tokens(email, token) values($1, $2)
+            "#,
+            email,
+            token
+        )
+        .execute(&self.sql)
+        .await?;
+
+        Ok(true)
     }
 }
 

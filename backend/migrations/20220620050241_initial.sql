@@ -20,17 +20,17 @@ SET row_security = off;
 -- Name: views_delete_old_rows(); Type: FUNCTION; Schema: public; Owner: shiv
 --
 
-CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  DELETE FROM views WHERE created_date < NOW() - INTERVAL '15 minute';
-  RETURN NEW;
-END;
-$$;
+-- CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
+--     LANGUAGE plpgsql
+--     AS $$
+-- BEGIN
+--   DELETE FROM views WHERE created_date < NOW() - INTERVAL '15 minute';
+--   RETURN NEW;
+-- END;
+-- $$;
 
 
-ALTER FUNCTION public.views_delete_old_rows() OWNER TO shiv;
+-- ALTER FUNCTION public.views_delete_old_rows() OWNER TO shiv;
 
 SET default_tablespace = '';
 
@@ -49,7 +49,7 @@ CREATE TABLE public.post_tags (
 );
 
 
-ALTER TABLE public.post_tags OWNER TO shiv;
+-- ALTER TABLE public.post_tags OWNER TO shiv;
 
 --
 -- Name: tags; Type: TABLE; Schema: public; Owner: shiv
@@ -65,7 +65,7 @@ CREATE TABLE public.tags (
 );
 
 
-ALTER TABLE public.tags OWNER TO shiv;
+-- ALTER TABLE public.tags OWNER TO shiv;
 
 --
 -- Name: daily_tags_by_popularity; Type: MATERIALIZED VIEW; Schema: public; Owner: shiv
@@ -82,7 +82,7 @@ CREATE VIEW public.daily_tags_by_popularity AS
   ORDER BY (count(post_tags.tag_id));
 
 
-ALTER VIEW public.daily_tags_by_popularity OWNER TO shiv;
+-- ALTER VIEW public.daily_tags_by_popularity OWNER TO shiv;
 
 --
 -- Name: post_tags_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
@@ -96,7 +96,7 @@ CREATE SEQUENCE public.post_tags_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.post_tags_id_seq OWNER TO shiv;
+-- ALTER SEQUENCE public.post_tags_id_seq OWNER TO shiv;
 
 --
 -- Name: post_tags_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
@@ -128,7 +128,7 @@ CREATE TABLE public.posts (
 );
 
 
-ALTER TABLE public.posts OWNER TO shiv;
+-- ALTER TABLE public.posts OWNER TO shiv;
 
 --
 -- Name: posts_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
@@ -142,7 +142,7 @@ CREATE SEQUENCE public.posts_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.posts_id_seq OWNER TO shiv;
+-- ALTER SEQUENCE public.posts_id_seq OWNER TO shiv;
 
 --
 -- Name: posts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
@@ -160,7 +160,7 @@ CREATE VIEW public.tags_count AS
    FROM public.tags;
 
 
-ALTER VIEW public.tags_count OWNER TO shiv;
+-- ALTER VIEW public.tags_count OWNER TO shiv;
 
 --
 -- Name: tags_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
@@ -174,7 +174,7 @@ CREATE SEQUENCE public.tags_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.tags_id_seq OWNER TO shiv;
+-- ALTER SEQUENCE public.tags_id_seq OWNER TO shiv;
 
 --
 -- Name: tags_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
@@ -210,7 +210,7 @@ CREATE TABLE public.users (
 );
 
 
-ALTER TABLE public.users OWNER TO shiv;
+-- ALTER TABLE public.users OWNER TO shiv;
 
 --
 -- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
@@ -224,7 +224,7 @@ CREATE SEQUENCE public.users_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.users_id_seq OWNER TO shiv;
+-- ALTER SEQUENCE public.users_id_seq OWNER TO shiv;
 
 --
 -- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
@@ -242,11 +242,12 @@ CREATE TABLE public.views (
     ipaddress character varying(64),
     qid bigint,
     created_date timestamp with time zone DEFAULT now(),
+    expired_at timestamptz not null default now() + '15 minutes'
     id bigint NOT NULL
-);
+) WITH (ttl_expiration_expression = 'expired_at', ttl_job_cron = '*/15 * * * *');
 
 
-ALTER TABLE public.views OWNER TO shiv;
+-- ALTER TABLE public.views OWNER TO shiv;
 
 --
 -- Name: views_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
@@ -260,7 +261,7 @@ CREATE SEQUENCE public.views_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.views_id_seq OWNER TO shiv;
+-- ALTER SEQUENCE public.views_id_seq OWNER TO shiv;
 
 --
 -- Name: views_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
@@ -280,8 +281,25 @@ CREATE TABLE public.votes (
     vote bigint NOT NULL
 );
 
+CREATE TABLE public.bookmarks (
+    qid bigint,
+    aid bigint,
+    uid bigint,
+    created_at timestamp with time zone DEFAULT now()
+);
 
-ALTER TABLE public.votes OWNER TO shiv;
+CREATE TABLE public.tokens (
+    email varchar(256) primary key,
+    token varchar(256) not null
+);
+
+CREATE INDEX tokens_token_idx ON public.tokens(token);
+
+CREATE INDEX bookmarks_created_idx ON public.bookmarks (created_at);
+
+CREATE UNIQUE INDEX bookmarks_ids ON public.bookmarks (qid, aid, uid);
+
+-- ALTER TABLE public.votes OWNER TO shiv;
 
 --
 -- Name: weekly_tags_by_popularity; Type: MATERIALIZED VIEW; Schema: public; Owner: shiv
@@ -297,11 +315,11 @@ CREATE VIEW public.weekly_tags_by_popularity AS
   GROUP BY post_tags.tag_id, t.name
   ORDER BY (count(post_tags.tag_id));
 
-ALTER VIEW public.weekly_tags_by_popularity OWNER TO shiv;
+-- ALTER VIEW public.weekly_tags_by_popularity OWNER TO shiv;
 
 CREATE VIEW public.questions_count AS
  SELECT count(1) AS count
-   FROM public.posts;
+   FROM public.posts where op_id=0;
 
 CREATE VIEW public.questions_count_by_user AS
 SELECT count(1) AS count,
@@ -357,51 +375,6 @@ ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_
 ALTER TABLE ONLY public.views ALTER COLUMN id SET DEFAULT nextval('public.views_id_seq'::regclass);
 
 
---
--- Data for Name: post_tags; Type: TABLE DATA; Schema: public; Owner: shiv
---
-
-COPY public.post_tags (id, post_id, tag_id, created_at, updated_at) FROM stdin;
-
-
---
--- Data for Name: posts; Type: TABLE DATA; Schema: public; Owner: shiv
---
-
-COPY public.posts (id, title, description, created_at, updated_at, visible, op_id, votes, slug, views, answer_accepted, answer_count, posted_by_id, reply_to_id, updated_by_id) FROM stdin;
-
-
---
--- Data for Name: tags; Type: TABLE DATA; Schema: public; Owner: shiv
---
-
-COPY public.tags (id, name, info, post_count, created_date, updated_date) FROM stdin;
-
-
---
--- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: shiv
---
-
-COPY public.users (id, username, email, password_hash, created_date, modified_date, status, image_url, location, name, karma, title, designation, website, git, twitter, email_verified, deleted, displayname) FROM stdin;
-
-
---
--- Data for Name: views; Type: TABLE DATA; Schema: public; Owner: shiv
---
-
-COPY public.views (userid, ipaddress, qid, created_date, id) FROM stdin;
-
-
---
--- Data for Name: votes; Type: TABLE DATA; Schema: public; Owner: shiv
---
-
-COPY public.votes (topic_id, to_user_id, from_user_id, vote) FROM stdin;
-
-
---
--- Name: post_tags_id_seq; Type: SEQUENCE SET; Schema: public; Owner: shiv
---
 
 SELECT pg_catalog.setval('public.post_tags_id_seq', 1, false);
 
@@ -494,63 +467,63 @@ ALTER TABLE ONLY public.votes
 -- Name: from_user_id_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX from_user_id_idx ON public.votes USING btree (from_user_id);
+CREATE INDEX from_user_id_idx ON public.votes (from_user_id);
 
 
 --
 -- Name: post_tags_post_id_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX post_tags_post_id_idx ON public.post_tags USING btree (post_id);
+CREATE INDEX post_tags_post_id_idx ON public.post_tags (post_id);
 
 
 --
 -- Name: post_tags_tag_id_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX post_tags_tag_id_idx ON public.post_tags USING btree (tag_id);
+CREATE INDEX post_tags_tag_id_idx ON public.post_tags (tag_id);
 
 
 --
 -- Name: posts_op_id_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX posts_op_id_idx ON public.posts USING btree (op_id);
+CREATE INDEX posts_op_id_idx ON public.posts (op_id);
 
 
 --
 -- Name: posts_updated_at_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX posts_updated_at_idx ON public.posts USING btree (updated_at);
+CREATE INDEX posts_updated_at_idx ON public.posts (updated_at);
 
 
 --
 -- Name: tags_post_count_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX tags_post_count_idx ON public.tags USING btree (post_count);
+CREATE INDEX tags_post_count_idx ON public.tags (post_count);
 
 
 --
 -- Name: to_user_id_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX to_user_id_idx ON public.votes USING btree (to_user_id);
+CREATE INDEX to_user_id_idx ON public.votes (to_user_id);
 
 
 --
 -- Name: topic_id_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX topic_id_idx ON public.votes USING btree (topic_id);
+CREATE INDEX topic_id_idx ON public.votes (topic_id);
 
 
 --
 -- Name: users_karma_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX users_karma_idx ON public.users USING btree (karma);
+CREATE INDEX users_karma_idx ON public.users (karma);
 
 
 --

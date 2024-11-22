@@ -32,16 +32,16 @@
 		<div class="collapse navbar-collapse" id="navbarSupportedContent">
 			<ul class="navbar-nav me-auto mb-2 mb-lg-0">
 				<li class="nav-item">
-					<a rel="prefetch" class="nav-link" href="/questions">Questions </a>
+					<a rel="prefetch" class="nav-link" class:active={$page.url.pathname.startsWith('/questions')} href="/questions">Questions </a>
 				</li>
 				<li class="nav-item">
-					<a rel="prefetch" class="nav-link" href="/tags">Tags </a>
+					<a rel="prefetch" class="nav-link" class:active={$page.url.pathname.startsWith('/tags')} href="/tags">Tags </a>
 				</li>
 				<li class="nav-item">
-					<a rel="prefetch" class="nav-link" href="/users">Users </a>
+					<a rel="prefetch" class="nav-link" class:active={$page.url.pathname.startsWith('/users')} href="/users">Users {$page.path}</a>
 				</li>
 				<li class="nav-item">
-					<a class="nav-link" href="https://github.com/Nalanda-Labs/kunjika" target="_blank"
+					<a class="nav-link" href="https://github.com/Nalanda-Labs/kunjika" target="_blank" aria-label="github"
 						><i class="fa-brands fa-github"></i>
 					</a>
 				</li>

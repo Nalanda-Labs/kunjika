@@ -41,7 +41,7 @@
 				/>
 			</div>
 			<div class="">
-				<label for="password" class="form-label">Passsword</label>
+				<label for="password" class="form-label">Passsword (<a href="/forgot-password">Forgot Password</a>)</label>
 				<input
 					class="form-control"
 					type="password"

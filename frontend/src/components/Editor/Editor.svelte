@@ -94,48 +94,6 @@
 			<span class="tooltiptext">Add ordered list command</span>
 		</p>
 		<!-- svelte-ignore a11y-click-events-have-key-events -->
-		<p class="dropdown">
-			<i class="fa-solid fa-h dropbtn" />
-			<span class="dropdown-content">
-				<!-- svelte-ignore a11y-click-events-have-key-events -->
-				<!-- svelte-ignore a11y-no-static-element-interactions -->
-				<small
-					on:click={() => {
-						addHeadingTwoCommand(contentTextArea);
-					}}><i class="fa-solid fa-h" /><sub>2</sub></small
-				>
-				<!-- svelte-ignore a11y-click-events-have-key-events -->
-				<!-- svelte-ignore a11y-no-static-element-interactions -->
-				<small
-					on:click={() => {
-						addHeadingThreeCommand(contentTextArea);
-					}}><i class="fa-solid fa-h" /><sub>3</sub></small
-				>
-				<!-- svelte-ignore a11y-click-events-have-key-events -->
-				<!-- svelte-ignore a11y-no-static-element-interactions -->
-				<small
-					on:click={() => {
-						addHeadingFourCommand(contentTextArea);
-					}}><i class="fa-solid fa-h" /><sub>4</sub></small
-				>
-				<!-- svelte-ignore a11y-click-events-have-key-events -->
-				<!-- svelte-ignore a11y-no-static-element-interactions -->
-				<small
-					on:click={() => {
-						addHeadingFiveCommand(contentTextArea);
-					}}><i class="fa-solid fa-h" /><sub>5</sub></small
-				>
-				<!-- svelte-ignore a11y-click-events-have-key-events -->
-				<!-- svelte-ignore a11y-no-static-element-interactions -->
-				<small
-					on:click={() => {
-						addHeadingSixCommand(contentTextArea);
-					}}><i class="fa-solid fa-h" /><sub>6</sub></small
-				>
-			</span>
-		</p>
-
-		<!-- svelte-ignore a11y-click-events-have-key-events -->
 		<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 		<p
 			class="tooltip"
@@ -146,34 +104,6 @@
 		>
 			<i class="fa-solid fa-image" />
 			<span class="tooltiptext">Add image command</span>
-		</p>
-	</div>
-	<div class="others">
-		<p class="dropdown">
-			<i class="fa-solid fa-ellipsis-vertical dropbtn" />
-			<span class="dropdown-content">
-				<!-- svelte-ignore a11y-click-events-have-key-events -->
-				<!-- svelte-ignore a11y-no-static-element-interactions -->
-				<small
-					on:click={() => {
-						addNoteCommand(contentTextArea);
-					}}>Add note</small
-				>
-				<!-- svelte-ignore a11y-click-events-have-key-events -->
-				<!-- svelte-ignore a11y-no-static-element-interactions -->
-				<small
-					on:click={() => {
-						addTipCommand(contentTextArea);
-					}}>Add tip</small
-				>
-				<!-- svelte-ignore a11y-click-events-have-key-events -->
-				<!-- svelte-ignore a11y-no-static-element-interactions -->
-				<small
-					on:click={() => {
-						addWarningCommand(contentTextArea);
-					}}>Add warning</small
-				>
-			</span>
 		</p>
 		<!-- svelte-ignore a11y-click-events-have-key-events -->
 		<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
@@ -188,11 +118,39 @@
 		</p>
 		<!-- svelte-ignore a11y-click-events-have-key-events -->
 		<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-		<!-- <p class="tooltip" on:click={() => handlePreview()}>
-			<i class="fa-solid fa-eye" />
-			<span class="tooltiptext">Preview content</span>
-		</p> -->
+		<p
+			class="tooltip"
+			on:click={() => {
+				addNoteCommand(contentTextArea);
+			}}
+		>
+			<i class="fa-solid fa-note-sticky" />
+			<span class="tooltiptext">Note command</span>
+		</p>
+		<!-- svelte-ignore a11y-click-events-have-key-events -->
+		<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+		<p
+			class="tooltip"
+			on:click={() => {
+				addTipCommand(contentTextArea);
+			}}
+		>
+			<i class="fa-solid fa-circle-info" />
+			<span class="tooltiptext">Tip command</span>
+		</p>
+		<!-- svelte-ignore a11y-click-events-have-key-events -->
+		<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+		<p
+			class="tooltip"
+			on:click={() => {
+				addTipCommand(contentTextArea);
+			}}
+		>
+			<i class="fa-solid fa-warning" />
+			<span class="tooltiptext">Warning command</span>
+		</p>
 	</div>
+	<div class="others"></div>
 </div>
 
 <textarea
@@ -218,7 +176,7 @@
 	id="textAreaContent"
 	{minlength}
 	{maxlength}
-	placeholder="Write your article content here (markdown supported)..."
+	placeholder="Write your content here (markdown supported)..."
 	data-input-field
 	required
 />

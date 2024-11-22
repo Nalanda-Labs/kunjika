@@ -238,12 +238,12 @@ ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 --
 
 CREATE TABLE public.views (
+    id bigint primary key,
     userid bigint,
     ipaddress character varying(64),
     qid bigint,
     created_date timestamp with time zone DEFAULT now(),
     expired_at timestamptz not null default now() + '15 minutes'
-    id bigint NOT NULL
 ) WITH (ttl_expiration_expression = 'expired_at', ttl_job_cron = '*/15 * * * *');
 
 

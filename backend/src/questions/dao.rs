@@ -130,6 +130,7 @@ impl IQuestion for &AppStateRaw {
             )
             .fetch_one(&mut *tx)
             .await?;
+            info!("step 1");
             viewed_by_user = match qr.count {
                 Some(0) => false,
                 Some(_i) => true,
@@ -144,6 +145,7 @@ impl IQuestion for &AppStateRaw {
             )
             .fetch_optional(&mut *tx)
             .await?;
+            info!("step 2");
 
             vote_by_current_user = match vr {
                 Some(v) => v.vote,
@@ -176,9 +178,11 @@ impl IQuestion for &AppStateRaw {
             )
             .execute(&mut *tx)
             .await?;
+            info!("step 3");
             sqlx::query!(r#"update posts set views=views + 1 where id=$1"#, qid)
                 .execute(&mut *tx)
                 .await?;
+            info!("step 4");
         } else if !viewed_by_user && ipaddr != "" {
             sqlx::query!(
                 r#"

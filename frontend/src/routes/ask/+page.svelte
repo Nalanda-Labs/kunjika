@@ -53,21 +53,6 @@
 		}
 	}
 
-	// function handleTags(event) {
-	// 	tagList = event.detail.tags;
-	// 	console.log(tagList);
-	// 	let re = /[a-zA-Z0-0\-\+]+/;
-	// 	for (let i = 0; i < tagList.length; i++) {
-	// 		if (tagList[i].length > 32) {
-	// 			document.getElementById('tags-helper').innerHTML = '32 Characterx max.';
-	// 			document.getElementById('tags-helper').style.color = '#800';
-	// 			break;
-	// 		} else {
-	// 			document.getElementById('tags-helper').innerHTML = '';
-	// 		}
-	// 	}
-	// }
-
 	// function for auto-completing tags
 	async function ts() {
 		if (browser) {
@@ -115,38 +100,6 @@
 				/>
 			</div>
 			<Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />
-			<div
-				class="modal modal-dialog-centered"
-				tabindex="-1"
-				role="dialog"
-				id="myForm"
-				style="top:300px; display:none"
-			>
-				<div class="modal-dialog" role="document">
-					<div class="modal-content">
-						<div class="modal-header">
-							<h5 class="modal-title">Image Upload</h5>
-						</div>
-						<div class="modal-body">
-							<form class="form-container" on:submit|preventDefault={onImageUpload}>
-								<h4>Uplaoad Image(Max 2MB)</h4>
-								<input type="file" name="image" accept="image/*" id="image" alt="image" /><br />
-
-								<div class="modal-footer">
-									<button type="submit" class="btn btn-primary">Upload</button>
-									<button
-										type="button"
-										class="btn btn-primary"
-										on:click={() => {
-											document.getElementById('myForm').style.display = 'none';
-										}}>Close</button
-									>
-								</div>
-							</form>
-						</div>
-					</div>
-				</div>
-			</div>
 			<div style="margin:20px" />
 			<Preview {markup} />
 			<div style="margin:30px" />
@@ -172,5 +125,37 @@
 				<button type="submit" class="btn btn-primary"> Ask </button>
 			</div>
 		</form>
+		<div
+			class="modal modal-dialog-centered"
+			tabindex="-1"
+			role="dialog"
+			id="myForm"
+			style="top:300px; display:none"
+		>
+			<div class="modal-dialog" role="document">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title">Image Upload</h5>
+					</div>
+					<div class="modal-body">
+						<form class="form-container" on:submit|preventDefault={onImageUpload}>
+							<h4>Uplaoad Image(Max 2MB)</h4>
+							<input type="file" name="image" accept="image/*" id="image" alt="image" /><br />
+
+							<div class="modal-footer">
+								<button type="submit" class="btn btn-primary">Upload</button>
+								<button
+									type="button"
+									class="btn btn-primary"
+									on:click={() => {
+										document.getElementById('myForm').style.display = 'none';
+									}}>Close</button
+								>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		</div>
 	</div>
 </div>

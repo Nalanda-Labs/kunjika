@@ -7,6 +7,7 @@
 	import * as api from '../lib/api.js';
 	import { browser } from '$app/environment';
 	import '../app.css';
+	import Footer from './Footer.svelte';
 
 	const refresh = setInterval(
 		async () => {
@@ -51,4 +52,5 @@
 	<main>
 		<slot />
 	</main>
+	<Footer />
 </div>

@@ -5,7 +5,7 @@ use super::user::*;
 use crate::middlewares::auth::{self, AuthorizationService};
 use crate::state::AppState;
 use crate::users::token;
-use crate::utils::security::{check_signature, sign};
+use crate::utils::security::{check_signature, extract_email, sign};
 use crate::utils::verify_user::verify_profile_user;
 
 use cookie::time::Duration;
@@ -489,10 +489,9 @@ async fn confirm_email(form: web::types::Path<String>, state: AppState) -> impl 
     let token = form.into_inner();
     let email = check_signature(&token, &state).await;
     if &email == "Signature was expired" {
-        HttpResponse::BadRequest().json(
-            &json!({"status": "fail", "message": "Signature has expired! 
-            You can get another token by clicking the resend email button."}),
-        )
+        HttpResponse::BadRequest()
+            .json(&json!({"status": "fail", "message": "Signature has expired!
+            You can get another token by clicking the resend email button."}))
     } else {
         match state.get_ref().verify_email(&email, &token).await {
             Ok(t) => {
@@ -520,7 +519,7 @@ async fn resend_confirmation_email(
     state: AppState,
 ) -> impl Responder {
     let token = form.into_inner();
-    let email = check_signature(&token, &state).await;
+    let email = extract_email(&token, &state).await;
     if &email == "Signature was not valid" {
         HttpResponse::BadRequest()
             .json(&json!({"status": "fail", "message": "Bad signature. Use link from your email."}))
@@ -571,13 +570,13 @@ Team Kunjika",
                 match mailer.send(email).await {
                     Ok(_r) => {
                         debug!("{:?}", _r);
-                        HttpResponse::Ok().json(&json!({"success": true, "message": "Confirmation email sent!"}))
+                        HttpResponse::Ok()
+                            .json(&json!({"success": true, "message": "Confirmation email sent!"}))
                     }
                     Err(_e) => {
                         info!("{:?}", _e);
-                        HttpResponse::InternalServerError().json(
-                        &json!({"status": false, "message": _e.to_string()}),
-                    )
+                        HttpResponse::InternalServerError()
+                            .json(&json!({"status": false, "message": _e.to_string()}))
                     }
                 }
             }
@@ -591,9 +590,12 @@ Team Kunjika",
 }
 
 #[post("/forgot-password/")]
-async fn forgot_password(form: web::types::Json<ForgotPasswordReq>, state: AppState) -> impl Responder {
+async fn forgot_password(
+    form: web::types::Json<ForgotPasswordReq>,
+    state: AppState,
+) -> impl Responder {
     let email = form.into_inner().email;
-    
+
     match state.get_ref().user_query(&email).await {
         Ok(r) => {
             let username = r.username;
@@ -601,16 +603,17 @@ async fn forgot_password(form: web::types::Json<ForgotPasswordReq>, state: AppSt
                 state.config.mail_username.clone(),
                 state.config.mail_password.clone(),
             );
-    
-            let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&state.config.mail_host)
-                .unwrap()
-                .credentials(smtp_credentials)
-                .build();
-    
+
+            let mailer =
+                AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&state.config.mail_host)
+                    .unwrap()
+                    .credentials(smtp_credentials)
+                    .build();
+
             let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
             let to = email.clone();
             let subject = "Password reset at Kunjika";
-    
+
             // Sign an arbitrary string.
             let token = sign(&email, &state).await;
             match state
@@ -622,10 +625,10 @@ async fn forgot_password(form: web::types::Json<ForgotPasswordReq>, state: AppSt
                     // TODO: Get username from db to add to the email
                     let body = format!(
                         "Hi {},
-    
+
 Your link for resetting password is https://{}/reset-password/{}.
 This link will expire in one day.
-    
+
 Thanks,
 Team kunjika",
                         &username, state.config.host, token
@@ -637,12 +640,14 @@ Team kunjika",
                         .subject(subject)
                         .body(body.to_string())
                         .unwrap();
-    
+
                     debug!("Sending email");
                     match mailer.send(email).await {
                         Ok(_r) => {
                             debug!("{:?}", _r);
-                            HttpResponse::Ok().json(&json!({"success": true, "message": "Reset password email sent!"}))
+                            HttpResponse::Ok().json(
+                                &json!({"success": true, "message": "If email is found a password reset email is sent."}),
+                            )
                         }
                         Err(_e) => {
                             info!("{:?}", _e);
@@ -661,7 +666,62 @@ Team kunjika",
         }
         Err(e) => {
             info!("{:?}", e.to_string());
+            if e.to_string()
+                == "no rows returned by a query that expected to return at least one row"
+            {
+                return HttpResponse::InternalServerError().json(&json!({"success": false, "message": "If email is found a password reset email is sent."}));
+            }
             HttpResponse::InternalServerError().json(&json!({"success": false, "message": "Something went wrong. Please contact support."}))
+        }
+    }
+}
+
+#[get("/reset-password/{token}")]
+async fn check_reset_password_token(
+    form: web::types::Path<String>,
+    state: AppState,
+) -> impl Responder {
+    let token = form.into_inner();
+    let email = extract_email(&token, &state).await;
+    if &email == "Signature was not valid" {
+        HttpResponse::BadRequest()
+            .json(&json!({"status": false, "message": "Signature is not valid!
+            Use link from email or use forgot password link on login page."}))
+    } else {
+        HttpResponse::Ok().json(&json!({"success": true}))
+    }
+}
+
+#[post("/reset-password/{token}")]
+async fn reset_password(
+    form1: web::types::Path<String>,
+    form2: web::types::Json<ResetPasswordReq>,
+    state: AppState,
+) -> impl Responder {
+    let token = form1.into_inner();
+    let form2 = form2.into_inner();
+    let password = &form2.password;
+    let confirm_password = &form2.confirm_password;
+
+    if password != confirm_password || password.len() < 16 || confirm_password.len() < 16 {
+        return HttpResponse::BadRequest()
+            .json(&json!({"status": false, "message": "Bad passwords!"}));
+    }
+
+    let email = check_signature(&token, &state).await;
+
+    if &email == "Signature was expired" {
+        HttpResponse::BadRequest().json(&json!({"status": false, "message": "Signature has expired!
+            You can get another token using reset password link on login page."}))
+    } else {
+        match state.get_ref().reset_password(&email, &password).await {
+            Ok(_t) => HttpResponse::Ok().json(&json!({"success": true})),
+            Err(e) => {
+                info!("{:?}", e.to_string());
+                HttpResponse::InternalServerError().json(
+                    &json!({"success": false, "message": "Something went wrong. Contact support!"}),
+                )
+            }
         }
     }
 }
@@ -1014,4 +1074,6 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(user_summary);
     cfg.service(resend_confirmation_email);
     cfg.service(forgot_password);
+    cfg.service(check_reset_password_token);
+    cfg.service(reset_password);
 }

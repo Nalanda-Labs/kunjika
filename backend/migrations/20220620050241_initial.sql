@@ -289,7 +289,8 @@ CREATE TABLE public.bookmarks (
 );
 
 CREATE TABLE public.tokens (
-    email varchar(256) primary key,
+    id bigserial primary key,
+    email varchar(256),
     token varchar(256) not null
 );
 

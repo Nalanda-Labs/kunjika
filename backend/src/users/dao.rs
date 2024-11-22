@@ -19,6 +19,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn update_profile(&self, uid: &i64, data: &ProfileReq) -> sqlx::Result<bool>;
     async fn get_summary(&self, uid: i64) -> sqlx::Result<SummaryResponse>;
     async fn save_confirmation_token(&self, email: &String, token: &String) -> sqlx::Result<bool>;
+    async fn reset_password(&self, email: &String, password: &String) -> sqlx::Result<bool>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 
@@ -32,7 +33,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
 
         sqlx::query_as(&sql).bind(who).fetch_one(&self.sql).await
     }
-    
+
     async fn user_delete(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 
@@ -418,6 +419,22 @@ impl IUser for &AppStateRaw {
             "#,
             email,
             token
+        )
+        .execute(&self.sql)
+        .await?;
+
+        Ok(true)
+    }
+
+    async fn reset_password(&self, email: &String, password: &String) -> sqlx::Result<bool> {
+        let password_hash = passhash(password);
+
+        sqlx::query!(
+            r#"
+            update users set password_hash=$1 where email=$2
+            "#,
+            password_hash,
+            email
         )
         .execute(&self.sql)
         .await?;

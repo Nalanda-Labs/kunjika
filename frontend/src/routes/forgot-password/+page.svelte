@@ -45,7 +45,9 @@
 				].join('');
 			}
 		} else {
-			message = `Something went wrong! Contact support!`;
+			response = await response.text();
+			response = response ? JSON.parse(response) : {};
+			message = response.message;
 			wrapper.innerHTML = [
 				`<div class="alert alert-danger alert-dismissible" role="alert">`,
 				`   <div>${message}</div>`,
@@ -64,7 +66,7 @@
 <div class="row justify-content-center align-items-center" style="height:80vh">
 	<div class="col-4">
 		<div id="message"></div>
-        <h3>Forgot Password</h3>
+		<h3>Forgot Password</h3>
 		<p>
 			<a href="/register">Need an account?</a>
 		</p>

@@ -3,7 +3,7 @@ use argon2::{self, Config};
 use ring::digest;
 use time;
 
-fn passhash(pass: &str) -> String {
+pub fn passhash(pass: &str) -> String {
     let config = Config::default();
     const CREDENTIAL_LEN: usize = digest::SHA512_OUTPUT_LEN;
     let salt = [0u8; CREDENTIAL_LEN];
@@ -195,4 +195,12 @@ pub struct SummaryResponse {
 pub struct ForgotPasswordReq {
     #[validate(email)]
     pub email: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Validate)]
+pub struct ResetPasswordReq {
+    #[validate(length(min = 16, max = 64))]
+    pub password: String,
+    #[validate(length(min = 16, max = 64))]
+    pub confirm_password: String,
 }

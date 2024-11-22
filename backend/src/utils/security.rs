@@ -16,10 +16,5 @@ pub async fn check_signature(text: &str, state: &AppState) -> String {
         .into_timestamp_signer();
 
     let unsigned = signer.unsign(&text).expect("Signature was not valid");
-    unsigned
-        .value_if_not_expired(Duration::from_secs(
-            state.config.email_verification_expiry_time,
-        ))
-        .expect("Signature was expired")
-        .to_string()
+    unsigned.value().to_string()
 }

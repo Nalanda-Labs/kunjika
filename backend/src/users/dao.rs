@@ -220,7 +220,7 @@ impl IUser for &AppStateRaw {
         .execute(&mut *tx)
         .await?;
 
-        sqlx::query!(
+        let r = sqlx::query!(
             r#"
             delete from tokens where email=$1 and token=$2
             "#,
@@ -229,6 +229,10 @@ impl IUser for &AppStateRaw {
         )
         .execute(&mut *tx)
         .await?;
+
+        if r.rows_affected() == 0 {
+            return Ok(false);
+        }
 
         tx.commit().await?;
         Ok(true)

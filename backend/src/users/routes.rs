@@ -41,19 +41,16 @@ async fn register(form: web::types::Json<Register>, state: AppState) -> impl Res
         Ok(res) => {
             debug!("register {:?} res: {}", form, res);
             // TODO: move it out to a common logic
-            let _smtp_credentials = Credentials::new(
+            let smtp_credentials = Credentials::new(
                 state.config.mail_username.clone(),
                 state.config.mail_password.clone(),
             );
 
             let mailer =
-                        // For production
-                        // AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&state.config.mail_host)
-                            //     .unwrap()
-                            //     .credentials(smtp_credentials)
-                            //     .build();
-                        // For development
-                        AsyncSmtpTransport::<Tokio1Executor>::unencrypted_localhost()               ;
+                AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&state.config.mail_host)
+                    .unwrap()
+                    .credentials(smtp_credentials)
+                    .build();
 
             let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
             let to = form.email.clone();
@@ -116,7 +113,6 @@ Shiv",
     }
 }
 
-// curl -v --data '{"name": "Bob", "email": "Bob@google.com", "password": "Bobpass"}' -H "Content-Type: application/json" -X POST localhost:8080/user/login
 #[post("/auth/login")]
 async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder {
     let form = form.into_inner();
@@ -499,14 +495,96 @@ async fn confirm_email(form: web::types::Path<String>, state: AppState) -> impl 
         )
     } else {
         match state.get_ref().verify_email(&email, &token).await {
-            Ok(_user) => {
-                debug!("Email verified!");
-                HttpResponse::Ok().json(&json!({"success": true, "message": "Email verified."}))
+            Ok(t) => {
+                if t {
+                    debug!("Email verified!");
+                    HttpResponse::Ok().json(&json!({"success": true, "message": "Email verified."}))
+                } else {
+                    debug!("Token not found!");
+                    HttpResponse::Ok()
+                        .json(&json!({"success": false, "message": "Invalid or expired token!"}))
+                }
             }
             Err(e) => {
                 debug!("{:?}", e.to_string());
                 HttpResponse::BadRequest()
                     .json(&json!({"status": false, "message": "Email not found!"}))
+            }
+        }
+    }
+}
+
+#[get("/resend-confirmation-email/{token}")]
+async fn resend_confirmation_email(
+    form: web::types::Path<String>,
+    state: AppState,
+) -> impl Responder {
+    let token = form.into_inner();
+    let email = check_signature(&token, &state).await;
+    if &email == "Signature was not valid" {
+        HttpResponse::BadRequest()
+            .json(&json!({"status": "fail", "message": "Bad signature. Use link from your email."}))
+    } else {
+        let smtp_credentials = Credentials::new(
+            state.config.mail_username.clone(),
+            state.config.mail_password.clone(),
+        );
+
+        let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&state.config.mail_host)
+            .unwrap()
+            .credentials(smtp_credentials)
+            .build();
+
+        let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
+        let to = email.clone();
+        let subject = "Registration at Kunjika";
+
+        // Sign an arbitrary string.
+        let token = sign(&email, &state).await;
+        match state
+            .get_ref()
+            .save_confirmation_token(&email, &token)
+            .await
+        {
+            Ok(_t) => {
+                // TODO: Get username from db to add to the email
+                let body = format!(
+                    "Hi,
+
+Thank you for registering at Kunjika.
+Your email confirmation link is https://{}/confirm-email/{}.
+This email will expire in one day.
+
+Thanks,
+Shiv",
+                    state.config.host, token
+                );
+                debug!("{:?}, {:?}", from, to);
+                let email = Message::builder()
+                    .from(from.parse().unwrap())
+                    .to(to.parse().unwrap())
+                    .subject(subject)
+                    .body(body.to_string())
+                    .unwrap();
+
+                debug!("Sending email");
+                match mailer.send(email).await {
+                    Ok(_r) => {
+                        debug!("{:?}", _r);
+                        HttpResponse::Ok().json(&json!({"success": true, "message": "Confirmation email sent!"}))
+                    }
+                    Err(_e) => {
+                        info!("{:?}", _e);
+                        HttpResponse::InternalServerError().json(
+                        &json!({"status": false, "message": _e.to_string()}),
+                    )
+                    }
+                }
+            }
+            Err(_e) => {
+                info!("{:?}", _e);
+                HttpResponse::InternalServerError()
+                    .json(&json!({"status": false, "message": _e.to_string()}))
             }
         }
     }
@@ -858,4 +936,5 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(image_upload);
     cfg.service(update_profile);
     cfg.service(user_summary);
+    cfg.service(resend_confirmation_email);
 }

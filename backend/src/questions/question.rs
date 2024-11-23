@@ -227,3 +227,16 @@ pub struct UserAnswersReq {
     pub uat: String,
     pub direction: Option<String>,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UserBookmarksReq {
+    pub uat: String,
+    pub bookmarks_per_page: i64,
+    pub direction: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BookmarkIDs {
+    pub qid: i64,
+    pub aid: i64,
+}

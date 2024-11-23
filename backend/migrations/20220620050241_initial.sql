@@ -282,9 +282,9 @@ CREATE TABLE public.votes (
 );
 
 CREATE TABLE public.bookmarks (
-    qid bigint,
-    aid bigint,
-    uid bigint,
+    qid bigint not null,
+    aid bigint not null,
+    uid bigint not null,
     created_at timestamp with time zone DEFAULT now()
 );
 
@@ -299,6 +299,8 @@ CREATE INDEX tokens_token_idx ON public.tokens(token);
 CREATE INDEX bookmarks_created_idx ON public.bookmarks (created_at);
 
 CREATE UNIQUE INDEX bookmarks_ids ON public.bookmarks (qid, aid, uid);
+
+create view public.bookmarks_count as select count(1), uid from public.bookmarks where uid=uid group by uid;
 
 -- ALTER TABLE public.votes OWNER TO shiv;
 

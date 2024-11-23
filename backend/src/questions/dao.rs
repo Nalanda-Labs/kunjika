@@ -1,4 +1,4 @@
-use super::question::*;
+use super::{question::*, routes::bookmark};
 use crate::state::AppStateRaw;
 use sqlx::error::Error;
 
@@ -45,9 +45,16 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         &self,
         uid: i64,
         uat: &SqlDateTime,
-        directio: &Option<String>,
+        direction: &Option<String>,
     ) -> sqlx::Result<(AnswersResponse1, i64)>;
     async fn bookmark(&self, qid: i64, aid: i64, uid: i64) -> sqlx::Result<bool>;
+    async fn get_bookmarks_by_user(
+        &self,
+        uid: i64,
+        uat: &SqlDateTime,
+        bookmarks_per_page: i64,
+        direction: &Option<String>,
+    ) -> sqlx::Result<(AnswersResponse1, i64)>;
 }
 
 #[cfg(any(feature = "postgres"))]
@@ -989,17 +996,156 @@ impl IQuestion for &AppStateRaw {
     }
 
     async fn bookmark(&self, qid: i64, aid: i64, uid: i64) -> sqlx::Result<bool> {
-        sqlx::query!(
+        let r = sqlx::query!(
             r#"
-            insert into bookmarks(qid, aid, uid, created_at) VALUES($1, $2, $3, now())
+            select qid, aid, uid from bookmarks where qid=$1 and aid=$2 and uid=$3
             "#,
             qid,
             aid,
             uid
         )
-        .execute(&self.sql)
+        .fetch_optional(&self.sql)
         .await?;
 
-        Ok(true)
+        if let Some(_row) = r {
+            // a row is found so this is an unbookmark request
+            sqlx::query!(
+                r#"
+                delete from bookmarks where qid=$1 and aid=$2 and uid=$3
+                "#,
+                qid,
+                aid,
+                uid
+            )
+            .execute(&self.sql)
+            .await?;
+
+            return Ok(true);
+        } else {
+            // no row has been found so this is a bookmark request
+            sqlx::query!(
+                r#"
+                insert into bookmarks(qid, aid, uid, created_at) VALUES($1, $2, $3, now())
+                "#,
+                qid,
+                aid,
+                uid
+            )
+            .execute(&self.sql)
+            .await?;
+
+            return Ok(true);
+        }
+    }
+
+    async fn get_bookmarks_by_user(
+        &self,
+        uid: i64,
+        uat: &SqlDateTime,
+        bookmarks_per_page: i64,
+        direction: &Option<String>,
+    ) -> sqlx::Result<(AnswersResponse1, i64)> {
+        let mut tx = self.sql.begin().await?;
+
+        let count = sqlx::query!(r#"select count from bookmarks_count where uid = $1"#, uid)
+            .fetch_one(&mut *tx)
+            .await?;
+
+        let answers = match direction {
+            Some(_d) => {
+                sqlx::query_as!(
+                    AR1,
+                    r#"
+                select t.visible, t.updated_at,
+                t.votes, t.answer_accepted, t.title, t.slug,
+                array_agg(post_tags.tag_id) as tag_id, array_agg(tags.name) as tags,
+                bookmarks.qid as question_id, bookmarks.aid as answer_id
+                from posts t 
+                left join post_tags on post_tags.post_id=t.id
+                left join tags on post_tags.tag_id = tags.id
+                left join bookmarks on bookmarks.qid=t.id
+                where bookmarks.uid=$1 and bookmarks.created_at > $2
+                group by visible, t.updated_at, votes, answer_accepted, title, slug,
+                qid, aid, bookmarks.created_at
+                order by bookmarks.created_at asc limit $3
+                "#,
+                    uid,
+                    uat,
+                    bookmarks_per_page
+                )
+                .fetch_all(&mut *tx)
+                .await?
+            }
+            None => {
+                sqlx::query_as!(
+                    AR1,
+                    r#"
+                select t.visible, t.updated_at,
+                t.votes, t.answer_accepted, t.title, t.slug,
+                array_agg(post_tags.tag_id) as tag_id, array_agg(tags.name) as tags,
+                bookmarks.qid as question_id, bookmarks.aid as answer_id
+                from posts t 
+                left join post_tags on post_tags.post_id=t.id
+                left join tags on post_tags.tag_id = tags.id
+                left join bookmarks on bookmarks.qid=t.id
+                where bookmarks.uid=$1 and bookmarks.created_at < $2
+                group by visible, t.updated_at, votes, answer_accepted, title, slug,
+                qid, aid, bookmarks.created_at
+                order by bookmarks.created_at desc limit $3
+                "#,
+                    uid,
+                    uat,
+                    bookmarks_per_page
+                )
+                .fetch_all(&mut *tx)
+                .await?
+            }
+        };
+
+        tx.commit().await?;
+
+        let mut ars = AnswersResponse1 {
+            questions: Vec::new(),
+        };
+
+        for q in answers {
+            let title = match q.title {
+                Some(t) => t,
+                None => "".to_owned(),
+            };
+            let tags = match q.tags {
+                Some(t) => t.join(","),
+                None => "".to_owned(),
+            };
+            let tid = match q.tag_id {
+                Some(t) => t.iter().map(|&e| e.to_string() + ",").collect(),
+                None => "".to_owned(),
+            };
+            let slug = match q.slug {
+                Some(s) => s,
+                None => "".to_owned(),
+            };
+            let qr = AR2 {
+                question_id: q.question_id,
+                visible: q.visible,
+                answer_id: q.answer_id,
+                title,
+                tags,
+                tid,
+                slug,
+                votes: q.votes,
+                updated_at: q.updated_at,
+                answer_accepted: q.answer_accepted,
+                uat: q.updated_at.unix_timestamp(),
+            };
+            ars.questions.push(qr);
+        }
+
+        let c = match count.count {
+            Some(c) => c,
+            None => 0,
+        };
+
+        Ok((ars, c))
     }
 }

@@ -11,6 +11,7 @@
 	let edit;
 	let questions;
 	let answers;
+	let bookmarks;
 
 	let id = $page.params.id;
 	$: username = '';
@@ -39,8 +40,8 @@
 		}
 	}
 
-	function loadEdit() {
-		edit = import('./_Edit.svelte');
+	async function loadEdit() {
+		edit = await import('./_Edit.svelte');
 	}
 
 	async function loadQuestions() {
@@ -48,7 +49,11 @@
 	}
 
 	async function loadAnswers() {
-		answers = import('./_Answers.svelte');
+		answers = await import('./_Answers.svelte');
+	}
+
+	async function loadBookmarks() {
+		bookmarks = await import('./_Bookmarks.svelte');
 	}
 
 	onMount(async () => await getUser());
@@ -86,7 +91,7 @@
 			{/if}
 			{#if website}
 				<a href={website}>
-					<i class="fa-solid fa-link"></i>
+					&nbsp;<i class="fa-solid fa-link"></i>
 					{website.split('//').slice(-1)}
 				</a>
 			{/if}
@@ -103,10 +108,10 @@
 				<li class="nav-item">
 					<a class="nav-link active" href="#activity" data-bs-toggle="tab">Activity</a>
 				</li>
-				<li class="nav-item">
-					<a class="nav-link" href="#bookmarks" data-bs-toggle="tab">Bookmarks</a>
-				</li>
 				{#if $page.data.user != null && id == $page.data.user.id}
+					<li class="nav-item">
+						<a class="nav-link" href="#bookmarks" data-bs-toggle="tab" on:click={loadBookmarks}>Bookmarks</a>
+					</li>
 					<li class="nav-item">
 						<a class="nav-link" href="#settings" data-bs-toggle="tab" on:click={loadEdit}
 							>Settings</a
@@ -114,7 +119,7 @@
 					</li>
 				{/if}
 			</ul>
-			<div style="margin-top:10px" />
+			<div style="margin-top:10px"></div>
 			<div class="tab-content">
 				<!-- Repo -->
 				<div class="tab-pane active" id="activity">
@@ -154,7 +159,13 @@
 						</div>
 					</div>
 				</div>
-				<div class="tab-pane" id="bookmarks">Not implemented</div>
+				<div class="tab-pane" id="bookmarks">
+					{#if bookmarks}
+						{#await bookmarks then { default: Bookmarks }}
+							<Bookmarks {id} />
+						{/await}
+					{/if}
+				</div>
 				<div class="tab-pane" id="settings">
 					<ul class="nav nav-tabs">
 						<li>

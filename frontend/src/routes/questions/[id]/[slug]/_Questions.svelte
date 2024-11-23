@@ -318,13 +318,12 @@
 						style="margin-right:5px"
 						><span class="material-icons" style="vertical-align:bottom">share</span>Share</a
 					>
-
 					<a
 						href="/bookmark/{id}/0"
 						class="anchor"
 						title="Bookmark this post"
 						style="margin-right:5px"
-						on:click|preventDefault={bookmark(id, 0)}
+						on:click|preventDefault={() => bookmark(id, 0)}
 						><span class="material-icons" style="vertical-align:bottom">bookmark</span>Bookmark</a
 					>
 					<a

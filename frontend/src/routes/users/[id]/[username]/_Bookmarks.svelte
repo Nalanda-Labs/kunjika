@@ -1,31 +1,33 @@
 <script>
 	import * as api from '$lib/api.js';
 	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
+	import getCookie from '../../../../lib/cookie.js';
 
 	export let id;
 	let data = [];
-	let questions = [];
+	let bookmarks = [];
 	let uat = '';
 	let count = 0;
 	let pages = 0; // total no. of pages
 	let page = 1; // current page
-	let questions_per_page = 30;
+	let bookmarks_per_page = 30;
 
-	function processQuestions(data) {
-		questions = data;
-		for (let i = 0; i < questions.length; i++) {
-			questions[i]['tags'] = questions[i]['tags'].split(',');
-			questions[i]['tid'] = questions[i]['tid'].split(',');
-			let asked_ts = new Date(questions[i].cat * 1000);
-			let updated_ts = new Date(questions[i].uat * 1000);
+	function processBookmarks(data) {
+		bookmarks = data;
+		for (let i = 0; i < bookmarks.length; i++) {
+			bookmarks[i]['tags'] = bookmarks[i]['tags'].split(',');
+			bookmarks[i]['tid'] = bookmarks[i]['tid'].split(',');
+			let asked_ts = new Date(bookmarks[i].cat * 1000);
+			let updated_ts = new Date(bookmarks[i].uat * 1000);
 			let now = new Date();
-			questions[i].updated_ts = updated_ts;
+			bookmarks[i].updated_ts = updated_ts;
 
 			if (asked_ts == updated_ts) {
 				let shown_ts = Math.floor((now - asked_ts) / 1000);
 
 				if (shown_ts >= 259200) {
-					asked_ts = new Date(questions[i].cat);
+					asked_ts = new Date(bookmarks[i].cat);
 					let year = asked_ts.getYear() + 1900;
 					let month = asked_ts.getMonth() + 1;
 					shown_ts = 'asked on ' + asked_ts.getDate() + '/' + month + '/' + year;
@@ -40,11 +42,11 @@
 				} else {
 					shown_ts = 'asked ' + shown_ts + 's ago';
 				}
-				questions[i].shown_ts = shown_ts;
+				bookmarks[i].shown_ts = shown_ts;
 			} else {
 				let shown_ts = Math.floor((now - updated_ts) / 1000);
 				if (shown_ts >= 259200) {
-					asked_ts = new Date(questions[i].cat);
+					asked_ts = new Date(bookmarks[i].cat);
 					let year = updated_ts.getYear() + 1900;
 					let month = updated_ts.getMonth() + 1;
 					shown_ts = 'modified on ' + updated_ts.getDay() + '/' + month + '/' + year;
@@ -59,7 +61,7 @@
 				} else {
 					shown_ts = 'modified ' + shown_ts + 's ago';
 				}
-				questions[i].shown_ts = shown_ts;
+				bookmarks[i].shown_ts = shown_ts;
 			}
 		}
 	}
@@ -67,80 +69,96 @@
 	async function handleError(response) {
 		response = JSON.parse(await response.text());
 		if (
-			response.status == 'fail' &&
+			response.status === false &&
 			response.message == 'no rows returned by a query that expected to return at least one row'
 		) {
 			count = 0;
-			questions = [];
+			bookmarks = [];
 		} else {
 			alert(response.message);
 		}
 	}
 
 	onMount(async () => {
-		let response = await api.post(`${id}/get-questions-by-user/`, { uat });
+		if (browser) {
+			let xsrf_token = getCookie('xsrf_token');
+			let response = await api.post(
+				`${id}/get-bookmarks-by-user/`,
+				{ uat, bookmarks_per_page },
+				xsrf_token
+			);
 
-		if (response.status === 200) {
-			response = JSON.parse(await response.text());
+			if (response.status === 200) {
+				response = JSON.parse(await response.text());
 
-			let data = response.data.map((t) => t);
-			count = response.count;
-			pages = Math.floor(count / questions_per_page);
-			if (count % questions_per_page !== 0) {
-				pages += 1;
+				let data = response.data.map((t) => t);
+				count = response.count;
+				pages = Math.floor(count / bookmarks_per_page);
+				if (count % bookmarks_per_page !== 0) {
+					pages += 1;
+				}
+
+				processBookmarks(data);
+			} else {
+				handleError(response);
 			}
-
-			processQuestions(data);
-		} else {
-			handleError(response);
 		}
 	});
 
 	async function nextPage() {
 		page += 1;
-		uat = questions[questions.length - 1].updated_ts;
-		let response = await api.post(`${id}/get-questions-by-user/`, { uat });
+		uat = bookmarks[bookmarks.length - 1].updated_ts;
+		if (browser) {
+			let xsrf_token = getCookie('xsrf_token');
+			let response = await api.post(
+				`${id}/get-bookmarks-by-user/`,
+				{ uat, bookmarks_per_page },
+				xsrf_token
+			);
 
-		if (response.status === 200) {
-			response = JSON.parse(await response.text());
+			if (response.status === 200) {
+				response = JSON.parse(await response.text());
 
-			let data = response.data.map((t) => t);
-			count = response.count;
-			pages = Math.floor(count / questions_per_page);
-			if (count % questions_per_page !== 0) {
-				pages += 1;
+				let data = response.data.map((t) => t);
+				count = response.count;
+				pages = Math.floor(count / bookmarks_per_page);
+				if (count % bookmarks_per_page !== 0) {
+					pages += 1;
+				}
+
+				processBookmarks(data);
+			} else {
+				alert(response.message);
 			}
-
-			processQuestions(data);
-		} else {
-			handleError(response);
 		}
 	}
 
 	async function prevPage() {
 		page -= 1;
-		tag = questions[0].updated_ts;
-		let response = await api.post(`${id}/get-questions-by-user/`, { uat, direction: 'back' });
+		tag = bookmarks[0].updated_ts;
+		if (browser) {
+			let xsrf_token = getCookie('xsrf_token');
+			let response = await api.post(
+				`${id}/get-bookmarks-by-user/`,
+				{
+					uat,
+					bookmarks_per_page,
+					direction: 'back'
+				},
+				xsrf_token
+			);
 
-		if (response.status === 200) {
-			response = JSON.parse(await response.text());
+			if (response.status === 200) {
+				response = JSON.parse(await response.text());
 
-			let data = response.data.map((t) => t);
-			count = response.count;
-			pages = Math.floor(count / questions_per_page);
-			if (count % questions_per_page !== 0) {
-				pages += 1;
-			}
+				let data = response.data.map((t) => t);
+				count = response.count;
+				pages = Math.floor(count / bookmarks_per_page);
+				if (count % bookmarks_per_page !== 0) {
+					pages += 1;
+				}
 
-			processQuestions(data);
-		} else {
-			response = JSON.parse(await response.text());
-			if (
-				response.status == 'fail' &&
-				response.message == 'no rows returned by a query that expected to return at least one row'
-			) {
-				count = 0;
-				questions = [];
+				processBookmarks(data);
 			} else {
 				handleError(response);
 			}
@@ -150,61 +168,53 @@
 	async function firstPage() {
 		page = 1;
 		uat = '';
-		let response = await api.post(`${id}/get-questions-by-user/`, { uat });
+		if (browser) {
+			let xsrf_token = getCookie('xsrf_token');
+			let response = await api.post(
+				`${id}/get-bookmarks-by-user/`,
+				{ uat, bookmarks_per_page },
+				xsrf_token
+			);
 
-		if (response.status === 200) {
-			response = JSON.parse(await response.text());
+			if (response.status === 200) {
+				response = JSON.parse(await response.text());
 
-			let data = response.data.map((t) => t);
-			count = response.count;
-			pages = Math.floor(count / questions_per_page);
-			if (count % questions_per_page !== 0) {
-				pages += 1;
+				let data = response.data.map((t) => t);
+				count = response.count;
+				pages = Math.floor(count / bookmarks_per_page);
+				if (count % bookmarks_per_page !== 0) {
+					pages += 1;
+				}
+
+				processBookmarks(data);
+			} else {
+				handleError(response);
 			}
-
-			processQuestions(data);
-		} else {
-			alert(response.message);
 		}
 	}
 </script>
 
 <div style="margin:20px">
 	<div class="row">
-		{#each questions as { id, slug, title, tags, shown_ts, answers, views, answer_accepted }}
+		{#each bookmarks as { answer_id, question_id, slug, title, tags, shown_ts }}
 			<hr
 				style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
 			/>
-			{#if answer_accepted}
-				<div
-					style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left;background-color: green;color: white;"
-				>
-					<p style="text-align:center;font-size:16px;margin-top:5px">
-						{answers}
-					</p>
-					<p style="text-align:center;font-size:10px;margin-top:0px;float:left">answers</p>
-				</div>
-			{:else}
-				<div style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left;">
-					<p style="text-align:center;font-size:16px;margin-top:5px">
-						{answers}
-					</p>
-					<p style="text-align:center;font-size:10px;margin-top:0px;float:left">answers</p>
-				</div>
-			{/if}
-			<div style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left">
-				<p style="text-align:center;font-size:16px;margin-top:5px">
-					{views}
-				</p>
-				<p style="text-align:center;font-size:10px;margin-top:10px;">views</p>
-			</div>
 			<div style="width:85%;float:left;position:relative">
-				<a
-					href="/questions/{id}/{slug}"
-					class="blue-text text-darken-2"
-					style="text-decoration:none; font-size:16px; font-weight:400">{title}</a
-				>
-				<div style="margin-top:20px;clear:both" />
+				{#if answer_id != 0}
+					<a
+						href="/questions/{question_id}/{slug}#{answer_id}"
+						class="blue-text text-darken-2"
+						style="text-decoration:none; font-size:16px; font-weight:400">{title}</a
+					>
+				{:else}
+					<a
+						href="/questions/{question_id}/{slug}"
+						class="blue-text text-darken-2"
+						style="text-decoration:none; font-size:16px; font-weight:400">{title}</a
+					>
+				{/if}
+				<div style="margin-top:20px;clear:both"></div>
 				{#each tags as tag, i}
 					<a
 						href="/questions/tagged/{tag}"
@@ -215,11 +225,11 @@
 				{/each}
 				<span style="float:right">{shown_ts}</span>
 			</div>
-			<div style="clear:both" />
+			<div style="clear:both"></div>
 		{/each}
 		<hr style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px" />
 	</div>
-	<div style="clear:both;margin:auto;width:100%;margin-top:20px" />
+	<div style="clear:both;margin:auto;width:100%;margin-top:20px"></div>
 	<div style="float: right;">
 		<ul class="pagination">
 			<!-- svelte-ignore a11y-invalid-attribute -->

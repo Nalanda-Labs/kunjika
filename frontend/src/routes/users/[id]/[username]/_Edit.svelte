@@ -25,7 +25,7 @@
 			let j = text ? JSON.parse(text) : {};
 
 			if (response.status === 200 && j.success) {
-				await goto(`/users/${id}/${username}`);
+				alert('Profile data saved');
 			} else {
 				alert(j.messages);
 			}
@@ -33,6 +33,7 @@
 			throw redirect(307, '/questions');
 		}
 	}
+
 	async function showProfileImageUploadForm() {
 		let form = document.getElementById('profileImageUploadForm');
 		form.style.display = 'block';

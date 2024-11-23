@@ -389,6 +389,44 @@ async fn get_answers_by_user(
     }
 }
 
+#[post("/{id}/get-bookmarks-by-user/")]
+async fn get_bookmarks_by_user(
+    params: ntex::web::types::Path<i64>,
+    form: ntex::web::types::Json<UserBookmarksReq>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let uid = params.into_inner();
+    let form = form.into_inner();
+    let uid1 = auth.user.id;
+
+    if uid != uid1 {
+        return HttpResponse::BadRequest().json(&json!({"status": false, "message": "Only self can view bookmarks!"}));
+    }
+
+    let time;
+    debug!("{:?}", &form.uat);
+
+    if form.uat == "" {
+        time = time::OffsetDateTime::now_utc();
+        debug!("{:?}", time);
+    } else {
+        time = time::OffsetDateTime::parse(&form.uat, &Rfc3339).unwrap();
+    }
+
+    match state
+        .get_ref()
+        .get_bookmarks_by_user(uid, &time, form.bookmarks_per_page, &form.direction)
+        .await
+    {
+        Ok((user_bookmarks, count)) => {
+            HttpResponse::Ok().json(&json!({"data": user_bookmarks.questions, "count": count}))
+        }
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": false, "message": e.to_string()})),
+    }
+}
+
 #[post("/bookmark/{qid}/{aid}")]
 async fn bookmark(
     params: ntex::web::types::Path<(String, String)>,
@@ -420,4 +458,5 @@ pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(get_questions_by_user);
     cfg.service(get_answers_by_user);
     cfg.service(bookmark);
+    cfg.service(get_bookmarks_by_user);
 }

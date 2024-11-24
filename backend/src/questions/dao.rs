@@ -575,7 +575,7 @@ impl IQuestion for &AppStateRaw {
 
         sqlx::query!(
             r#"
-            update posts set description=$1 where id=$2
+            update posts set description=$1, updated_at=now() where id=$2
             "#,
             description,
             pid
@@ -655,7 +655,7 @@ impl IQuestion for &AppStateRaw {
 
             sqlx::query!(
                 r#"
-                update posts set title=$1, slug=$2 where id=$3
+                update posts set title=$1, slug=$2, updated_at=now() where id=$3
                 "#,
                 title,
                 slug,

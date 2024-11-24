@@ -10,7 +10,6 @@
 	import Preview from '../../components/Editor/Preview.svelte';
 	import getCookie from '../../lib/cookie.js';
 	import '../../editor.css';
-	import { closeForm, addImageURL } from '../../lib/utils/editor/utils.editor';
 	import onImageUpload from '../../lib/imageUpload';
 
 	let title = '';

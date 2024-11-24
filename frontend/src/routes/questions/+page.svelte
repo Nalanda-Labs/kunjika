@@ -122,7 +122,12 @@
 
 	async function prevPage() {
 		current_page -= 1;
-		tag = questions[0].updated_ts;
+		uat = questions[0].updated_ts;
+		// this is because javascript sets the nanoseconds part to 0
+		// however db stores the nanoseconds making backward direction
+		// give wrong results. So we increase seconds by 1 which should
+		// work in almost all cases.
+		uat.setSeconds(uat.getSeconds() + 1);
 		let response = await api.post(`questions/`, { uat, questions_per_page, direction: 'back' });
 
 		if (response.status === 200) {

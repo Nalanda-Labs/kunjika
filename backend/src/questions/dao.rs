@@ -353,7 +353,7 @@ impl IQuestion for &AppStateRaw {
                     from posts t left
                     join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
                     tags on post_tags.tag_id = tags.id where t.op_id=0 and t.updated_at < $1 group by t.id, users.id order by
-                    t.updated_at asc limit $2
+                    t.updated_at desc limit $2
                     "#, updated_at, limit
                 )
                 .fetch_all(&self.sql)

@@ -20,14 +20,14 @@ SET row_security = off;
 -- Name: views_delete_old_rows(); Type: FUNCTION; Schema: public; Owner: shiv
 --
 
--- CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
---     LANGUAGE plpgsql
---     AS $$
--- BEGIN
---   DELETE FROM views WHERE created_date < NOW() - INTERVAL '15 minute';
---   RETURN NEW;
--- END;
--- $$;
+CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  DELETE FROM views WHERE created_date < NOW() - INTERVAL '15 minute';
+  RETURN NEW;
+END;
+$$;
 
 
 -- ALTER FUNCTION public.views_delete_old_rows() OWNER TO shiv;
@@ -242,9 +242,8 @@ CREATE TABLE public.views (
     userid bigint,
     ipaddress character varying(64),
     qid bigint,
-    created_date timestamp with time zone DEFAULT now(),
-    expired_at timestamptz not null default now() + '15 minutes'
-) WITH (ttl_expiration_expression = 'expired_at', ttl_job_cron = '*/15 * * * *');
+    created_date timestamp with time zone DEFAULT now()
+);
 
 
 -- ALTER TABLE public.views OWNER TO shiv;

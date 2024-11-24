@@ -95,7 +95,7 @@
 					<div class="card">
 						<div class="card-body">
 							<span class="card-title"
-								><a style="text-decoration:none" href="/questions/tagged/{name}">{name}</a></span
+								><a style="text-decoration:none" href="/questions/tagged/{encodeURIComponent(name)}">{name}</a></span
 							>
 							{#if info}
 								<p class="card-text">{info.slice(0, 40)}</p>

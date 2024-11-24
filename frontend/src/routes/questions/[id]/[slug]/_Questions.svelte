@@ -252,7 +252,7 @@
 		<div style="float:left;margin-right:10px;z-index:2;">
 			{#if image_url === ''}
 				<a href="/users/{posted_by}/{username}">
-					<p data-letters={initials.toUpperCase()} />
+					<p data-letters={initials.toUpperCase()}></p>
 				</a>
 			{:else}
 				<a href="/users/{posted_by}/{username}">

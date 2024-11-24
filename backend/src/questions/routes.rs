@@ -143,28 +143,40 @@ async fn get_questions(
     }
 }
 
-// #[post("/questions/tagged/{tag}")]
-// async fn get_questions_by_tag(
-//     params: ntex::web::types::Path<String>,
-//     ut: ntex::web::types::Json<QuestionsReq>,
-//     state: AppState,
-// ) -> impl Responder {
-//     let tag = params.parse().unwrap();
-//     let updated_at = ut.into_inner();
-//     let up_at;
-//     debug!("{:?}", &updated_at.uat);
-//     if updated_at.uat == "" {
-//         up_at = time::OffsetDateTime::now_utc();
-//         debug!("{:?}", up_at);
-//     } else {
-//         up_at = time::OffsetDateTime::parse(&updated_at.uat, &Rfc3339).unwrap();
-//     }
-//     match state.get_ref().get_questions_by_tag(&up_at, &tag).await {
-//         Ok(db_questions) => HttpResponse::Ok().json(&json!({"data": db_questions})),
-//         Err(e) => HttpResponse::InternalServerError()
-//             .json(&json!({"status": "fail", "message": e.to_string()})),
-//     }
-// }
+#[post("/questions/tagged/{tag}")]
+async fn get_questions_by_tag(
+    params: ntex::web::types::Path<String>,
+    form: ntex::web::types::Json<QuestionsReq>,
+    state: AppState,
+) -> impl Responder {
+    let tag = params.into_inner();
+    let form = form.into_inner();
+    let uat;
+
+    debug!("{:?}", &form.uat);
+    if form.uat == "" {
+        uat = time::OffsetDateTime::now_utc();
+        debug!("{:?}", uat);
+    } else {
+        uat = time::OffsetDateTime::parse(&form.uat, &Rfc3339).unwrap();
+    }
+
+    if form.questions_per_page > state.config.questions_per_page as i64 {
+        return HttpResponse::BadRequest().json(
+            &json!({"status": false, "message": "Wrong values for questions to be fetched!"}),
+        );
+    }
+
+    match state
+        .get_ref()
+        .get_questions_by_tag(&uat, form.questions_per_page, &tag, &form.direction)
+        .await
+    {
+        Ok(db_questions) => HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": false, "message": e.to_string()})),
+    }
+}
 
 #[post("/question/get-answers/{id}/")]
 async fn get_answers(
@@ -463,7 +475,7 @@ pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(get_questions);
     cfg.service(get_answers);
     cfg.service(answer);
-    // cfg.service(get_questions_by_tag);
+    cfg.service(get_questions_by_tag);
     cfg.service(get_edit_post);
     cfg.service(update_post);
     cfg.service(image_upload);

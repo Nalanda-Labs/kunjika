@@ -6,7 +6,7 @@
 	{#each taglist as tag}
 		<li style="display:inline">
 			<a
-				href="/questions/tagged/{tag}"
+				href="/questions/tagged/{encodeURIComponent(tag)}"
 				class="light-blue darken-2"
 				style="display: inline; padding: 5px; border-radius: 3px; text-decoration: none; background-color: rgb(240, 240, 255); margin-right: 10px; font-size: 12px;"
 				>{tag}</a

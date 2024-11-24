@@ -217,7 +217,7 @@
 				<div style="margin-top:20px;clear:both"></div>
 				{#each tags as tag, i}
 					<a
-						href="/questions/tagged/{tag}"
+						href="/questions/tagged/{encodeURIComponent(tag)}"
 						class="light-blue darken-2"
 						style="display:inline;padding:5px;border-radius:3px;text-decoration:none; background-color:#f0f0ff;margin-right:10px;font-size:12px"
 						>{tag}</a

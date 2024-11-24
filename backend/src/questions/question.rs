@@ -74,7 +74,9 @@ pub struct QuestionResponse {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct QuestionsReq {
-    pub updated_at: String,
+    pub uat: String,
+    pub questions_per_page: i64,
+    pub direction: Option<String>,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
@@ -122,6 +124,7 @@ pub struct QR1 {
 #[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct QuestionsResponse {
     pub questions: Vec<QR>,
+    pub count: i64
 }
 
 #[derive(Deserialize)]

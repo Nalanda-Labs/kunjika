@@ -64,7 +64,7 @@ CREATE TABLE public.tags (
     updated_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-
+create index tags_name_idx on public.tags(name);
 -- ALTER TABLE public.tags OWNER TO shiv;
 
 --

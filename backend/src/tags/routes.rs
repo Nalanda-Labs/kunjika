@@ -50,16 +50,15 @@ async fn get_all_tags(form: web::types::Json<TagRequest>, state: AppState) -> im
     }
 }
 
-#[get("/tags/edit/{tag}/{id}")]
+#[get("/get-tag-info/{tag}")]
 async fn get_tag_info(
-    params: web::types::Path<(String, String)>,
-    _auth: AuthorizationService,
+    params: web::types::Path<String>,
     state: AppState,
 ) -> impl Responder {
-    let id = params.1.parse().unwrap();
+    let tag = params.parse().unwrap();
 
-    match state.get_ref().get_tag_info(id).await {
-        Ok(info) => HttpResponse::Ok().json(&json!({"data": info})),
+    match state.get_ref().get_tag_info(&tag).await {
+        Ok(info) => HttpResponse::Ok().json(&json!({"info": info})),
         Err(e) => {
             debug!("update tag info: {:?}", e);
             HttpResponse::InternalServerError()

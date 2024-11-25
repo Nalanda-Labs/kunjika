@@ -28,6 +28,8 @@
 		"eslint-plugin-svelte": "^2.46.0",
 		"highlight.js": "^11.10.0",
 		"hljs": "^6.2.3",
+		"lodash": "^4.17.21",
+		"markdown-to-txt": "^2.0.1",
 		"marked": "^15.0.2",
 		"postcss": "^8.4.49",
 		"prettier": "^3.3.3",

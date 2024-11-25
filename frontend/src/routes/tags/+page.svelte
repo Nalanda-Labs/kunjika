@@ -1,6 +1,7 @@
 <script>
 	import * as api from '$lib/api.js';
 	import { onMount } from 'svelte';
+	import markdownToTxt from 'markdown-to-txt';
 
 	let tags = [];
 	let count = 0;
@@ -15,6 +16,9 @@
 		if (response.status === 200) {
 			response = JSON.parse(await response.text());
 			tags = response.data.map((t) => t);
+			response.data.map((t) => {
+				t.info = markdownToTxt(t.info || '');
+			});
 			count = response.count;
 			pages = Math.floor(count / tags_per_page);
 			if (count % tags_per_page !== 0) {
@@ -31,6 +35,9 @@
 		if (response.status === 200) {
 			response = JSON.parse(await response.text());
 			tags = response.data.map((t) => t);
+			response.data.map((t) => {
+				t.info = markdownToTxt(t.info || '');
+			});
 			count = response.count;
 			pages = Math.floor(count / tags_per_page);
 			if (count % tags_per_page !== 0) {
@@ -47,6 +54,9 @@
 		if (response.status === 200) {
 			response = JSON.parse(await response.text());
 			tags = response.data.map((t) => t);
+			response.data.map((t) => {
+				t.info = markdownToTxt(t.info || '');
+			});
 			count = response.count;
 			pages = Math.floor(count / tags_per_page);
 			if (count % tags_per_page !== 0) {
@@ -63,6 +73,9 @@
 		if (response.status === 200) {
 			response = JSON.parse(await response.text());
 			tags = response.data.map((t) => t);
+			response.data.map((t) => {
+				t.info = markdownToTxt(t.info || '');
+			});
 			count = response.count;
 			pages = Math.floor(count / tags_per_page);
 			if (count % tags_per_page !== 0) {
@@ -70,6 +83,7 @@
 			}
 		}
 	}
+	// }
 </script>
 
 <svelte:head>
@@ -95,10 +109,12 @@
 					<div class="card">
 						<div class="card-body">
 							<span class="card-title"
-								><a style="text-decoration:none" href="/questions/tagged/{encodeURIComponent(name)}">{name}</a></span
+								><a style="text-decoration:none" href="/questions/tagged/{encodeURIComponent(name)}"
+									>{name}</a
+								></span
 							>
 							{#if info}
-								<p class="card-text" style="font-size: 12px;">{info.slice(0, 80)}</p>
+								<p class="card-text" style="font-size: 12px;">{info.slice(0, 140)} ...</p>
 							{:else}
 								<p></p>
 							{/if}

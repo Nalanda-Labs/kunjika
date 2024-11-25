@@ -9,7 +9,7 @@ pub trait ITag: std::ops::Deref<Target = AppStateRaw> {
         name: &str,
         direction: &Option<String>,
     ) -> sqlx::Result<(Vec<Tag>, i64)>;
-    async fn update_tag_info(&self, info: &str, id: i64) -> sqlx::Result<String>;
+    async fn update_tag_info(&self, info: &str, id: &String) -> sqlx::Result<String>;
     async fn get_tag_info(&self, tag: &String) -> sqlx::Result<String>;
 }
 
@@ -100,13 +100,13 @@ impl ITag for &AppStateRaw {
         Ok(info)
     }
 
-    async fn update_tag_info(&self, info: &str, id: i64) -> sqlx::Result<String> {
+    async fn update_tag_info(&self, info: &str, name: &String) -> sqlx::Result<String> {
         let id = sqlx::query!(
             r#"
-            update tags set info=$1 where id=$2 returning id
+            update tags set info=$1 where name=$2 returning id
             "#,
             info,
-            id
+            name
         )
         .fetch_one(&self.sql)
         .await;

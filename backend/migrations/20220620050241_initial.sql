@@ -60,6 +60,7 @@ CREATE TABLE public.tags (
     name character varying(32) NOT NULL,
     info character varying(1048576),
     post_count bigint DEFAULT 0,
+    last_updated_by_id bigint FOREIGN KEY REFERENCES public.users(id),
     created_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );

@@ -5,7 +5,7 @@
 <div style="margin-top:20px">
 	<h1>What is kunjika?</h1>
 	<p>Kunjika is a minimal QA/forum application built using Rust, Svelte, 
-		Cockroachdb, ElasticSearch and Redis.</p>
+		PostgreSQL, ElasticSearch and Redis.</p>
 	<h3>Is it usable?</h3>
 	<p>No. It is under active development and not suitable for production.
 		It is not even alpha release. Please check

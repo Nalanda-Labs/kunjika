@@ -464,18 +464,18 @@ impl IQuestion for &AppStateRaw {
             }
         };
 
-        let count = sqlx::query!(r#"select count from questions_count"#)
+        let count = sqlx::query!(r#"select post_count from tags where name=$1"#, tag)
             .fetch_one(&self.sql)
             .await?;
 
-        let c = match count.count {
+        let c = match count.post_count {
             Some(c) => c,
             None => 0,
         };
 
         let mut qrs = QuestionsResponse {
             questions: Vec::new(),
-            count: c
+            count: c,
         };
 
         for q in questions {
@@ -1138,19 +1138,19 @@ impl IQuestion for &AppStateRaw {
                 sqlx::query_as!(
                     AR1,
                     r#"
-                select t.visible, t.updated_at,
-                t.votes, t.answer_accepted, t.title, t.slug,
-                array_agg(post_tags.tag_id) as tag_id, array_agg(tags.name) as tags,
-                bookmarks.qid as question_id, bookmarks.aid as answer_id
-                from posts t 
-                left join post_tags on post_tags.post_id=t.id
-                left join tags on post_tags.tag_id = tags.id
-                left join bookmarks on bookmarks.qid=t.id
-                where bookmarks.uid=$1 and bookmarks.created_at > $2
-                group by visible, t.updated_at, votes, answer_accepted, title, slug,
-                qid, aid, bookmarks.created_at
-                order by bookmarks.created_at asc limit $3
-                "#,
+                    select t.visible, t.updated_at,
+                    t.votes, t.answer_accepted, t.title, t.slug,
+                    array_agg(post_tags.tag_id) as tag_id, array_agg(tags.name) as tags,
+                    bookmarks.qid as question_id, bookmarks.aid as answer_id
+                    from posts t
+                    left join post_tags on post_tags.post_id=t.id
+                    left join tags on post_tags.tag_id = tags.id
+                    left join bookmarks on bookmarks.qid=t.id
+                    where bookmarks.uid=$1 and bookmarks.created_at > $2
+                    group by visible, t.updated_at, votes, answer_accepted, title, slug,
+                    qid, aid, bookmarks.created_at
+                    order by bookmarks.created_at asc limit $3
+                    "#,
                     uid,
                     uat,
                     bookmarks_per_page
@@ -1162,19 +1162,19 @@ impl IQuestion for &AppStateRaw {
                 sqlx::query_as!(
                     AR1,
                     r#"
-                select t.visible, t.updated_at,
-                t.votes, t.answer_accepted, t.title, t.slug,
-                array_agg(post_tags.tag_id) as tag_id, array_agg(tags.name) as tags,
-                bookmarks.qid as question_id, bookmarks.aid as answer_id
-                from posts t 
-                left join post_tags on post_tags.post_id=t.id
-                left join tags on post_tags.tag_id = tags.id
-                left join bookmarks on bookmarks.qid=t.id
-                where bookmarks.uid=$1 and bookmarks.created_at < $2
-                group by visible, t.updated_at, votes, answer_accepted, title, slug,
-                qid, aid, bookmarks.created_at
-                order by bookmarks.created_at desc limit $3
-                "#,
+                    select t.visible, t.updated_at,
+                    t.votes, t.answer_accepted, t.title, t.slug,
+                    array_agg(post_tags.tag_id) as tag_id, array_agg(tags.name) as tags,
+                    bookmarks.qid as question_id, bookmarks.aid as answer_id
+                    from posts t
+                    left join post_tags on post_tags.post_id=t.id
+                    left join tags on post_tags.tag_id = tags.id
+                    left join bookmarks on bookmarks.qid=t.id
+                    where bookmarks.uid=$1 and bookmarks.created_at < $2
+                    group by visible, t.updated_at, votes, answer_accepted, title, slug,
+                    qid, aid, bookmarks.created_at
+                    order by bookmarks.created_at desc limit $3
+                    "#,
                     uid,
                     uat,
                     bookmarks_per_page

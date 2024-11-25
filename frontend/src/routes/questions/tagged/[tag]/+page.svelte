@@ -180,9 +180,10 @@
 <svelte:head>
 	<title>All questions ❤ Kunjika</title>
 </svelte:head>
+
 <div style="margin-top:20px">
 	<h4 class="text-xl font-bold">
-		Questions tagged {$page.params.tag}.
+		Questions tagged {$page.params.tag}({count} questions)
 		{#if $page.data.user}
 			<a href="/ask" style="float:right;margin-right:50px;text-decoration:none">Ask</a>
 		{/if}

@@ -182,7 +182,7 @@
 </svelte:head>
 <div style="margin-top:20px">
 	<h4 class="text-xl font-bold">
-		All questions
+		All questions({count} questions)
 		{#if $page.data.user}
 			<a href="/ask" style="float:right;margin-right:50px;text-decoration:none">Ask</a>
 		{/if}

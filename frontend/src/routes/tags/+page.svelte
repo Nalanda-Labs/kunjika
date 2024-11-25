@@ -9,6 +9,7 @@
 	let page = 1; // current page
 	let tags_per_page = 20;
 	let tag = '';
+	let searchQuery = '';
 
 	onMount(async () => {
 		let response = await api.post('tags', { tag: tag });
@@ -83,7 +84,30 @@
 			}
 		}
 	}
-	// }
+
+	async function searchTags() {
+		let pagination = document.getElementsByClassName('pagination');
+
+		if(searchQuery && pagination[0]) {
+			pagination[0].style.display = 'none';
+		} else {
+			pagination[0].style.display = 'flex';
+			tags = []
+			pages = 0;
+			await firstPage();
+			return;
+		}
+
+		let response = await api.post('search-tags', { tag: searchQuery, tags_per_page });
+
+		if (response.status === 200) {
+			response = JSON.parse(await response.text());
+			tags = response.data.map((t) => t);
+			response.data.map((t) => {
+				t.info = markdownToTxt(t.info || '');
+			});
+		}
+	}
 </script>
 
 <svelte:head>
@@ -97,11 +121,11 @@
 			A tag is a keyword or label which is used to categorize similar questions. Tags make it easier
 			to find similar questions.
 		</p>
-		<div class="input-group" style="max-width:50%">
-			<span class="input-group-text" id="basic-addon1"
+		<div class="input-group"style="max-width:50%">
+			<span class="input-group-text"
 				><i class="material-icons" style="display:inline">search</i></span
 			>
-			<input type="text" class="form-control" />
+			<input type="text" id="search" class="form-control" bind:value={searchQuery} on:keyup={() => searchTags()} />
 		</div>
 		<div style="margin-top:20px" class="row">
 			{#each tags as { name, info, post_count, weekly_count, daily_count }}

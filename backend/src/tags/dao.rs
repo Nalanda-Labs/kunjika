@@ -11,6 +11,7 @@ pub trait ITag: std::ops::Deref<Target = AppStateRaw> {
     ) -> sqlx::Result<(Vec<Tag>, i64)>;
     async fn update_tag_info(&self, info: &str, id: &String) -> sqlx::Result<String>;
     async fn get_tag_info(&self, tag: &String) -> sqlx::Result<String>;
+    async fn search_tags(&self, tag: &String, tags_per_page: i64) -> sqlx::Result<Vec<Tag>>;
 }
 
 #[cfg(any(feature = "postgres"))]
@@ -117,5 +118,21 @@ impl ITag for &AppStateRaw {
         };
 
         Ok(tid)
+    }
+
+    async fn search_tags(&self, tag: &String, tags_per_page: i64) -> sqlx::Result<Vec<Tag>> {
+        let tags = sqlx::query_as!(
+            Tag, r#"select t.id, t.name, t.info, t.post_count, w.count as
+            weekly_count, d.count as daily_count from tags t
+            left join weekly_tags_by_popularity w on w.name=t.name
+            left join daily_tags_by_popularity d on d.name=t.name
+            where t.name like '%' || $1 || '%' order by t.name desc limit $2
+            "#,
+            tag, tags_per_page
+        )
+        .fetch_all(&self.sql)
+        .await?;
+
+        Ok(tags)
     }
 }

@@ -33,3 +33,9 @@ pub struct TagResponse {
     pub post_count: Option<i64>,
     pub info: Option<String>,
 }
+
+#[derive(FromRow, Serialize, Deserialize, Debug, Validate)]
+pub struct SearchTagRequest {
+    pub tag: String,
+    pub tags_per_page: i64,
+}

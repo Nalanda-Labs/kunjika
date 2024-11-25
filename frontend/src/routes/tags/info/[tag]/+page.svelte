@@ -4,6 +4,7 @@
 	import * as api from '$lib/api.js';
 	import { onMount } from 'svelte';
 	import Preview from '../../../../components/Editor/Preview.svelte';
+	import { parseMarkdown } from '../../../../lib/utils/editor/utils.editor';
 
     let info = '';
 
@@ -13,6 +14,7 @@
 		if (response.status === 200) {
 			response = JSON.parse(await response.text());
 			info = response.info;
+            info = parseMarkdown(info);
         } else {
             response = JSON.parse(await response.text());
             alert(response.message);
@@ -21,7 +23,7 @@
 </script>
 
 <svelte:head>
-	<title>All questions ❤ Kunjika</title>
+	<title>Tag Info ❤ Kunjika</title>
 </svelte:head>
 
 <div style="margin-top:20px; max-width:800px;margin:auto">

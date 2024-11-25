@@ -156,7 +156,7 @@
 						<button class="btn"> Reply </button>
 					</div>
 				</div>
-				<div style="min-height: 20px;" />
+				<div style="min-height: 20px;"></div>
 			</form>
 			<div
 				class="modal modal-dialog-centered"

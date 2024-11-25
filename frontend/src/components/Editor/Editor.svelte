@@ -179,4 +179,4 @@
 	placeholder="Write your content here (markdown supported)..."
 	data-input-field
 	required
-/>
+></textarea>

@@ -98,7 +98,7 @@
 								><a style="text-decoration:none" href="/questions/tagged/{encodeURIComponent(name)}">{name}</a></span
 							>
 							{#if info}
-								<p class="card-text">{info.slice(0, 40)}</p>
+								<p class="card-text" style="font-size: 12px;">{info.slice(0, 80)}</p>
 							{:else}
 								<p></p>
 							{/if}

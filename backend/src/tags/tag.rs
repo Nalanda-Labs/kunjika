@@ -21,7 +21,7 @@ pub struct TagRequest {
 
 #[derive(FromRow, Serialize, Deserialize, Debug, Validate)]
 pub struct TagInfoRequest {
-    // #[validate(length(min = 20, max = 1000000))]
+    #[validate(length(min = 100, max = 1000000))]
     pub tag_info: String,
 }
 

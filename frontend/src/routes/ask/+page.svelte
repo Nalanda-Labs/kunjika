@@ -99,9 +99,9 @@
 				/>
 			</div>
 			<Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />
-			<div style="margin:20px" />
+			<div style="margin:20px"></div>
 			<Preview {markup} />
-			<div style="margin:30px" />
+			<div style="margin:30px"></div>
 			<Tags
 				name={'tags'}
 				bind:tags={tagList}

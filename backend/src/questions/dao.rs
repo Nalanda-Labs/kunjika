@@ -641,12 +641,12 @@ impl IQuestion for &AppStateRaw {
             .fetch_all(&mut *tx)
             .await?;
 
-            for t in &ts {
-                if !tags.contains(&t.name) {
-                    let _ = &tx.rollback().await?;
-                    return Ok((0, "".to_owned()));
-                }
-            }
+            // for t in &ts {
+            //     if !tags.contains(&t.name) {
+            //         let _ = &tx.rollback().await?;
+            //         return Ok((0, "".to_owned()));
+            //     }
+            // }
 
             for t in ts {
                 sqlx::query!(

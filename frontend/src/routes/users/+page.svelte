@@ -8,6 +8,7 @@
 	let page = 1; // current page
 	let users_per_page = 20;
 	let user = '';
+	let searchQuery = '';
 
 	async function getUsers() {
 		let response = await api.post('users', { last_user: user });
@@ -71,6 +72,27 @@
 			}
 		}
 	}
+
+	async function searchUsers() {
+		let pagination = document.getElementsByClassName('pagination');
+
+		if(searchQuery && pagination[0]) {
+			pagination[0].style.display = 'none';
+		} else {
+			pagination[0].style.display = 'flex';
+			users = []
+			pages = 0;
+			await firstPage();
+			return;
+		}
+
+		let response = await api.post('search-users', { username: searchQuery, users_per_page });
+
+		if (response.status === 200) {
+			response = JSON.parse(await response.text());
+			users = response.data.map((u) => u);
+		}
+	}
 </script>
 
 <svelte:head>
@@ -84,7 +106,7 @@
 			<span class="input-group-text" id="basic-addon1"
 				><i class="material-icons" style="display:inline">search</i></span
 			>
-			<input type="text" class="form-control" placeholder="Filter by user" />
+			<input type="text" class="form-control" id="search" placeholder="Filter by user" bind:value={searchQuery} on:keyup={() => searchUsers()} />
 		</div>
 		<div style="margin-top:20px" class="row">
 			{#each users as { id, displayname, username, location, karma, image_url }}

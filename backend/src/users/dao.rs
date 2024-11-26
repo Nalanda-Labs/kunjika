@@ -20,6 +20,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn get_summary(&self, uid: i64) -> sqlx::Result<SummaryResponse>;
     async fn save_confirmation_token(&self, email: &String, token: &String) -> sqlx::Result<bool>;
     async fn reset_password(&self, email: &String, password: &String) -> sqlx::Result<bool>;
+    async fn search_users(&self, username: &String, users_per_page: i64) -> sqlx::Result<Vec<UR>>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 
@@ -440,6 +441,21 @@ impl IUser for &AppStateRaw {
         .await?;
 
         Ok(true)
+    }
+
+    async fn search_users(&self, username: &String, users_per_page: i64) -> sqlx::Result<Vec<UR>> {
+        let users = sqlx::query_as!(
+            UR, r#"
+            select id, username, displayname, name, location, image_url, karma from users where
+            username like '%' || $1 || '%' order by displayname desc, username limit $2
+            "#,
+            &username,
+            users_per_page
+        )
+        .fetch_all(&self.sql)
+        .await?;
+
+        Ok(users)
     }
 }
 

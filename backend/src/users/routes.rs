@@ -1052,6 +1052,24 @@ async fn user_summary(params: web::types::Path<String>, state: AppState) -> impl
     }
 }
 
+#[post("/search-users")]
+async fn search_users(form: web::types::Json<SearchUserRequest>, state: AppState) -> impl Responder {
+    let user_req = form.into_inner();
+    match state
+        .get_ref()
+        .search_users(&user_req.username, user_req.users_per_page)
+        .await
+    {
+        Ok(u) => HttpResponse::Ok().json(&json!({"data": u})),
+        Err(e) => {
+            debug!("update tag info: {:?}", e);
+            HttpResponse::InternalServerError()
+                .json(&json!({"status": "fail", "message": e.to_string()}))
+        }
+    }
+}
+
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(login);
     cfg.service(refresh_access_token_handler);
@@ -1076,4 +1094,5 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(forgot_password);
     cfg.service(check_reset_password_token);
     cfg.service(reset_password);
+    cfg.service(search_users);
 }

@@ -204,3 +204,9 @@ pub struct ResetPasswordReq {
     #[validate(length(min = 16, max = 64))]
     pub confirm_password: String,
 }
+
+#[derive(Serialize, Deserialize, Debug, Validate)]
+pub struct SearchUserRequest {
+    pub username: String,
+    pub users_per_page: i64,
+}

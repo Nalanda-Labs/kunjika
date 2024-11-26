@@ -122,7 +122,7 @@ export const useKeyCombinations = (event, contentTextArea) => {
  * @param { HTMLTextAreaElement } contentTextArea - The input or textarea element
  */
 export const addBoldCommand = (contentTextArea) => {
-    const text = `****`;
+    const text = `**`;
     if (contentTextArea.value.indexOf(text) !== -1) {
         contentTextArea.value = contentTextArea.value.replace(text, '');
     } else {

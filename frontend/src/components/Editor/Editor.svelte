@@ -2,12 +2,6 @@
 	import {
 		addBoldCommand,
 		addCodeBlockCommand,
-		addHeadingFiveCommand,
-		addHeadingFourCommand,
-		addHeadingSixCommand,
-		addHeadingThreeCommand,
-		addHeadingTwoCommand,
-		addImageCommand,
 		addItalicCommand,
 		addLinkCommand,
 		addNoteCommand,
@@ -143,7 +137,7 @@
 		<p
 			class="tooltip"
 			on:click={() => {
-				addTipCommand(contentTextArea);
+				addWarningCommand(contentTextArea);
 			}}
 		>
 			<i class="fa-solid fa-warning" />

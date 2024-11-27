@@ -103,8 +103,23 @@ impl Register {
     pub fn passhash(&self) -> String {
         passhash(&self.password)
     }
+
     pub fn match_password(&self) -> bool {
         self.password == self.confirm_password
+    }
+
+    pub fn check_email(&self) -> bool {
+        // we have already validated email by using Validator library
+        // we are checking for + in email which one can use to register
+        // as a different user with one email
+
+        let position = self.email.chars().position(|c| c == '+');
+
+        if let Some(_x) = position {
+            return false;
+        }
+
+        return true;
     }
 }
 

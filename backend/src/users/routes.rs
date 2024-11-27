@@ -33,10 +33,17 @@ async fn register(form: web::types::Json<Register>, state: AppState) -> impl Res
         return HttpResponse::BadRequest()
             .json(&json!({"status": "fail", "message": e.to_string()}));
     }
+
     if !form.match_password() {
-        return HttpResponse::InternalServerError()
+        return HttpResponse::BadRequest()
             .json(&json!({"status": "fail", "message": "Passwords are bad!"}));
     }
+
+    if !form.check_email() {
+        return HttpResponse::BadRequest()
+            .json(&json!({"status": "fail", "message": "+ in email not allowed!"}));
+    }
+
     match state.get_ref().user_add(&form).await {
         Ok(res) => {
             debug!("register {:?} res: {}", form, res);
@@ -1053,7 +1060,10 @@ async fn user_summary(params: web::types::Path<String>, state: AppState) -> impl
 }
 
 #[post("/search-users")]
-async fn search_users(form: web::types::Json<SearchUserRequest>, state: AppState) -> impl Responder {
+async fn search_users(
+    form: web::types::Json<SearchUserRequest>,
+    state: AppState,
+) -> impl Responder {
     let user_req = form.into_inner();
     match state
         .get_ref()
@@ -1068,7 +1078,6 @@ async fn search_users(form: web::types::Json<SearchUserRequest>, state: AppState
         }
     }
 }
-
 
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(login);

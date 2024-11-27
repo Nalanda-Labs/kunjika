@@ -16,6 +16,20 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+--
+-- Name: citext; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION citext; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -108,11 +122,12 @@ ALTER TABLE public.post_tags OWNER TO shiv;
 
 CREATE TABLE public.tags (
     id bigint NOT NULL,
-    name character varying(32) NOT NULL,
+    name public.citext NOT NULL,
     info character varying(1048576),
     post_count bigint DEFAULT 0,
     created_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    updated_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    last_updated_by_id bigint
 );
 
 
@@ -275,7 +290,7 @@ ALTER SEQUENCE public.tokens_id_seq OWNED BY public.tokens.id;
 CREATE TABLE public.users (
     id bigint NOT NULL,
     username character varying(10) NOT NULL,
-    email character varying(256) NOT NULL,
+    email public.citext NOT NULL,
     password_hash character varying(256) NOT NULL,
     created_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     modified_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -604,6 +619,14 @@ ALTER TABLE ONLY public.posts
 
 ALTER TABLE ONLY public.posts
     ADD CONSTRAINT posts_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: tags tags_last_updated_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shiv
+--
+
+ALTER TABLE ONLY public.tags
+    ADD CONSTRAINT tags_last_updated_by_id_fkey FOREIGN KEY (last_updated_by_id) REFERENCES public.users(id);
 
 
 --

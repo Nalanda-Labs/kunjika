@@ -112,6 +112,7 @@ impl Register {
         // we have already validated email by using Validator library
         // we are checking for + in email which one can use to register
         // as a different user with one email
+        // Though RFC allows + in email we just ban + to misuse
 
         let position = self.email.chars().position(|c| c == '+');
 

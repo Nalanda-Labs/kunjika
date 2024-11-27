@@ -179,7 +179,7 @@
 				/>
 			{/if}
 			<div class="b-wrapper">
-				<button type="submit" class="btn">Edit</button>
+				<button type="submit" class="btn btn-primary">Edit</button>
 			</div>
 		</form>
 		<div

@@ -251,6 +251,7 @@
 	<div style="margin-top:10px">
 		<div style="float:left;margin-right:10px;z-index:2;">
 			{#if image_url === ''}
+				<!-- svelte-ignore a11y_consider_explicit_label -->
 				<a href="/users/{posted_by}/{username}">
 					<p data-letters={initials.toUpperCase()}></p>
 				</a>
@@ -311,13 +312,13 @@
 						style="margin-right:5px"
 						><span class="material-icons" style="vertical-align:bottom">report</span>Report</a
 					>
-					<a
+					<!-- <a
 						href="/share/{id}"
 						class="anchor"
 						title="Share a link to this post"
 						style="margin-right:5px"
 						><span class="material-icons" style="vertical-align:bottom">share</span>Share</a
-					>
+					> -->
 					<a
 						href="/bookmark/{id}/0"
 						class="anchor"

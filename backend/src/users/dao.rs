@@ -80,7 +80,7 @@ impl IUser for &AppStateRaw {
                 qr = sqlx::query_as!(
                     UR, r#"
                     select id, username, displayname, name, location, image_url, karma from users where
-                    username > $1 order by displayname desc, username limit $2
+                    username > $1 and deleted=false order by displayname desc, username limit $2
                     "#,
                     &form.last_user,
                     self.config.users_per_page as i64
@@ -92,7 +92,7 @@ impl IUser for &AppStateRaw {
                 qr = sqlx::query_as!(
                     UR, r#"
                     select id, username, displayname, name, location, image_url, karma from users where
-                    username > $1 order by displayname asc, username limit $2
+                    username > $1 and deleted=false order by displayname asc, username limit $2
                     "#,
                     &form.last_user,
                     self.config.users_per_page as i64
@@ -124,7 +124,7 @@ impl IUser for &AppStateRaw {
             r#"
             select id, username, name, title, designation, location, email, image_url, git, website,
             twitter, karma, displayname, created_date from users
-            where id = $1
+            where id = $1 and deleted=false
             "#,
             uid
         )
@@ -381,7 +381,7 @@ impl IUser for &AppStateRaw {
     async fn get_summary(&self, uid: i64) -> sqlx::Result<SummaryResponse> {
         let answers_count = sqlx::query!(
             r#"
-            select count(1) as answers_count from posts where posted_by_id=$1 and op_id!=0
+            select count as answers_count from answers_count where posted_by_id=$1
             "#,
             uid
         )
@@ -389,7 +389,7 @@ impl IUser for &AppStateRaw {
         .await?;
         let questions_count = sqlx::query!(
             r#"
-            select count(1) as questions_count from posts where posted_by_id=$1 and op_id=0
+            select count as questions_count from questions_count_by_user where posted_by_id=$1
             "#,
             uid
         )
@@ -448,7 +448,7 @@ impl IUser for &AppStateRaw {
         let users = sqlx::query_as!(
             UR, r#"
             select id, username, displayname, name, location, image_url, karma from users where
-            username like '%' || $1 || '%' order by displayname desc, username limit $2
+            username like '%' || $1 || '%' and deleted=false order by displayname desc, username limit $2
             "#,
             &username,
             users_per_page

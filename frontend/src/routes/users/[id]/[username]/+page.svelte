@@ -12,6 +12,7 @@
 	let questions;
 	let answers;
 	let bookmarks;
+	let deleteSelf;
 
 	let id = $page.params.id;
 	$: username = '';
@@ -54,6 +55,10 @@
 
 	async function loadBookmarks() {
 		bookmarks = await import('./_Bookmarks.svelte');
+	}
+
+	async function loadDeleteSelf() {
+		deleteSelf = await import('./_DeleteSelf.svelte');
 	}
 
 	onMount(async () => await getUser());
@@ -102,7 +107,7 @@
 				</a>
 			{/if}
 		</p>
-		<div style="clear:both;" />
+		<div style="clear:both;"></div>
 		<div style="margin-top:20px">
 			<ul class="nav nav-tabs">
 				<li class="nav-item">
@@ -110,7 +115,9 @@
 				</li>
 				{#if $page.data.user != null && id == $page.data.user.id}
 					<li class="nav-item">
-						<a class="nav-link" href="#bookmarks" data-bs-toggle="tab" on:click={loadBookmarks}>Bookmarks</a>
+						<a class="nav-link" href="#bookmarks" data-bs-toggle="tab" on:click={loadBookmarks}
+							>Bookmarks</a
+						>
 					</li>
 					<li class="nav-item">
 						<a class="nav-link" href="#settings" data-bs-toggle="tab" on:click={loadEdit}
@@ -171,8 +178,12 @@
 						<li>
 							<a class="nav-link active" href="#edit-profile" data-bs-toggle="tab"> Edit </a>
 						</li>
-						<li><a class="nav-link" href="#delete-profile" data-bs-toggle="tab">Delete</a></li>
-						<li><a class="nav-link" href="#settings1" data-bs-toggle="tab">Settings</a></li>
+						<li><a class="nav-link" href="#delete-profile" data-bs-toggle="tab"  on:click={loadDeleteSelf}>Delete</a></li>
+						<li>
+							<a class="nav-link" href="#settings1" data-bs-toggle="tab"
+								>Settings</a
+							>
+						</li>
 					</ul>
 					<div class="tab-content">
 						<div class="tab-pane active" id="edit-profile">
@@ -182,7 +193,13 @@
 								{/await}
 							{/if}
 						</div>
-						<div class="tab-pane" id="delete-profile">Not implemented</div>
+						<div class="tab-pane" id="delete-profile">
+							{#if deleteSelf}
+								{#await deleteSelf then { default: DeleteSelf }}
+									<DeleteSelf {id} {username} />
+								{/await}
+							{/if}
+						</div>
 						<div class="tab-pane" id="settings1">Not implemented</div>
 					</div>
 				</div>

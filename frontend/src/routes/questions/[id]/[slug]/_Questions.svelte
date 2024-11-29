@@ -290,8 +290,7 @@
 			>
 				{shown_ts}</span
 			>
-			<!-- <span style="float:left">{shown_ts}</span> -->
-			<div style="margin:10px" />
+			<div style="margin:10px"></div>
 			<div class="answers">
 				<Preview markup={value} />
 			</div>

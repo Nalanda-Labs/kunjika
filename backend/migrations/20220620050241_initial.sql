@@ -198,7 +198,7 @@ ALTER SEQUENCE public.posts_id_seq OWNED BY public.posts.id;
 
 CREATE VIEW public.questions_count AS
  SELECT count(1) AS count
-   FROM public.posts;
+   FROM public.posts where op_id=0;
 
 
 ALTER VIEW public.questions_count OWNER TO shiv;

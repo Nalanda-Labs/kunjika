@@ -1079,6 +1079,35 @@ async fn search_users(
     }
 }
 
+#[post("/delete-profile/{id}")]
+async fn delete_profile(
+    params: web::types::Path<String>,
+    auth: auth::AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let uid = params.parse::<i64>().unwrap();
+
+    info!("{} {}", uid, auth.user.id);
+
+    if uid != auth.user.id {
+        return HttpResponse::Unauthorized()
+            .json(&json!({"success": false, "message": "Only self can delete self's profile!"}));
+    }
+
+    match state
+        .get_ref()
+        .delete_profile(uid)
+        .await
+    {
+        Ok(_u) => HttpResponse::Ok().json(&json!({"success": true})),
+        Err(e) => {
+            debug!("update tag info: {:?}", e);
+            HttpResponse::InternalServerError()
+                .json(&json!({"status": "fail", "message": e.to_string()}))
+        }
+    }
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(login);
     cfg.service(refresh_access_token_handler);
@@ -1104,4 +1133,5 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(check_reset_password_token);
     cfg.service(reset_password);
     cfg.service(search_users);
+    cfg.service(delete_profile);
 }

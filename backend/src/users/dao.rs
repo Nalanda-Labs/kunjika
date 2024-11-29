@@ -21,6 +21,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn save_confirmation_token(&self, email: &String, token: &String) -> sqlx::Result<bool>;
     async fn reset_password(&self, email: &String, password: &String) -> sqlx::Result<bool>;
     async fn search_users(&self, username: &String, users_per_page: i64) -> sqlx::Result<Vec<UR>>;
+    async fn delete_profile(&self, uid: i64) -> sqlx::Result<bool>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 
@@ -456,6 +457,21 @@ impl IUser for &AppStateRaw {
         .await?;
 
         Ok(users)
+    }
+
+    async fn delete_profile(&self, uid: i64) -> sqlx::Result<bool> {
+        sqlx::query!(
+            r#"
+            update users set username='u'|| $1 ||'', email=$2, password_hash='', deleted=true
+            where id=$1
+            "#,
+            uid,
+            uuid::Uuid::new_v4().to_string(),
+        )
+        .execute(&self.sql)
+        .await?;
+
+        Ok(true)
     }
 }
 

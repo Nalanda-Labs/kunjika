@@ -59,7 +59,7 @@
 					</li>
 					<li class="nav-item">
 						<form style="margin-top:5px;" method="POST" action="/logout">
-							<button class="btn" style="color:#fff" type="submit">Sign Out</button>
+							<button class="btn btn-primary" style="color:#fff" type="submit">Sign Out</button>
 						</form>
 					</li>
 				{:else}

@@ -10,7 +10,7 @@ It is not even alpha release. Please check
 [github](https://github.com/Nalanda-Labs/kunjika) for upcoming releases.
 Once it is stable releases will be made on github.
 
-### Is there a binary release for installation?<
+### Is there a binary release for installation?
 There is no binary release nor there is any plan to do so.
 The installation must be done using source code.
 

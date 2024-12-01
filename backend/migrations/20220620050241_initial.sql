@@ -200,6 +200,10 @@ CREATE VIEW public.questions_count AS
  SELECT count(1) AS count
    FROM public.posts where op_id=0;
 
+CREATE VIEW public.unanswered_questions_count AS
+ SELECT count(1) AS count
+   FROM public.posts where op_id=0 and answer_count=0;
+
 
 ALTER VIEW public.questions_count OWNER TO shiv;
 

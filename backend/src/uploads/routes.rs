@@ -19,7 +19,7 @@ async fn get_image(
         + "/"
         + &image_id;
 
-    error!("{}", path);
+    info!("{}", path);
 
     match web::block(|| fs::read(path)).await {
         Ok(d) => {

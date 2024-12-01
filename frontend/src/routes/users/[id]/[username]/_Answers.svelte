@@ -1,7 +1,6 @@
 <script>
 	import * as api from '$lib/api.js';
-	import { afterUpdate, onMount } from 'svelte';
-	import Edit from './_Edit.svelte';
+	import { onMount } from 'svelte';
 
 	export let id;
 	let data = [];

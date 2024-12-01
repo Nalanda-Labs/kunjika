@@ -469,6 +469,69 @@ async fn bookmark(
     }
 }
 
+#[post("/unanswered-questions/")]
+async fn get_unanswered_questions(
+    form: ntex::web::types::Json<QuestionsReq>,
+    state: AppState,
+) -> impl Responder {
+    let form = form.into_inner();
+    let uat;
+
+    debug!("{:?}", &form.uat);
+    if form.uat == "" {
+        uat = time::OffsetDateTime::now_utc();
+        debug!("{:?}", uat);
+    } else {
+        uat = time::OffsetDateTime::parse(&form.uat, &Rfc3339).unwrap();
+    }
+
+    if form.questions_per_page > state.config.questions_per_page as i64 {
+        return HttpResponse::BadRequest().json(
+            &json!({"status": false, "message": "Wrong values for questions to be fetched!"}),
+        );
+    }
+
+    match state
+        .get_ref()
+        .get_unanswered_questions(&uat, form.questions_per_page, &form.direction)
+        .await
+    {
+        Ok(db_questions) => HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": false, "message": e.to_string()})),
+    }
+}
+
+#[get("/get-questions-count/")]
+async fn get_questions_count(
+    state: AppState,
+) -> impl Responder {
+    match state
+        .get_ref()
+        .get_questions_count()
+        .await
+    {
+        Ok(count) => HttpResponse::Ok().json(&json!({"count": count})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": false, "message": e.to_string()})),
+    }
+}
+
+#[get("/get-unanswered-questions-count/")]
+async fn get_unanswered_questions_count(
+    state: AppState,
+) -> impl Responder {
+    match state
+        .get_ref()
+        .get_unanswered_questions_count()
+        .await
+    {
+        Ok(count) => HttpResponse::Ok().json(&json!({"count": count})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": false, "message": e.to_string()})),
+    }
+}
+
 pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(insert_question);
     cfg.service(get_question);
@@ -484,4 +547,7 @@ pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(get_answers_by_user);
     cfg.service(bookmark);
     cfg.service(get_bookmarks_by_user);
+    cfg.service(get_unanswered_questions);
+    cfg.service(get_questions_count);
+    cfg.service(get_unanswered_questions_count);
 }

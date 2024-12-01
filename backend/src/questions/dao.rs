@@ -24,6 +24,12 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         limit: i64,
         direction: &Option<String>,
     ) -> sqlx::Result<QuestionsResponse>;
+    async fn get_unanswered_questions(
+        &self,
+        updated_at: &SqlDateTime,
+        limit: i64,
+        direction: &Option<String>,
+    ) -> sqlx::Result<QuestionsResponse>;
     async fn get_questions_by_tag(
         &self,
         updated_at: &SqlDateTime,
@@ -62,6 +68,8 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         bookmarks_per_page: i64,
         direction: &Option<String>,
     ) -> sqlx::Result<(AnswersResponse1, i64)>;
+    async fn get_questions_count(&self) -> sqlx::Result<i64>;
+    async fn get_unanswered_questions_count(&self) -> sqlx::Result<i64>;
 }
 
 #[cfg(any(feature = "postgres"))]
@@ -1229,5 +1237,132 @@ impl IQuestion for &AppStateRaw {
         };
 
         Ok((ars, c))
+    }
+
+    async fn get_unanswered_questions(
+        &self,
+        updated_at: &SqlDateTime,
+        limit: i64,
+        direction: &Option<String>,
+    ) -> sqlx::Result<QuestionsResponse> {
+        let questions = match direction {
+            Some(_d) => {
+                sqlx::query_as!(
+                    QR1,
+                    r#"
+                    select t.id, t.visible, t.title, t.created_at, t.posted_by_id, t.updated_at, t.votes,
+                    t.views, t.slug, t.answer_accepted, users.image_url,
+                    users.username as username, users.id as uid, array_agg(post_tags.tag_id)
+                    as tag_id, array_agg(tags.name) as tags, t.answer_count
+                    from posts t left
+                    join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id
+                    left join tags on post_tags.tag_id = tags.id where t.op_id=0 and t.updated_at > $1
+                    and t.answer_count=0 group by t.id, users.id order by
+                    t.updated_at asc limit $2
+                    "#, updated_at, limit
+                )
+                .fetch_all(&self.sql)
+                .await?
+            },
+            None => {
+                sqlx::query_as!(
+                    QR1,
+                    r#"
+                    select t.id, t.visible, t.title, t.created_at, t.posted_by_id, t.updated_at, t.votes,
+                    t.views, t.slug, t.answer_accepted, users.image_url,
+                    users.username as username, users.id as uid, array_agg(post_tags.tag_id)
+                    as tag_id, array_agg(tags.name) as tags, t.answer_count
+                    from posts t left
+                    join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id
+                    left join tags on post_tags.tag_id = tags.id where t.op_id=0 and t.updated_at < $1
+                    and t.answer_count=0 group by t.id, users.id order by t.updated_at desc limit $2
+                    "#, updated_at, limit
+                )
+                .fetch_all(&self.sql)
+                .await?
+            }
+        };
+
+        let count = sqlx::query!(r#"select count from unanswered_questions_count"#)
+            .fetch_one(&self.sql)
+            .await?;
+
+        let c = match count.count {
+            Some(c) => c,
+            None => 0,
+        };
+
+        let mut qrs: QuestionsResponse = QuestionsResponse {
+            questions: Vec::new(),
+            count: c,
+        };
+
+        for q in questions {
+            let image_url = q.image_url;
+            let tags = match q.tags {
+                Some(t) => t.join(","),
+                None => "".to_owned(),
+            };
+            let tid = match q.tag_id {
+                Some(t) => t.iter().map(|&e| e.to_string() + ",").collect(),
+                None => "".to_owned(),
+            };
+            let slug = match q.slug {
+                Some(s) => s,
+                None => "".to_owned(),
+            };
+            let title = match q.title {
+                Some(t) => t,
+                None => "".to_owned(),
+            };
+            let qr = QR {
+                id: q.id.to_string(),
+                title,
+                visible: q.visible,
+                votes: q.votes,
+                views: q.views,
+                slug,
+                posted_by_id: q.posted_by_id.to_string(),
+                created_at: q.created_at,
+                updated_at: q.updated_at,
+                username: q.username,
+                image_url,
+                tags,
+                uid: q.uid.to_string(),
+                tid,
+                answers: q.answer_count,
+                uat: q.updated_at.unix_timestamp(),
+                cat: q.created_at.unix_timestamp(),
+                answer_accepted: q.answer_accepted,
+            };
+            qrs.questions.push(qr);
+        }
+        Ok(qrs)
+    }
+
+    async fn get_questions_count(&self) -> sqlx::Result<i64> {
+        let count = sqlx::query!(r#"select count from questions_count"#)
+            .fetch_one(&self.sql)
+            .await?;
+
+        let c = match count.count {
+            Some(c) => c,
+            None => 0,
+        };
+
+        Ok(c)
+    }
+
+    async fn get_unanswered_questions_count(&self) -> sqlx::Result<i64> {
+        let count = sqlx::query!(r#"select count from unanswered_questions_count"#)
+            .fetch_one(&self.sql)
+            .await?;
+
+        let c = match count.count {
+            Some(c) => c,
+            None => 0,
+        };
+
+        Ok(c)
     }
 }

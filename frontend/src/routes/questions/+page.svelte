@@ -13,6 +13,7 @@
 	let pages = 0; // total no. of pages
 	let current_page = 1; // current page
 	let questions_per_page = 30;
+	let unanswered;
 
 	function processQuestions(data) {
 		questions = data;
@@ -144,7 +145,7 @@
 		} else {
 			response = JSON.parse(await response.text());
 			if (
-				response.status == 'fail' &&
+				response.status == false &&
 				response.message == 'no rows returned by a query that expected to return at least one row'
 			) {
 				count = 0;
@@ -175,6 +176,27 @@
 			alert(response.message);
 		}
 	}
+
+	async function loadUnanswered() {
+		unanswered = await import('./_Unanswered.svelte');
+	}
+
+	async function updateCount() {
+		let response = await api.get(`get-questions-count/`);
+		if (response.status === 200) {
+			response = JSON.parse(await response.text());
+			count = response.count;
+		}
+	}
+
+	async function getUnansweredCount() {
+		let response = await api.get(`get-unanswered-questions-count/`);
+		if (response.status === 200) {
+			response = JSON.parse(await response.text());
+			count = response.count;
+		}
+	}
+
 </script>
 
 <svelte:head>
@@ -188,96 +210,133 @@
 		{/if}
 	</h4>
 	<div class="row">
-		{#each questions as { id, slug, title, tags, shown_ts, uid, username, answers, views, answer_accepted }}
-			<hr
-				style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
-			/>
-			{#if answer_accepted}
-				<div
-					style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left;background-color: green;color: white;"
-				>
-					<p style="text-align:center;font-size:16px;margin-top:5px">
-						{answers}
-					</p>
-					<p style="text-align:center;font-size:10px;margin-top:0px;float:left">answers</p>
-				</div>
-			{:else}
-				<div style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left;">
-					<p style="text-align:center;font-size:16px;margin-top:5px">
-						{answers}
-					</p>
-					<p style="text-align:center;font-size:10px;margin-top:0px;float:left">answers</p>
-				</div>
-			{/if}
-			<div style="margin-right:0px;flex-basis: 5%;max-width:5%;height:60px;float:left">
-				<p style="text-align:center;font-size:16px;margin-top:5px">
-					{views}
-				</p>
-				<p style="text-align:center;font-size:10px;margin-top:10px;">views</p>
-			</div>
-			<div style="width:85%;float:left;position:relative">
-				<a
-					href="/questions/{id}/{slug}"
-					class="blue-text text-darken-2"
-					style="text-decoration:none; font-size:16px; font-weight:400">{title}</a
-				>
-				<div style="margin-top:20px;clear:both"></div>
-				{#each tags as tag, i}
-					<a
-						href="/questions/tagged/{encodeURIComponent(tag)}"
-						class="light-blue darken-2"
-						style="display:inline;padding:5px;border-radius:3px;text-decoration:none; background-color:#f0f0ff;margin-right:10px;font-size:12px"
-						>{tag}</a
+		<div style="margin-top:20px">
+			<ul class="nav nav-tabs">
+				<li class="nav-item">
+					<a class="nav-link active" href="#all-questions" data-bs-toggle="tab" on:click={() => updateCount()}>All Questions</a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link" href="#unanswered" data-bs-toggle="tab" on:click={()=> {getUnansweredCount();loadUnanswered();}}
+						>Unanswered</a
 					>
-				{/each}
-				<span style="float:right"
-					>{shown_ts}
-					<a href="/users/{uid}/{username}" style="text-decoration:none; color:#4285F4;"
-						>{username}</a
-					></span
-				>
+				</li>
+			</ul>
+			<div class="tab-content">
+				<div class="tab-pane active" id="all-questions">
+					{#each questions as { id, slug, title, tags, shown_ts, uid, username, answers, views, answer_accepted }}
+						<hr
+							style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
+						/>
+						{#if answer_accepted}
+							<div
+								style="margin-right:0px;flex-basis: 60px;min-width:60px;max-width:60px;height:60px;float:left;background-color: green;color: white;"
+							>
+								<p style="text-align:center;font-size:16px;margin-top:5px">
+									{answers}
+								</p>
+								<p style="text-align:center;font-size:10px;margin-top:0px;">answers</p>
+							</div>
+						{:else}
+							<div
+								style="margin-right:0px;flex-basis: 60px;min-width:60px;max-width:60px;height:60px;float:left;"
+							>
+								<p style="text-align:center;font-size:16px;margin-top:5px">
+									{answers}
+								</p>
+								<p style="text-align:center;font-size:10px;margin-top:0px;">answers</p>
+							</div>
+						{/if}
+						<div
+							style="margin-right:0px;flex-basis: 60px;min-width:60px;max-width:60px;height:60px;float:left"
+						>
+							<p style="text-align:center;font-size:16px;margin-top:5px">
+								{views}
+							</p>
+							<p style="text-align:center;font-size:10px;margin-top:10px;">views</p>
+						</div>
+						<div style="width:85%;float:left;position:relative">
+							<a
+								href="/questions/{id}/{slug}"
+								class="blue-text text-darken-2"
+								style="text-decoration:none; font-size:16px; font-weight:400">{title}</a
+							>
+							<div style="margin-top:20px;clear:both"></div>
+							{#each tags as tag, i}
+								<a
+									href="/questions/tagged/{encodeURIComponent(tag)}"
+									class="light-blue darken-2"
+									style="display:inline;padding:5px;border-radius:3px;text-decoration:none; background-color:#f0f0ff;margin-right:10px;font-size:12px"
+									>{tag}</a
+								>
+							{/each}
+							<span style="float:right"
+								>{shown_ts}
+								<a href="/users/{uid}/{username}" style="text-decoration:none; color:#4285F4;"
+									>{username}</a
+								></span
+							>
+						</div>
+						<div style="clear:both"></div>
+					{/each}
+					<hr
+						style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px"
+					/>
+					<div style="clear:both;margin:auto;width:100%;margin-top:20px"></div>
+					<div style="float: right;">
+						<ul class="pagination">
+							<!-- svelte-ignore a11y-invalid-attribute -->
+							{#if current_page == 1}
+								<li class="disabled">
+									<i class="material-icons" title="first page">first_page</i>
+								</li>
+								<li class="disabled">
+									<i class="material-icons" title="previouse page">chevron_left</i>
+								</li>
+								{#if pages > 1}
+									<li style="cursor:pointer" on:click={nextPage}>
+										<i class="material-icons" title="next page">chevron_right</i>
+									</li>
+								{/if}
+								{#if current_page != pages && pages != 0}
+									<li class="disabled">
+										<i class="material-icons" title="last page">last_page</i>
+									</li>
+								{/if}
+							{:else if current_page != pages}
+								<li style="cursor:pointer" on:click={firstPage}>
+									<i class="material-icons" title="first page">first_page</i>
+								</li>
+								<li style="cursor:pointer" on:click={prevPage}>
+									<i class="material-icons" title="previouse page">chevron_left</i>
+								</li>
+								<li style="cursor:pointer" on:click={nextPage}>
+									<i class="material-icons" title="next page">chevron_right</i>
+								</li>
+							{:else if current_page == pages}
+								<li style="cursor:pointer" on:click={firstPage}>
+									<i class="material-icons" title="first page">first_page</i>
+								</li>
+								<li style="cursor:pointer" on:click={prevPage}>
+									<i class="material-icons" title="previouse page">chevron_left</i>
+								</li>
+								<li class="disabled">
+									<i class="material-icons" title="next page">chevron_right</i>
+								</li>
+								<li class="disabled"><i class="material-icons" title="last page">last_page</i></li>
+							{/if}
+						</ul>
+					</div>
+				</div>
 			</div>
-			<div style="clear:both"></div>
-		{/each}
-		<hr style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px" />
-	</div>
-	<div style="clear:both;margin:auto;width:100%;margin-top:20px"></div>
-	<div style="float: right;">
-		<ul class="pagination">
-			<!-- svelte-ignore a11y-invalid-attribute -->
-			{#if current_page == 1}
-				<li class="disabled"><i class="material-icons" title="first page">first_page</i></li>
-				<li class="disabled">
-					<i class="material-icons" title="previouse page">chevron_left</i>
-				</li>
-				{#if pages > 1}
-					<li style="cursor:pointer" on:click={nextPage}>
-						<i class="material-icons" title="next page">chevron_right</i>
-					</li>
-				{/if}
-				{#if current_page != pages && pages != 0}
-					<li class="disabled"><i class="material-icons" title="last page">last_page</i></li>
-				{/if}
-			{:else if current_page != pages}
-				<li style="cursor:pointer" on:click={firstPage}>
-					<i class="material-icons" title="first page">first_page</i>
-				</li>
-				<li style="cursor:pointer" on:click={prevPage}>
-					<i class="material-icons" title="previouse page">chevron_left</i>
-				</li>
-				<li style="cursor:pointer" on:click={nextPage}>
-					<i class="material-icons" title="next page">chevron_right</i>
-				</li>
-			{:else if current_page == pages}
-				<li style="cursor:pointer" on:click={firstPage}>
-					<i class="material-icons" title="first page">first_page</i>
-				</li>
-				<li style="cursor:pointer" on:click={prevPage}>
-					<i class="material-icons" title="previouse page">chevron_left</i>
-				</li>
-				<li class="disabled"><i class="material-icons" title="next page">chevron_right</i></li>
-				<li class="disabled"><i class="material-icons" title="last page">last_page</i></li>
-			{/if}
-		</ul>
+			<div class="tab-content">
+				<div class="tab-pane" id="unanswered">
+					{#if unanswered}
+						{#await unanswered then { default: Unanswered }}
+							<Unanswered bind:count={count} />
+						{/await}
+					{/if}
+				</div>
+			</div>
+		</div>
 	</div>
 </div>

@@ -240,10 +240,24 @@
 			}
 		}
 	}
+
+	afterUpdate(() => {
+		if (browser) {
+			if (window.MathJax) {
+				window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub]);
+				console.log('Mathjax ');
+			}
+		}
+	});
 </script>
 
 <svelte:head>
 	<title>{title}</title>
+	<!-- This is version 2 of MathJax. Need to make it version 3 -->
+	<script
+		async
+		src="https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS_CHTML"
+	></script>
 </svelte:head>
 <div>
 	<h3>{title}</h3>

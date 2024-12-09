@@ -13,6 +13,7 @@
 	import getCookie from '../../../../lib/cookie';
 	import { afterUpdate } from 'svelte';
 	import onImageUpload from '../../../../lib/imageUpload.js';
+	import { afterNavigate } from '$app/navigation';
 
 	let reply_to_id;
 	let user_replied;

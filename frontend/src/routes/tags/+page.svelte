@@ -88,11 +88,11 @@
 	async function searchTags() {
 		let pagination = document.getElementsByClassName('pagination');
 
-		if(searchQuery && pagination[0]) {
+		if (searchQuery && pagination[0]) {
 			pagination[0].style.display = 'none';
 		} else {
 			pagination[0].style.display = 'flex';
-			tags = []
+			tags = [];
 			pages = 0;
 			await firstPage();
 			return;
@@ -121,15 +121,21 @@
 			A tag is a keyword or label which is used to categorize similar questions. Tags make it easier
 			to find similar questions.
 		</p>
-		<div class="input-group"style="max-width:50%">
+		<div class="input-group" style="max-width:50%">
 			<span class="input-group-text"
 				><i class="material-icons" style="display:inline">search</i></span
 			>
-			<input type="text" id="search" class="form-control" bind:value={searchQuery} on:keyup={() => searchTags()} />
+			<input
+				type="text"
+				id="search"
+				class="form-control"
+				bind:value={searchQuery}
+				on:keyup={() => searchTags()}
+			/>
 		</div>
 		<div style="margin-top:20px" class="row">
 			{#each tags as { name, info, post_count, weekly_count, daily_count }}
-				<div class="col-sm-3">
+				<div class="col-sm-3" style="margin-bottom: 10px;">
 					<div class="card">
 						<div class="card-body">
 							<span class="card-title"
@@ -142,11 +148,9 @@
 							{:else}
 								<p></p>
 							{/if}
-							<p>
-								<span style="font-size:11px"
-									>{post_count || 0} questions, {daily_count || 0} today, {weekly_count || 0} this week</span
-								>
-							</p>
+							<span style="font-size:11px"
+								>{post_count || 0} questions, {daily_count || 0} today, {weekly_count || 0} this week</span
+							>
 						</div>
 					</div>
 				</div>

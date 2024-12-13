@@ -2,7 +2,7 @@
 
 ## What is kunjika?
 Kunjika is a minimal QA/forum application built using Rust, Svelte, PostgreSQL,
-and Redis.
+and Redis. Demo at https://kunjika.ashtavakra.org
 
 ### Is it usable?
 No. It is under active development and not suitable for production.

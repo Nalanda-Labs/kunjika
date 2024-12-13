@@ -231,11 +231,28 @@
 			const response = await api.post(`bookmark/${qid}/${aid}`, {}, xsrf_token);
 
 			if (response.status === 200) {
-				alert('The post has been bookmarked.');
+				const j = JSON.parse(await response.text());
+				alert(j.message);
 			} else {
 				const r = JSON.parse(await response.text());
 				alert(
 					r.message + '. Please send this message to support if this is not already bookmarked.'
+				);
+			}
+		}
+	}
+
+	async function pin(qid) {
+		if (browser) {
+			let xsrf_token = getCookie('xsrf_token');
+			const response = await api.post(`bookmark/${qid}`, {}, xsrf_token);
+
+			if (response.status === 200) {
+				alert('The post has been pinned/unpinned.');
+			} else {
+				const r = JSON.parse(await response.text());
+				alert(
+					r.message + '. Please send this message to support if this is not already pinned.'
 				);
 			}
 		}
@@ -312,9 +329,17 @@
 			{#if $page.data.user}
 				<div style="float:right">
 					<a
+						href="/questions/pin/{id}"
+						class="anchor"
+						title="Pin this post"
+						style="margin-right:5px;display:inline"
+						on:click|preventDefault={() => pin(id)}
+						><span class="material-icons" style="vertical-align:bottom">push_pin</span>Pin</a
+					>
+					<a
 						href="/questions/edit/{id}"
 						class="anchor"
-						title="Edit your post"
+						title="Edit this post"
 						style="margin-right:5px;display:inline"
 						><span class="material-icons" style="vertical-align:bottom">edit</span> Edit</a
 					>

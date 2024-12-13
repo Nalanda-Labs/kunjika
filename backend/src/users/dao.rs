@@ -19,7 +19,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn update_profile(&self, uid: &i64, data: &ProfileReq) -> sqlx::Result<bool>;
     async fn get_summary(&self, uid: i64) -> sqlx::Result<SummaryResponse>;
     async fn save_confirmation_token(&self, email: &String, token: &String) -> sqlx::Result<bool>;
-    async fn reset_password(&self, email: &String, password: &String) -> sqlx::Result<bool>;
+    async fn reset_password(&self, email: &String, password: &String, token: &String) -> sqlx::Result<bool>;
     async fn search_users(&self, username: &String, users_per_page: i64) -> sqlx::Result<Vec<UR>>;
     async fn delete_profile(&self, uid: i64) -> sqlx::Result<bool>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
@@ -27,7 +27,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
 
         let sql = format!(
             "SELECT id, username, email, password_hash, status, email_verified, image_url, created_date, modified_date,
-            designation, location, git, website
+            designation, location, git, website, is_superuser
             FROM users
             where {} = {};",
             column, placeholder
@@ -428,8 +428,9 @@ impl IUser for &AppStateRaw {
         Ok(true)
     }
 
-    async fn reset_password(&self, email: &String, password: &String) -> sqlx::Result<bool> {
+    async fn reset_password(&self, email: &String, password: &String, token: &String) -> sqlx::Result<bool> {
         let password_hash = passhash(password);
+        let mut tx = self.sql.begin().await?;
 
         sqlx::query!(
             r#"
@@ -438,8 +439,19 @@ impl IUser for &AppStateRaw {
             password_hash,
             email
         )
-        .execute(&self.sql)
+        .execute(&mut *tx)
         .await?;
+
+        sqlx::query!(
+            r#"
+            delete from tokens where token=$1
+            "#,
+            token
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
 
         Ok(true)
     }

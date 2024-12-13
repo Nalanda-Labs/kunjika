@@ -15,7 +15,9 @@ declare global {
 				location: string,
 				designation: string,
 				git: string,
-				website: string
+				website: string,
+				is_superuser: boolean,
+				is_moderator: boolean
 			} | null
 		}
 		interface PageData {
@@ -31,10 +33,12 @@ declare global {
 				location: string,
 				designation: string,
 				git: string,
-				website: string
+				website: string,
+				is_superuser: boolean,
+				is_moderator: boolean
 			} | null
 		}
 	}
 }
 
-export {};
+export { };

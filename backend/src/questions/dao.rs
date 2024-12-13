@@ -23,7 +23,7 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         updated_at: &SqlDateTime,
         limit: i64,
         direction: &Option<String>,
-    ) -> sqlx::Result<QuestionsResponse>;
+    ) -> sqlx::Result<(QuestionsResponse, QuestionsResponse)>;
     async fn get_unanswered_questions(
         &self,
         updated_at: &SqlDateTime,
@@ -61,6 +61,7 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         direction: &Option<String>,
     ) -> sqlx::Result<(AnswersResponse1, i64)>;
     async fn bookmark(&self, qid: i64, aid: i64, uid: i64) -> sqlx::Result<bool>;
+    async fn pin(&self, qid: i64, uid: i64) -> sqlx::Result<bool>;
     async fn get_bookmarks_by_user(
         &self,
         uid: i64,
@@ -333,7 +334,7 @@ impl IQuestion for &AppStateRaw {
         updated_at: &SqlDateTime,
         limit: i64,
         direction: &Option<String>,
-    ) -> sqlx::Result<QuestionsResponse> {
+    ) -> sqlx::Result<(QuestionsResponse, QuestionsResponse)> {
         let questions = match direction {
             Some(_d) => {
                 sqlx::query_as!(
@@ -345,7 +346,7 @@ impl IQuestion for &AppStateRaw {
                     as tag_id, array_agg(tags.name) as tags, t.answer_count
                     from posts t left
                     join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
-                    tags on post_tags.tag_id = tags.id where t.op_id=0 and t.updated_at > $1 group by t.id, users.id order by
+                    tags on post_tags.tag_id = tags.id where t.op_id=0 and t.pinned=false and t.updated_at > $1 group by t.id, users.id order by
                     t.updated_at asc limit $2
                     "#, updated_at, limit
                 )
@@ -362,7 +363,7 @@ impl IQuestion for &AppStateRaw {
                     as tag_id, array_agg(tags.name) as tags, t.answer_count
                     from posts t left
                     join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
-                    tags on post_tags.tag_id = tags.id where t.op_id=0 and t.updated_at < $1 group by t.id, users.id order by
+                    tags on post_tags.tag_id = tags.id where t.op_id=0 and t.pinned=false and t.updated_at < $1 group by t.id, users.id order by
                     t.updated_at desc limit $2
                     "#, updated_at, limit
                 )
@@ -370,6 +371,29 @@ impl IQuestion for &AppStateRaw {
                 .await?
             }
         };
+
+        let pinned: Vec<QR1>;
+
+        if let None = direction {
+            // consider getting qids from a separate view
+            pinned = sqlx::query_as!(
+                QR1,
+                r#"
+                select t.id, t.visible, t.title, t.created_at, t.posted_by_id, t.updated_at, t.votes,
+                t.views, t.slug, t.answer_accepted, users.image_url,
+                users.username as username, users.id as uid, array_agg(post_tags.tag_id)
+                as tag_id, array_agg(tags.name) as tags, t.answer_count
+                from posts t left
+                join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
+                tags on post_tags.tag_id = tags.id where t.op_id=0 and pinned=true
+                group by t.id, users.id
+                "#
+            )
+            .fetch_all(&self.sql)
+            .await?;
+        } else {
+            pinned = vec![];
+        }
 
         let count = sqlx::query!(r#"select count from questions_count"#)
             .fetch_one(&self.sql)
@@ -425,7 +449,61 @@ impl IQuestion for &AppStateRaw {
             };
             qrs.questions.push(qr);
         }
-        Ok(qrs)
+
+        let pcount = sqlx::query!(r#"select count from pinned_count"#)
+            .fetch_one(&self.sql)
+            .await?;
+
+        let pc = match pcount.count {
+            Some(c) => c,
+            None => 0,
+        };
+        let mut ps: QuestionsResponse = QuestionsResponse {
+            questions: Vec::new(),
+            count: pc,
+        };
+
+        for p in pinned {
+            let image_url = p.image_url;
+            let tags = match p.tags {
+                Some(t) => t.join(","),
+                None => "".to_owned(),
+            };
+            let tid = match p.tag_id {
+                Some(t) => t.iter().map(|&e| e.to_string() + ",").collect(),
+                None => "".to_owned(),
+            };
+            let slug = match p.slug {
+                Some(s) => s,
+                None => "".to_owned(),
+            };
+            let title = match p.title {
+                Some(t) => t,
+                None => "".to_owned(),
+            };
+            let pr = QR {
+                id: p.id.to_string(),
+                title,
+                visible: p.visible,
+                votes: p.votes,
+                views: p.views,
+                slug,
+                posted_by_id: p.posted_by_id.to_string(),
+                created_at: p.created_at,
+                updated_at: p.updated_at,
+                username: p.username,
+                image_url,
+                tags,
+                uid: p.uid.to_string(),
+                tid,
+                answers: p.answer_count,
+                uat: p.updated_at.unix_timestamp(),
+                cat: p.created_at.unix_timestamp(),
+                answer_accepted: p.answer_accepted,
+            };
+            ps.questions.push(pr);
+        }
+        Ok((qrs, ps))
     }
 
     async fn get_questions_by_tag(
@@ -1126,6 +1204,73 @@ impl IQuestion for &AppStateRaw {
 
             return Ok(true);
         }
+    }
+
+    async fn pin(&self, qid: i64, uid: i64) -> sqlx::Result<bool> {
+        let mut tx = self.sql.begin().await?;
+
+        let pinned_count = sqlx::query!(
+            r#"
+            select count from pinned_count
+            "#
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let pcount = match pinned_count.count {
+            Some(c) => c,
+            None => 0,
+        };
+
+        if pcount == 5 {
+            return Ok(false);
+        }
+
+        info!("step1");
+
+        let r = sqlx::query!(
+            r#"
+            select pinned from posts where id=$1
+            "#,
+            qid
+        )
+        .fetch_optional(&self.sql)
+        .await?;
+
+        if let Some(x) = r.unwrap().pinned {
+            if !x {
+                sqlx::query!(
+                    r#"
+                    update posts set pinned=true where id=$1
+                    "#,
+                    qid
+                )
+                .execute(&mut *tx)
+                .await?;
+                info!("step 2");
+            } else {
+                sqlx::query!(
+                    r#"
+                    update posts set pinned=false where id=$1
+                    "#,
+                    qid
+                )
+                .execute(&mut *tx)
+                .await?;
+            }
+        } else {
+            sqlx::query!(
+                r#"
+                update posts set pinned=true where id=$1
+                "#,
+                qid
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(true)
     }
 
     async fn get_bookmarks_by_user(

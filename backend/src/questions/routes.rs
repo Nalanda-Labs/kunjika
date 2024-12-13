@@ -137,7 +137,7 @@ async fn get_questions(
         .get_questions(&uat, form.questions_per_page, &form.direction)
         .await
     {
-        Ok(db_questions) => HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count})),
+        Ok((questions, pinned)) => HttpResponse::Ok().json(&json!({"data": questions, "pinned": pinned, "count": questions.count})),
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": false, "message": e.to_string()})),
     }
@@ -469,6 +469,22 @@ async fn bookmark(
     }
 }
 
+#[post("/bookmark/{qid}")]
+async fn pin(
+    params: ntex::web::types::Path<String>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let qid = params.parse::<i64>().unwrap();
+    let uid = auth.user.id;
+
+    match state.get_ref().pin(qid, uid).await {
+        Ok(_t) => HttpResponse::Ok().json(&json!({"messaage": "The post has been pinned/unpinned."})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
+    }
+}
+
 #[post("/unanswered-questions/")]
 async fn get_unanswered_questions(
     form: ntex::web::types::Json<QuestionsReq>,
@@ -546,6 +562,7 @@ pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(get_questions_by_user);
     cfg.service(get_answers_by_user);
     cfg.service(bookmark);
+    cfg.service(pin);
     cfg.service(get_bookmarks_by_user);
     cfg.service(get_unanswered_questions);
     cfg.service(get_questions_count);

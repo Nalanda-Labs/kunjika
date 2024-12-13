@@ -39,6 +39,7 @@ pub struct User {
     pub location: Option<String>,
     pub git: Option<String>,
     pub website: Option<String>,
+    pub is_superuser: Option<bool>,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]

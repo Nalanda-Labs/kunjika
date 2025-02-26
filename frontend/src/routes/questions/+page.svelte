@@ -356,9 +356,6 @@
 						</div>
 						<div style="clear:both"></div>
 					{/each}
-					<hr
-						style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px"
-					/>
 					{#each questions as { id, slug, title, tags, shown_ts, uid, username, answers, views, answer_accepted }}
 						<hr
 							style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"

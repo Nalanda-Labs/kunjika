@@ -30,6 +30,15 @@ SET default_table_access_method = heap;
 -- Name: posts; Type: TABLE; Schema: public; Owner: shiv
 --
 
+CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
+  LANGUAGE plpgsql
+  AS $$
+  BEGIN
+    DELETE FROM views WHERE created_date < NOW() - INTERVAL '15 minute';
+    RETURN NEW;
+  END;
+$$;
+
 CREATE TABLE public.posts (
     id bigint NOT NULL,
     title character varying(256),
@@ -45,7 +54,8 @@ CREATE TABLE public.posts (
     answer_count bigint DEFAULT 0 NOT NULL,
     posted_by_id bigint NOT NULL,
     reply_to_id bigint,
-    updated_by_id bigint
+    updated_by_id bigint,
+    pinned boolean default false
 );
 ALTER TABLE public.posts OWNER TO shiv;
 --
@@ -313,7 +323,7 @@ GROUP BY post_tags.tag_id,
 ORDER BY (count(post_tags.tag_id));
 ALTER VIEW public.weekly_tags_by_popularity OWNER TO shiv;
 
-create view pinned_count as select count(1) from posts where pinned=true;
+create view public.pinned_count as select count(1) from public.posts where pinned=true;
 
 --
 -- Name: post_tags id; Type: DEFAULT; Schema: public; Owner: shiv

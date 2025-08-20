@@ -18,26 +18,26 @@ SET row_security = off;
 -- Name: citext; Type: EXTENSION; Schema: -; Owner: -
 --
 
-CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
---
--- Name: EXTENSION citext; Type: COMMENT; Schema: -; Owner: 
---
+-- CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
+-- --
+-- -- Name: EXTENSION citext; Type: COMMENT; Schema: -; Owner: 
+-- --
 
-COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
-SET default_tablespace = '';
-SET default_table_access_method = heap;
+-- COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
+-- SET default_tablespace = '';
+-- SET default_table_access_method = heap;
 --
 -- Name: posts; Type: TABLE; Schema: public; Owner: shiv
 --
 
-CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
-  LANGUAGE plpgsql
-  AS $$
-  BEGIN
-    DELETE FROM views WHERE created_date < NOW() - INTERVAL '15 minute';
-    RETURN NEW;
-  END;
-$$;
+-- CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
+--   LANGUAGE plpgsql
+--   AS $$
+--   BEGIN
+--     DELETE FROM views WHERE created_date < NOW() - INTERVAL '15 minute';
+--     RETURN NEW;
+--   END;
+-- $$;
 
 CREATE TABLE public.posts (
     id bigint NOT NULL,
@@ -112,7 +112,7 @@ ALTER TABLE public.post_tags OWNER TO shiv;
 
 CREATE TABLE public.tags (
     id bigint NOT NULL,
-    name public.citext NOT NULL,
+    name varchar(64) NOT NULL,
     info character varying(1048576),
     post_count bigint DEFAULT 0,
     created_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -236,7 +236,7 @@ ALTER SEQUENCE public.tokens_id_seq OWNED BY public.tokens.id;
 CREATE TABLE public.users (
     id bigint NOT NULL,
     username character varying(10) NOT NULL,
-    email public.citext NOT NULL,
+    email varchar(256) NOT NULL,
     password_hash character varying(256) NOT NULL,
     created_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     modified_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -278,8 +278,10 @@ CREATE TABLE public.views (
     ipaddress character varying(64),
     qid bigint,
     created_date timestamp with time zone DEFAULT now(),
-    id bigint NOT NULL
-);
+    id bigint NOT NULL,
+    expired_at timestamptz not null default now() + '15 minutes'
+) WITH (ttl_expiration_expression = 'expired_at', ttl_job_cron = '*/15 * * * *');
+
 ALTER TABLE public.views OWNER TO shiv;
 --
 -- Name: views_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv

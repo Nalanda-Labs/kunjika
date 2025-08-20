@@ -169,7 +169,7 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
                     .set_ex(
                         access_token_details.token_uuid.to_string(),
                         user.id.to_string(),
-                        (state.config.access_token_max_age * 60) as usize,
+                        (state.config.access_token_max_age * 60) as u64,
                     )
                     .await;
 
@@ -182,7 +182,7 @@ async fn login(form: web::types::Json<Login>, state: AppState) -> impl Responder
                     .set_ex(
                         refresh_token_details.token_uuid.to_string(),
                         user.id.to_string(),
-                        (state.config.refresh_token_max_age * 60) as usize,
+                        (state.config.refresh_token_max_age * 60) as u64,
                     )
                     .await;
 
@@ -338,7 +338,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         .set_ex(
             refresh_token_details.token_uuid.to_string(),
             user.id.to_string(),
-            (state.config.access_token_max_age * 60) as usize,
+            (state.config.access_token_max_age * 60) as u64,
         )
         .await;
 
@@ -350,7 +350,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         .set_ex(
             access_token_details.token_uuid.to_string(),
             user.id.to_string(),
-            (state.config.access_token_max_age * 60) as usize,
+            (state.config.access_token_max_age * 60) as u64,
         )
         .await;
 

@@ -31,8 +31,11 @@ use config::{Config, Opts};
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
+    // we do not allow the app to run as root simply because
+    // it is dangerous
     if Uid::effective().is_root() {
-        panic!("You must not run this program as root!");
+        eprintln!("Error: Do not run this program as root.");
+        std::process::exit(1);
     }
     // Config::show();
     let (_handle, opt) = Opts::parse_from_args();
@@ -44,6 +47,9 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(
                 Cors::new()
+                    // we can easily place these in a config file but I find
+                    // it unnecessary as these settings are default for what
+                    // devs have and it has no bearing on anything else
                     // for svelte dev server
                     .allowed_origin("http://localhost:5173")
                     // for node production server

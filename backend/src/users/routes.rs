@@ -11,7 +11,7 @@ use crate::utils::verify_user::verify_profile_user;
 use cookie::time::Duration;
 use cookie::Cookie;
 use futures::{StreamExt, TryStreamExt};
-use lettre::{
+    use lettre::{
     transport::smtp::authentication::Credentials, AsyncSmtpTransport, AsyncTransport, Message,
     Tokio1Executor,
 };
@@ -47,17 +47,6 @@ async fn register(form: web::types::Json<Register>, state: AppState) -> impl Res
     match state.get_ref().user_add(&form).await {
         Ok(res) => {
             debug!("register {:?} res: {}", form, res);
-            // TODO: move it out to a common logic
-            let smtp_credentials = Credentials::new(
-                state.config.mail_username.clone(),
-                state.config.mail_password.clone(),
-            );
-
-            let mailer =
-                AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&state.config.mail_host)
-                    .unwrap()
-                    .credentials(smtp_credentials)
-                    .build();
 
             let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
             let to = form.email.clone();
@@ -91,7 +80,7 @@ Team Kunjika",
                         .unwrap();
 
                     debug!("Sending email");
-                    match mailer.send(email).await {
+                    match &state.mailer.send(email).await {
                         Ok(_r) => {
                             debug!("{:?}", _r);
                             HttpResponse::Ok().json(&json!({"data": res}))
@@ -532,16 +521,6 @@ async fn resend_confirmation_email(
         HttpResponse::BadRequest()
             .json(&json!({"status": "fail", "message": "Bad signature. Use link from your email."}))
     } else {
-        let smtp_credentials = Credentials::new(
-            state.config.mail_username.clone(),
-            state.config.mail_password.clone(),
-        );
-
-        let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&state.config.mail_host)
-            .unwrap()
-            .credentials(smtp_credentials)
-            .build();
-
         let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
         let to = email.clone();
         let subject = "Registration at Kunjika";
@@ -575,7 +554,7 @@ Team Kunjika",
                     .unwrap();
 
                 debug!("Sending email");
-                match mailer.send(email).await {
+                match &state.mailer.send(email).await {
                     Ok(_r) => {
                         debug!("{:?}", _r);
                         HttpResponse::Ok()

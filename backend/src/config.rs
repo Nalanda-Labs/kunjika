@@ -1,6 +1,6 @@
 use crate::state::*;
 use crate::state::{redis::Client, KvPool, RedisConnectionManager};
-
+use lettre::{transport::smtp::authentication::Credentials, AsyncSmtpTransport, Tokio1Executor};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -53,11 +53,19 @@ impl Config {
         let kvm =
             RedisConnectionManager::new(Client::open(self.redis.clone()).expect("redis open"));
         let kv = KvPool::builder().build(kvm);
+        let smtp_credentials =
+            Credentials::new(self.mail_username.clone(), self.mail_password.clone());
+
+        let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&self.mail_host)
+            .unwrap()
+            .credentials(smtp_credentials)
+            .build();
 
         Arc::new(State {
             config: self,
             sql,
             kv,
+            mailer,
         })
     }
     // generate and show config string

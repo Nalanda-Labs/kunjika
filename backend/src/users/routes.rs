@@ -972,10 +972,7 @@ async fn image_upload(
             &json!({"success": false, "message": "Only self can update the profile image!"}),
         );
     }
-    // This will panic in case of error, which is a good thing because it means it is broken.
-    // It must not panic in general for the app to be usable.
-    // we do not check for image size. This should be set at web server level
-    // by limiting client max body size.
+    
     let current_date = time::OffsetDateTime::now_utc();
     let year = current_date.year();
     let month = current_date.month();

@@ -17,7 +17,6 @@
 	let unanswered;
 
 	function processPinned(data) {
-		console.log('hello2');
 		pinned = data;
 		for (let i = 0; i < pinned.length; i++) {
 			pinned[i]['tags'] = pinned[i]['tags'].split(',');
@@ -423,11 +422,15 @@
 									<i class="material-icons" title="first page">first_page</i>
 								</li>
 								<li class="disabled">
-									<i class="material-icons" title="previouse page">chevron_left</i>
+									<button type="button" style="background:none;border:none;cursor:pointer;padding:0;" on:click={nextPage} aria-label="Next page">
+										<i class="material-icons" title="previouse page">chevron_left</i>
+									</button>
 								</li>
 								{#if pages > 1}
-									<li style="cursor:pointer" on:click={nextPage}>
-										<i class="material-icons" title="next page">chevron_right</i>
+									<li>
+										<button type="button" style="background:none;border:none;cursor:pointer;padding:0;" on:click={nextPage} aria-label="Next page">
+											<i class="material-icons" title="next page">chevron_right</i>
+										</button>
 									</li>
 								{/if}
 								{#if current_page != pages && pages != 0}
@@ -436,21 +439,31 @@
 									</li>
 								{/if}
 							{:else if current_page != pages}
-								<li style="cursor:pointer" on:click={firstPage}>
-									<i class="material-icons" title="first page">first_page</i>
+								<li>
+									<button type="button" style="background:none;border:none;cursor:pointer;padding:0;" on:click={firstPage} aria-label="First page">
+										<i class="material-icons" title="first page">first_page</i>
+									</button>
 								</li>
-								<li style="cursor:pointer" on:click={prevPage}>
-									<i class="material-icons" title="previouse page">chevron_left</i>
+								<li>
+									<button type="button" style="background:none;border:none;cursor:pointer;padding:0;" on:click={prevPage} aria-label="Previous page">
+										<i class="material-icons" title="previouse page">chevron_left</i>
+									</button>
 								</li>
-								<li style="cursor:pointer" on:click={nextPage}>
-									<i class="material-icons" title="next page">chevron_right</i>
+								<li>
+									<button type="button" style="background:none;border:none;cursor:pointer;padding:0;" on:click={nextPage} aria-label="Next page">
+										<i class="material-icons" title="next page">chevron_right</i>
+									</button>
 								</li>
 							{:else if current_page == pages}
-								<li style="cursor:pointer" on:click={firstPage}>
-									<i class="material-icons" title="first page">first_page</i>
+								<li>
+									<button type="button" style="background:none;border:none;cursor:pointer;padding:0;" on:click={firstPage} aria-label="First page">
+										<i class="material-icons" title="first page">first_page</i>
+									</button>
 								</li>
-								<li style="cursor:pointer" on:click={prevPage}>
-									<i class="material-icons" title="previouse page">chevron_left</i>
+								<li>
+									<button type="button" style="background:none;border:none;cursor:pointer;padding:0;" on:click={prevPage} aria-label="Previous page">
+										<i class="material-icons" title="previouse page">chevron_left</i>
+									</button>
 								</li>
 								<li class="disabled">
 									<i class="material-icons" title="next page">chevron_right</i>

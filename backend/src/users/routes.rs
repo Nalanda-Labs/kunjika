@@ -438,6 +438,11 @@ async fn logout_handler(
         None => return delete_cookie(),
     };
 
+    let access_token = match req.cookie("access_token") {
+        Some(c) => c.value().to_string(),
+        None => return delete_cookie(),
+    };
+
     let refresh_token_details = match token::verify_jwt_token(
         state.config.refresh_token_public_key.to_owned(),
         &refresh_token,
@@ -446,19 +451,22 @@ async fn logout_handler(
         Err(_e) => return delete_cookie(),
     };
 
+    let access_token_details = match token::verify_jwt_token(
+        state.config.access_token_public_key.to_owned(),
+        &access_token,
+    ) {
+        Ok(token_details) => token_details,
+        Err(_e) => return delete_cookie(),
+    };
+
     let mut redis_client = state.kv.get().await.unwrap();
-    let redis_result: redis::RedisResult<usize> = redis_client
+    let _redis_result: redis::RedisResult<usize> = redis_client
         .del(&[
+            access_token_details.token_uuid.to_string(),
             refresh_token_details.token_uuid.to_string(),
             auth_guard.xsrf_token,
         ])
         .await;
-
-    if redis_result.is_err() {
-        return delete_cookie();
-    }
-
-    drop(redis_client);
 
     delete_cookie()
 }

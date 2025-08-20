@@ -1,4 +1,4 @@
-use super::{question::*, routes::bookmark};
+use super::{question::*};
 use crate::state::AppStateRaw;
 use sqlx::error::Error;
 
@@ -1206,7 +1206,7 @@ impl IQuestion for &AppStateRaw {
         }
     }
 
-    async fn pin(&self, qid: i64, uid: i64) -> sqlx::Result<bool> {
+    async fn pin(&self, qid: i64, _uid: i64) -> sqlx::Result<bool> {
         let mut tx = self.sql.begin().await?;
 
         let pinned_count = sqlx::query!(

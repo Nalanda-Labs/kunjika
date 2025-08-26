@@ -2,9 +2,11 @@
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
 
+	let app = '';
+
 	if (browser) {
 		(() => {
-			'use strict';
+			('use strict');
 			const tooltipTriggerList = Array.from(
 				document.querySelectorAll('[data-bs-toggle="tooltip"]')
 			);
@@ -12,6 +14,22 @@
 				new bootstrap.Tooltip(tooltipTriggerEl);
 			});
 		})();
+
+		const path = window.location.pathname.split('/')[1];
+		switch (path) {
+			case 'questions':
+				app = 'forum';
+				break;
+			case 'tags':
+				app = 'forum';
+				break;
+			case 'users':
+				app = 'forum';
+				break;
+			default:
+				app = 'forum';
+				break;
+		}
 	}
 </script>
 
@@ -30,22 +48,45 @@
 			<span class="navbar-toggler-icon"></span>
 		</button>
 		<div class="collapse navbar-collapse" id="navbarSupportedContent">
-			<ul class="navbar-nav me-auto mb-2 mb-lg-0">
-				<li class="nav-item">
-					<a rel="prefetch" class="nav-link" class:active={$page.url.pathname.startsWith('/questions')} href="/questions">Questions </a>
-				</li>
-				<li class="nav-item">
-					<a rel="prefetch" class="nav-link" class:active={$page.url.pathname.startsWith('/tags')} href="/tags">Tags </a>
-				</li>
-				<li class="nav-item">
-					<a rel="prefetch" class="nav-link" class:active={$page.url.pathname.startsWith('/users')} href="/users">Users {$page.path}</a>
-				</li>
-				<li class="nav-item">
-					<a class="nav-link" href="https://github.com/Nalanda-Labs/kunjika" target="_blank" aria-label="github"
-						><i class="fa-brands fa-github"></i>
-					</a>
-				</li>
-			</ul>
+			{#if app == 'forum'}
+				<ul class="navbar-nav me-auto mb-2 mb-lg-0">
+					<li class="nav-item">
+						<a
+							rel="prefetch"
+							class="nav-link"
+							class:active={$page.url.pathname.startsWith('/questions')}
+							href="/questions"
+							>Questions
+						</a>
+					</li>
+					<li class="nav-item">
+						<a
+							rel="prefetch"
+							class="nav-link"
+							class:active={$page.url.pathname.startsWith('/tags')}
+							href="/tags"
+							>Tags
+						</a>
+					</li>
+					<li class="nav-item">
+						<a
+							rel="prefetch"
+							class="nav-link"
+							class:active={$page.url.pathname.startsWith('/users')}
+							href="/users">Users {$page.path}</a
+						>
+					</li>
+					<li class="nav-item">
+						<a
+							class="nav-link"
+							href="https://github.com/Nalanda-Labs/kunjika"
+							target="_blank"
+							aria-label="github"
+							><i class="fa-brands fa-github"></i>
+						</a>
+					</li>
+				</ul>
+			{/if}
 			<ul class="navbar-nav ms-auto mb-2 mb-lg-0">
 				{#if $page.data.user}
 					<li class="nav-item">

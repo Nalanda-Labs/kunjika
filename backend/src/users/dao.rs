@@ -19,14 +19,19 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn update_profile(&self, uid: &i64, data: &ProfileReq) -> sqlx::Result<bool>;
     async fn get_summary(&self, uid: i64) -> sqlx::Result<SummaryResponse>;
     async fn save_confirmation_token(&self, email: &String, token: &String) -> sqlx::Result<bool>;
-    async fn reset_password(&self, email: &String, password: &String, token: &String) -> sqlx::Result<bool>;
+    // async fn reset_password(
+    //     &self,
+    //     email: &String,
+    //     password: &String,
+    //     token: &String,
+    // ) -> sqlx::Result<bool>;
     async fn search_users(&self, username: &String, users_per_page: i64) -> sqlx::Result<Vec<UR>>;
     async fn delete_profile(&self, uid: i64) -> sqlx::Result<bool>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 
         let sql = format!(
-            "SELECT id, username, email, password_hash, status, email_verified, image_url, created_date, modified_date,
+            "SELECT id, username, email, status, email_verified, image_url, created_date, modified_date,
             designation, location, git, website, is_superuser
             FROM users
             where {} = {};",
@@ -52,19 +57,17 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
 #[async_trait]
 impl IUser for &AppStateRaw {
     async fn user_add(&self, form: &Register) -> sqlx::Result<u64> {
-        let passh = form.passhash();
         let email_hash = compute(&form.email.as_bytes());
         // TODO: move it to config
         let image_url =
             "https://www.gravatar.com/avatar/".to_string() + &format!("{:x}", email_hash);
         sqlx::query!(
             r#"
-        INSERT INTO users (username, email, password_hash, image_url)
-        VALUES ($1 ,$2 ,$3, $4)
+        INSERT INTO users (username, email, image_url)
+        VALUES ($1 ,$2 ,$3)
                 "#,
             form.username,
             form.email,
-            passh,
             image_url
         )
         .execute(&self.sql)
@@ -428,33 +431,38 @@ impl IUser for &AppStateRaw {
         Ok(true)
     }
 
-    async fn reset_password(&self, email: &String, password: &String, token: &String) -> sqlx::Result<bool> {
-        let password_hash = passhash(password);
-        let mut tx = self.sql.begin().await?;
+    // async fn reset_password(
+    //     &self,
+    //     email: &String,
+    //     password: &String,
+    //     token: &String,
+    // ) -> sqlx::Result<bool> {
+    //     let password_hash = passhash(password);
+    //     let mut tx = self.sql.begin().await?;
 
-        sqlx::query!(
-            r#"
-            update users set password_hash=$1 where email=$2
-            "#,
-            password_hash,
-            email
-        )
-        .execute(&mut *tx)
-        .await?;
+    //     sqlx::query!(
+    //         r#"
+    //         update users set password_hash=$1 where email=$2
+    //         "#,
+    //         password_hash,
+    //         email
+    //     )
+    //     .execute(&mut *tx)
+    //     .await?;
 
-        sqlx::query!(
-            r#"
-            delete from tokens where token=$1
-            "#,
-            token
-        )
-        .execute(&mut *tx)
-        .await?;
+    //     sqlx::query!(
+    //         r#"
+    //         delete from tokens where token=$1
+    //         "#,
+    //         token
+    //     )
+    //     .execute(&mut *tx)
+    //     .await?;
 
-        tx.commit().await?;
+    //     tx.commit().await?;
 
-        Ok(true)
-    }
+    //     Ok(true)
+    // }
 
     async fn search_users(&self, username: &String, users_per_page: i64) -> sqlx::Result<Vec<UR>> {
         let users = sqlx::query_as!(
@@ -474,7 +482,7 @@ impl IUser for &AppStateRaw {
     async fn delete_profile(&self, uid: i64) -> sqlx::Result<bool> {
         sqlx::query!(
             r#"
-            update users set username='u'|| $1 ||'', email=$2, password_hash='', deleted=true
+            update users set username='u'|| $1 ||'', email=$2, deleted=true
             where id=$1
             "#,
             uid,

@@ -129,7 +129,7 @@ impl<Err> FromRequest<Err> for AuthorizationService {
         };
         let query_result = sqlx::query_as!(
             User,
-            "SELECT id, username, email, password_hash, created_date, modified_date, 
+            "SELECT id, username, email, created_date, modified_date,
                 status, email_verified, image_url, designation, location, git,
                 website, is_superuser FROM users WHERE id = $1 and deleted=false",
             user_id.parse::<i64>().unwrap()

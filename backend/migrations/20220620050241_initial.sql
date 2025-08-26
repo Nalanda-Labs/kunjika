@@ -20,7 +20,7 @@ SET row_security = off;
 
 -- CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 -- --
--- -- Name: EXTENSION citext; Type: COMMENT; Schema: -; Owner: 
+-- -- Name: EXTENSION citext; Type: COMMENT; Schema: -; Owner:
 -- --
 
 -- COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
@@ -214,7 +214,7 @@ ALTER SEQUENCE public.tags_id_seq OWNED BY public.tags.id;
 
 CREATE TABLE public.tokens (
     id bigint NOT NULL,
-    email character varying(256),
+    email CITEXT,
     token character varying(256) NOT NULL
 );
 ALTER TABLE public.tokens OWNER TO shiv;
@@ -236,8 +236,7 @@ ALTER SEQUENCE public.tokens_id_seq OWNED BY public.tokens.id;
 CREATE TABLE public.users (
     id bigint NOT NULL,
     username character varying(10) NOT NULL,
-    email varchar(256) NOT NULL,
-    password_hash character varying(256) NOT NULL,
+    email CITEXT NOT NULL,
     created_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     modified_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     status character varying(10) DEFAULT 'normal'::character varying NOT NULL,
@@ -472,6 +471,7 @@ CREATE INDEX to_user_id_idx ON public.votes USING btree (to_user_id);
 --
 
 CREATE INDEX tokens_token_idx ON public.tokens USING btree (token);
+CREATE INDEX tokens_email_idx ON public.tokens USING btree (email);
 --
 -- Name: topic_id_idx; Type: INDEX; Schema: public; Owner: shiv
 --

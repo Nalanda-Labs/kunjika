@@ -50,17 +50,9 @@
 			document.getElementById('username-helper').style.color = '#800';
 			return;
 		}
-		if (password !== confirm_password && (password.length < 16 || confirm_password.length)) {
-			document.getElementById('username-helper').innerHTML =
-				'Passphrases must be at least 16 characters and be same.';
-			document.getElementById('username-helper').style.color = '#800';
-			return;
-		}
 		const response = await post(`register`, {
 			username,
-			email,
-			password,
-			confirm_password
+			email
 		});
 
 		let text = await response.text();
@@ -89,7 +81,7 @@
 </script>
 
 <svelte:head>
-	<title>Register ❤ Kunjika</title>
+	<title>Register ❤ Roji</title>
 </svelte:head>
 <div class="row justify-content-center align-items-center" style="height:80vh">
 	<div class="col-4">
@@ -134,30 +126,6 @@
 					</a>
 					.
 				</p>
-				<div>
-					<label for="password" class="form-label">Passphrase</label>
-					<input
-						class="form-control"
-						type="password"
-						required
-						bind:value={password}
-						minlength="16"
-						maxlength="64"
-						placeholder="minimum 16 characters"
-					/>
-				</div>
-				<label for="password" class="form-label">Confirm Passphrase</label>
-				<div class="input-field col s12">
-					<input
-						class="form-control"
-						type="password"
-						required
-						bind:value={confirm_password}
-						minlength="16"
-						maxlength="64"
-						placeholder="Repeat passphrase"
-					/>
-				</div>
 			</div>
 			<div class="b-wrapper">
 				<button class="btn btn-primary" type="submit" name="action">Submit</button>

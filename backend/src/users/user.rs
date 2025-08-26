@@ -11,9 +11,9 @@ pub fn passhash(pass: &str) -> String {
     // info!("{}{}: {}", name, pass, hash);
     hash
 }
-fn passhash_verify(pass: &str, hash: &str) -> bool {
-    argon2::verify_encoded(&hash, pass.as_bytes()).unwrap()
-}
+// fn passhash_verify(pass: &str, hash: &str) -> bool {
+//     argon2::verify_encoded(&hash, pass.as_bytes()).unwrap()
+// }
 
 #[cfg(any(feature = "postgres"))]
 type SqlID = i64;
@@ -26,10 +26,6 @@ pub struct User {
     pub username: String,
     // pub phone: String,
     pub email: String,
-    // not return password
-    #[serde(skip_serializing)]
-    #[serde(skip_deserializing)]
-    pub password_hash: String,
     pub status: String,
     pub image_url: String,
     pub email_verified: Option<bool>,
@@ -50,13 +46,6 @@ pub struct UserCookie {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Login {
     pub email: String,
-    pub password: String,
-}
-
-impl Login {
-    pub fn verify(&self, hash: &str) -> bool {
-        passhash_verify(&self.password, hash)
-    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -77,10 +66,6 @@ pub struct Register {
     pub username: String,
     #[validate(length(min = 6, max = 256), email)]
     pub email: String,
-    #[validate(length(min = 16, max = 64))]
-    pub password: String,
-    #[validate(length(min = 16, max = 64))]
-    pub confirm_password: String,
 }
 
 use validator::ValidationError;
@@ -101,14 +86,6 @@ fn validate_username(username: &str) -> Result<(), ValidationError> {
 }
 
 impl Register {
-    pub fn passhash(&self) -> String {
-        passhash(&self.password)
-    }
-
-    pub fn match_password(&self) -> bool {
-        self.password == self.confirm_password
-    }
-
     pub fn check_email(&self) -> bool {
         // we have already validated email by using Validator library
         // we are checking for + in email which one can use to register

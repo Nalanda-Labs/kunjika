@@ -27,5 +27,6 @@
   "upload_folder": "uploads",
   "backend_url": "http://localhost:8000/api/v1/",
   "image_max_size": 2097152,
-  "karma_gain_per_answer": 20
+  "karma_gain_per_answer": 20,
+  "login_code_length": 10
 }

@@ -35,6 +35,7 @@ pub struct Config {
     pub backend_url: String,
     pub image_max_size: usize,
     pub karma_gain_per_answer: i64,
+    pub login_code_length: usize,
 }
 
 impl Config {
@@ -56,10 +57,11 @@ impl Config {
         let smtp_credentials =
             Credentials::new(self.mail_username.clone(), self.mail_password.clone());
 
-        let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&self.mail_host)
-            .unwrap()
-            .credentials(smtp_credentials)
-            .build();
+        // let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&self.mail_host)
+        let mailer = AsyncSmtpTransport::<Tokio1Executor>::unencrypted_localhost();
+        // .unwrap()
+        // .credentials(smtp_credentials)
+        // .build();
 
         Arc::new(State {
             config: self,

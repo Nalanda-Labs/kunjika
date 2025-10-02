@@ -213,10 +213,11 @@ ALTER SEQUENCE public.tags_id_seq OWNED BY public.tags.id;
 --
 
 CREATE TABLE public.tokens (
-    id bigint NOT NULL,
+    id bigserial NOT NULL,
     email CITEXT,
-    token character varying(256) NOT NULL
-);
+    token character varying(256) NOT NULL,
+    expired_at timestamptz not null default now() + '5 minutes'
+) WITH (ttl_expiration_expression = 'expired_at', ttl_job_cron = '*/5 * * * *');
 ALTER TABLE public.tokens OWNER TO shiv;
 --
 -- Name: tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv

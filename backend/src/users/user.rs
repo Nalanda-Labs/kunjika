@@ -43,9 +43,18 @@ pub struct UserCookie {
     pub user: User,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Validate)]
 pub struct Login {
+    #[validate(length(min = 6, max = 255))]
     pub email: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Validate)]
+pub struct LoginForm {
+    #[validate(length(min = 6, max = 255))]
+    pub email: String,
+    #[validate(length(min = 10, max = 10))]
+    pub otp: String,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]

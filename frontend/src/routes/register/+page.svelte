@@ -16,8 +16,6 @@
 
 	let username = '';
 	let email = '';
-	let password = '';
-	let confirm_password = '';
 	let errors = null;
 
 	async function check_username_availablity() {

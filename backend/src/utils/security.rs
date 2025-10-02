@@ -1,6 +1,16 @@
 use crate::state::AppState;
 use itsdangerous::{default_builder, IntoTimestampSigner, TimestampSigner};
 use std::time::Duration;
+use rand::prelude::*;
+use rand::distr::Alphanumeric;
+
+pub fn sign_in_code(len: &usize) -> String {
+    let mut rng = rand::rng(); // previously thread_rng()
+    rng.sample_iter(&Alphanumeric)
+        .take(*len)
+        .map(char::from)
+        .collect()
+}
 
 pub async fn sign(text: &str, state: &AppState) -> String {
     let signer = default_builder(state.config.secret_key.clone())

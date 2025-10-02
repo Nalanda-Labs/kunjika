@@ -27,6 +27,8 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     // ) -> sqlx::Result<bool>;
     async fn search_users(&self, username: &String, users_per_page: i64) -> sqlx::Result<Vec<UR>>;
     async fn delete_profile(&self, uid: i64) -> sqlx::Result<bool>;
+    async fn get_email_for_login(&self, email: &str) -> sqlx::Result<bool>;
+    async fn validate_login_otp(&self, email: &str, otp: &str) -> sqlx::Result<bool>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 
@@ -490,6 +492,26 @@ impl IUser for &AppStateRaw {
         )
         .execute(&self.sql)
         .await?;
+
+        Ok(true)
+    }
+
+    async fn get_email_for_login(&self, email: &str) -> sqlx::Result<bool> {
+        sqlx::query!(
+            r#"select email from users where email = $1 and deleted=false"#, email
+        ).fetch_one(&self.sql).await?;
+
+        Ok(true)
+    }
+
+    async fn validate_login_otp(&self, email: &str, otp: &str) -> sqlx::Result<bool> {
+        sqlx::query!(
+            r#"select email from tokens where email = $1 and token=$2"#, email, otp
+        ).fetch_one(&self.sql).await?;
+
+        sqlx::query!(
+            r#"delete from tokens where email = $1 and token=$2"#, email, otp
+        ).fetch_one(&self.sql).await?;
 
         Ok(true)
     }

@@ -51,6 +51,23 @@ async fn insert_question(
                 .json(&json!({"status": "fail", "message": "All tags were not found"}))
         }
         Ok(t) => {
+            //quickwit indexer
+            if let Some(qw) = crate::search::quickwit::Quickwit::from_config(&state.config) {
+                let title_c = title.clone();
+                let desc_c = description.clone();
+                let tags_c = tag_list.clone();
+                ntex::rt::spawn(async move {
+                    let doc = serde_json::json!({
+                        "id": t,
+                        "title": r.title.clone(),
+                        "description": r.description.clone(),
+                        "tags": r.tag_list.clone(),
+                        "slug": slug.clone(),
+                    });
+                    let _ = qw.index(std::slice::from_ref(&doc)).await;
+                });
+            }
+
             debug!("insert question {:?} ", t);
             let res = AskResponse {
                 id: t.to_string(),
@@ -137,7 +154,8 @@ async fn get_questions(
         .get_questions(&uat, form.questions_per_page, &form.direction)
         .await
     {
-        Ok((questions, pinned)) => HttpResponse::Ok().json(&json!({"data": questions, "pinned": pinned, "count": questions.count})),
+        Ok((questions, pinned)) => HttpResponse::Ok()
+            .json(&json!({"data": questions, "pinned": pinned, "count": questions.count})),
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": false, "message": e.to_string()})),
     }
@@ -172,7 +190,9 @@ async fn get_questions_by_tag(
         .get_questions_by_tag(&uat, form.questions_per_page, &tag, &form.direction)
         .await
     {
-        Ok(db_questions) => HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count})),
+        Ok(db_questions) => {
+            HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count}))
+        }
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": false, "message": e.to_string()})),
     }
@@ -479,7 +499,9 @@ async fn pin(
     let uid = auth.user.id;
 
     match state.get_ref().pin(qid, uid).await {
-        Ok(_t) => HttpResponse::Ok().json(&json!({"messaage": "The post has been pinned/unpinned."})),
+        Ok(_t) => {
+            HttpResponse::Ok().json(&json!({"messaage": "The post has been pinned/unpinned."}))
+        }
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": "fail", "message": e.to_string()})),
     }
@@ -512,7 +534,9 @@ async fn get_unanswered_questions(
         .get_unanswered_questions(&uat, form.questions_per_page, &form.direction)
         .await
     {
-        Ok(db_questions) => HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count})),
+        Ok(db_questions) => {
+            HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count}))
+        }
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": false, "message": e.to_string()})),
     }
@@ -545,21 +569,17 @@ async fn get_questions_by_score(
         .get_unanswered_questions(&uat, form.questions_per_page, &form.direction)
         .await
     {
-        Ok(db_questions) => HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count})),
+        Ok(db_questions) => {
+            HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count}))
+        }
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": false, "message": e.to_string()})),
     }
 }
 
 #[get("/get-questions-count/")]
-async fn get_questions_count(
-    state: AppState,
-) -> impl Responder {
-    match state
-        .get_ref()
-        .get_questions_count()
-        .await
-    {
+async fn get_questions_count(state: AppState) -> impl Responder {
+    match state.get_ref().get_questions_count().await {
         Ok(count) => HttpResponse::Ok().json(&json!({"count": count})),
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": false, "message": e.to_string()})),
@@ -567,14 +587,8 @@ async fn get_questions_count(
 }
 
 #[get("/get-unanswered-questions-count/")]
-async fn get_unanswered_questions_count(
-    state: AppState,
-) -> impl Responder {
-    match state
-        .get_ref()
-        .get_unanswered_questions_count()
-        .await
-    {
+async fn get_unanswered_questions_count(state: AppState) -> impl Responder {
+    match state.get_ref().get_unanswered_questions_count().await {
         Ok(count) => HttpResponse::Ok().json(&json!({"count": count})),
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": false, "message": e.to_string()})),

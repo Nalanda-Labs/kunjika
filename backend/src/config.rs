@@ -35,6 +35,8 @@ pub struct Config {
     pub backend_url: String,
     pub image_max_size: usize,
     pub karma_gain_per_answer: i64,
+    pub quickwit_url: String,
+    pub quickwit_index: String,
 }
 
 impl Config {

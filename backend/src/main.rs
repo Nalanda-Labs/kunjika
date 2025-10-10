@@ -26,6 +26,7 @@ pub mod uploads;
 pub mod users;
 pub mod utils;
 pub mod votes;
+pub mod search;
 
 use config::{Config, Opts};
 
@@ -68,7 +69,8 @@ async fn main() -> std::io::Result<()> {
                 .configure(tags::routes::init)
                 .configure(votes::routes::init)
                 .configure(questions::routes::init)
-                .configure(uploads::routes::init),))
+                .configure(uploads::routes::init)
+                .configure(search::routes::init),))
     })
     .workers(num_cpus::get())
     .keep_alive(300)

@@ -498,22 +498,38 @@ impl IUser for &AppStateRaw {
 
     async fn get_email_for_login(&self, email: &str) -> sqlx::Result<bool> {
         sqlx::query!(
-            r#"select email from users where email = $1 and deleted=false"#, email
-        ).fetch_one(&self.sql).await?;
+            r#"select email from users where email = $1 and deleted=false"#,
+            email
+        )
+        .fetch_one(&self.sql)
+        .await?;
 
         Ok(true)
     }
 
     async fn validate_login_otp(&self, email: &str, otp: &str) -> sqlx::Result<bool> {
-        sqlx::query!(
-            r#"select email from tokens where email = $1 and token=$2"#, email, otp
-        ).fetch_one(&self.sql).await?;
+        let r = sqlx::query!(
+            r#"select email from tokens where email = $1 and token=$2"#,
+            email,
+            otp
+        )
+        .fetch_one(&self.sql)
+        .await?;
 
-        sqlx::query!(
-            r#"delete from tokens where email = $1 and token=$2"#, email, otp
-        ).fetch_one(&self.sql).await?;
+        if r.email != None {
+            info!("{:?}", r.email);
+            sqlx::query!(
+                r#"delete from tokens where email = $1 and token=$2"#,
+                email,
+                otp
+            )
+            .execute(&self.sql)
+            .await?;
 
-        Ok(true)
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 

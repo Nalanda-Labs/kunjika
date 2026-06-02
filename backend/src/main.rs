@@ -55,7 +55,7 @@ async fn main() -> std::io::Result<()> {
                     .allowed_origin("http://localhost:5173")
                     // for node production server
                     .allowed_origin("http://localhost:3000")
-                    // when using nginx as a reverse proxy
+                    // when using nginx as a reverse proxy to just use localhost
                     .allowed_origin("http://localhost")
                     .supports_credentials()
                     .max_age(3600)

@@ -5,7 +5,7 @@ use rand::prelude::*;
 use rand::distr::Alphanumeric;
 
 pub fn sign_in_code(len: &usize) -> String {
-    let mut rng = rand::rng(); // previously thread_rng()
+    let rng = rand::rng(); // previously thread_rng()
     rng.sample_iter(&Alphanumeric)
         .take(*len)
         .map(char::from)

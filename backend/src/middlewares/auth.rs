@@ -3,16 +3,11 @@ use mobc_redis::redis::AsyncCommands;
 use nonblock_logger::info;
 use ntex::http::HttpMessage;
 use ntex::web::{DefaultError, FromRequest, HttpRequest};
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 
 use crate::state::AppStateRaw;
 use crate::users::token;
 use crate::users::user::User;
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-struct QueryParams {
-    access_token: String,
-}
 
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {

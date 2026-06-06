@@ -1,9 +1,3 @@
---
--- PostgreSQL database dump
---
-
--- Dumped from database version 16.3
--- Dumped by pg_dump version 16.3
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -30,14 +24,14 @@ SET row_security = off;
 -- Name: posts; Type: TABLE; Schema: public; Owner: shiv
 --
 
--- CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
---   LANGUAGE plpgsql
---   AS $$
---   BEGIN
---     DELETE FROM views WHERE created_date < NOW() - INTERVAL '15 minute';
---     RETURN NEW;
---   END;
--- $$;
+CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
+  LANGUAGE plpgsql
+  AS $$
+  BEGIN
+    DELETE FROM views WHERE created_date < NOW() - INTERVAL '15 minute';
+    RETURN NEW;
+  END;
+$$;
 
 CREATE TABLE public.posts (
     id bigint NOT NULL,
@@ -215,9 +209,8 @@ ALTER SEQUENCE public.tags_id_seq OWNED BY public.tags.id;
 CREATE TABLE public.tokens (
     id bigserial NOT NULL,
     email CITEXT,
-    token character varying(256) NOT NULL,
-    expired_at timestamptz not null default now() + '5 minutes'
-) WITH (ttl_expiration_expression = 'expired_at', ttl_job_cron = '*/5 * * * *');
+    token character varying(256) NOT NULL
+);
 ALTER TABLE public.tokens OWNER TO shiv;
 --
 -- Name: tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
@@ -278,9 +271,8 @@ CREATE TABLE public.views (
     ipaddress character varying(64),
     qid bigint,
     created_date timestamp with time zone DEFAULT now(),
-    id bigint NOT NULL,
-    expired_at timestamptz not null default now() + '15 minutes'
-) WITH (ttl_expiration_expression = 'expired_at', ttl_job_cron = '*/15 * * * *');
+    id bigint NOT NULL
+);
 
 ALTER TABLE public.views OWNER TO shiv;
 --

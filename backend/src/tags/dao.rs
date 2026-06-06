@@ -18,14 +18,13 @@ pub trait ITag: std::ops::Deref<Target = AppStateRaw> {
 #[async_trait]
 impl ITag for &AppStateRaw {
     async fn tag_query(&self, name: &str) -> sqlx::Result<Vec<TagResponse>> {
-        let sql = format!(
+        sqlx::query_as(
             "SELECT id, name, post_count, info
             FROM tags
-            where {} like '{}%';",
-            "name", name
-        );
-
-        sqlx::query_as(&sql).fetch_all(&self.sql).await
+            where name like '?%';",
+        ).bind(name)
+        .fetch_all(&self.sql)
+        .await
     }
 
     async fn get_all_tags_by_name(
@@ -122,13 +121,15 @@ impl ITag for &AppStateRaw {
 
     async fn search_tags(&self, tag: &String, tags_per_page: i64) -> sqlx::Result<Vec<Tag>> {
         let tags = sqlx::query_as!(
-            Tag, r#"select t.id, t.name, t.info, t.post_count, w.count as
+            Tag,
+            r#"select t.id, t.name, t.info, t.post_count, w.count as
             weekly_count, d.count as daily_count from tags t
             left join weekly_tags_by_popularity w on w.name=t.name
             left join daily_tags_by_popularity d on d.name=t.name
             where t.name like '%' || $1 || '%' order by t.name desc limit $2
             "#,
-            tag, tags_per_page
+            tag,
+            tags_per_page
         )
         .fetch_all(&self.sql)
         .await?;

@@ -1,16 +1,16 @@
 // PBKDF2 < bcrypt < scrypt < argon2
-use argon2::{self, Config};
-use ring::digest;
+// use argon2::{self, Config};
+// use ring::digest;
 use time;
 
-pub fn passhash(pass: &str) -> String {
-    let config = Config::default();
-    const CREDENTIAL_LEN: usize = digest::SHA512_OUTPUT_LEN;
-    let salt = [0u8; CREDENTIAL_LEN];
-    let hash = argon2::hash_encoded(pass.as_bytes(), &salt, &config).unwrap();
-    // info!("{}{}: {}", name, pass, hash);
-    hash
-}
+// pub fn passhash(pass: &str) -> String {
+//     let config = Config::default();
+//     const CREDENTIAL_LEN: usize = digest::SHA512_OUTPUT_LEN;
+//     let salt = [0u8; CREDENTIAL_LEN];
+//     let hash = argon2::hash_encoded(pass.as_bytes(), &salt, &config).unwrap();
+//     // info!("{}{}: {}", name, pass, hash);
+//     hash
+// }
 // fn passhash_verify(pass: &str, hash: &str) -> bool {
 //     argon2::verify_encoded(&hash, pass.as_bytes()).unwrap()
 // }
@@ -28,7 +28,7 @@ pub struct User {
     pub email: String,
     pub status: String,
     pub image_url: String,
-    pub email_verified: Option<bool>,
+    pub email_verified: bool,
     pub created_date: SqlDateTime,
     pub modified_date: SqlDateTime,
     pub designation: Option<String>,

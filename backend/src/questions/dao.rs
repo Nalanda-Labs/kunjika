@@ -243,7 +243,7 @@ impl IQuestion for &AppStateRaw {
         for t in tags {
             trs.push(t.name);
         }
-        let image_url = question.image_url;
+        let image_url = question.image_url; 
         let title = match question.title {
             Some(t) => t,
             None => "".to_owned(),
@@ -268,7 +268,7 @@ impl IQuestion for &AppStateRaw {
             updated_by_id: updated_by_id.to_string(),
             created_at: question.created_at,
             updated_at: question.updated_at,
-            username: question.username,
+            username: question.username.expect("This is not null so must be there"), // seems a bug
             image_url,
             tags: trs,
             vote_by_current_user,

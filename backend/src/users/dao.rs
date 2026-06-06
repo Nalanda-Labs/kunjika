@@ -32,26 +32,28 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 
-        let sql = format!(
+        let mut builder = sqlx::QueryBuilder::new(
             "SELECT id, username, email, status, email_verified, image_url, created_date, modified_date,
             designation, location, git, website, is_superuser
             FROM users
-            where {} = {};",
-            column, placeholder
-        );
+            where");
 
-        sqlx::query_as(&sql).bind(who).fetch_one(&self.sql).await
+        builder.push(column);
+        builder.push("=");
+        builder.push(placeholder);
+        let query = builder.build_query_as::<User>();
+
+        query.fetch_one(&self.sql).await
     }
 
     async fn user_delete(&self, who: &str) -> sqlx::Result<User> {
         let (column, placeholder) = column_placeholder(who);
 
-        let sql = format!(
-            "update users set status='deleted' where {}={} RETURNING *;",
-            column, placeholder
-        );
-
-        sqlx::query_as(&sql).bind(who).fetch_one(&self.sql).await
+        sqlx::query_as("update users set status='deleted' where ?=? RETURNING *;")
+            .bind(column)
+            .bind(placeholder)
+            .fetch_one(&self.sql)
+            .await
     }
 }
 

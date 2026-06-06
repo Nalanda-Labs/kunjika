@@ -27,26 +27,38 @@ pub mod uploads;
 pub mod users;
 pub mod utils;
 pub mod votes;
+use tokio::sync::OnceCell;
 
 use config::{Config, Opts};
+use std::sync::Arc;
+use state::State;
+
+
+const APIV1:&'static str = "/api/v1";
+const LISTEN: &'static str = "127.0.0.1:800";
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
     // we do not allow the app to run as root simply because
     // it is dangerous
     if Uid::effective().is_root() {
-        eprintln!("Error: Do not run this program as root.");
+        eprintln!("Error: Do not run     this program as root.");
         std::process::exit(1);
     }
     // Config::show();
     let (_handle, opt) = Opts::parse_from_args();
-    let state = Config::parse_from_file(&opt.config).into_state().await;
-    let state2 = state.clone();
-    let apiv1 = "/api/v1";
+    static STATE: OnceCell<Arc<State>> = OnceCell::const_new();
+    let state = STATE
+    .get_or_init(|| async {
+        Config::parse_from_file(&opt.config)
+            .into_state()
+            .await
+    })
+    .await;
 
-    HttpServer::new(move || {
+    HttpServer::new(async || {
         App::new()
-            .wrap(
+            .middleware(
                 Cors::new()
                     // we can easily place these in a config file but I find
                     // it unnecessary as these settings are default for what
@@ -62,18 +74,17 @@ async fn main() -> std::io::Result<()> {
                     .finish(),
             )
             .state(state.clone())
-            .wrap(web::middleware::Logger::default())
-            .wrap(web::middleware::Compress::default())
-            .service((web::scope(apiv1)
+            .middleware(web::middleware::Logger::default())
+            .middleware(web::middleware::Compress::default())
+            .service((web::scope(APIV1)
                 .configure(users::routes::init)
                 .configure(tags::routes::init)
                 .configure(votes::routes::init)
                 .configure(questions::routes::init)
                 .configure(uploads::routes::init),))
     })
-    .workers(num_cpus::get())
-    .keep_alive(300)
-    .bind(&state2.config.listen)?
+    .workers(num_cpus::get())   
+    .bind(LISTEN)?
     .run()
     .await
 }

@@ -35,7 +35,7 @@ use state::State;
 
 
 const APIV1:&'static str = "/api/v1";
-const LISTEN: &'static str = "127.0.0.1:800";
+const LISTEN: &'static str = "127.0.0.1:8000";
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {

@@ -118,7 +118,7 @@ impl Opts {
             _more => LevelFilter::Trace,
         };
 
-        let formater = BaseFormater::new()
+        let formatter = BaseFormater::new()
             .local(true)
             .color(true)
             .level(4)
@@ -135,11 +135,12 @@ impl Opts {
                     LevelFilter::Warn
                 },
             );
+        info!("Some message");
 
         let handle = NonblockLogger::new()
             .filter(filter)
             .unwrap()
-            .formater(formater)
+            .formater(formatter)
             .log_to_stdout()
             .map_err(|e| eprintln!("failed to init nonblock_logger: {:?}", e))
             .unwrap();

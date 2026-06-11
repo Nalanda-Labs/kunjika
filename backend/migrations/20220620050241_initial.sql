@@ -1,37 +1,20 @@
-SET statement_timeout = 0;
-SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', '', false);
-SET check_function_bodies = false;
-SET xmloption = content;
-SET client_min_messages = warning;
-SET row_security = off;
---
--- Name: citext; Type: EXTENSION; Schema: -; Owner: -
---
-
--- CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
--- --
--- -- Name: EXTENSION citext; Type: COMMENT; Schema: -; Owner:
--- --
-
--- COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
--- SET default_tablespace = '';
--- SET default_table_access_method = heap;
---
--- Name: posts; Type: TABLE; Schema: public; Owner: shiv
---
+CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 
 CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
-  LANGUAGE plpgsql
   AS $$
   BEGIN
     DELETE FROM views WHERE created_date < NOW() - INTERVAL '15 minute';
     RETURN NEW;
   END;
-$$;
+$$ LANGUAGE plpgsql;
+
+CREATE FUNCTION public.tokens_delete_old_rows() RETURNS trigger
+  AS $$
+  BEGIN
+    DELETE FROM views WHERE created_date < NOW() - INTERVAL '55 minute';
+    RETURN NEW;
+  END;
+$$ LANGUAGE plpgsql;
 
 CREATE TABLE public.posts (
     id bigint NOT NULL,
@@ -209,7 +192,8 @@ ALTER SEQUENCE public.tags_id_seq OWNED BY public.tags.id;
 CREATE TABLE public.tokens (
     id bigserial NOT NULL,
     email CITEXT,
-    token character varying(256) NOT NULL
+    token character varying(256) NOT NULL,
+    created_date timestamp with time zone DEFAULT now()
 );
 ALTER TABLE public.tokens OWNER TO shiv;
 --
@@ -413,68 +397,68 @@ ADD CONSTRAINT votes_pkey PRIMARY KEY (topic_id);
 -- Name: bookmarks_created_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX bookmarks_created_idx ON public.bookmarks USING btree (created_at);
+CREATE INDEX bookmarks_created_idx ON public.bookmarks USING lsm (created_at);
 --
 -- Name: bookmarks_ids; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE UNIQUE INDEX bookmarks_ids ON public.bookmarks USING btree (qid, aid, uid);
+CREATE UNIQUE INDEX bookmarks_ids ON public.bookmarks USING lsm (qid, aid, uid);
 --
 -- Name: from_user_id_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX from_user_id_idx ON public.votes USING btree (from_user_id);
+CREATE INDEX from_user_id_idx ON public.votes USING lsm (from_user_id);
 --
 -- Name: post_tags_post_id_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX post_tags_post_id_idx ON public.post_tags USING btree (post_id);
+CREATE INDEX post_tags_post_id_idx ON public.post_tags USING lsm (post_id);
 --
 -- Name: post_tags_tag_id_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX post_tags_tag_id_idx ON public.post_tags USING btree (tag_id);
+CREATE INDEX post_tags_tag_id_idx ON public.post_tags USING lsm (tag_id);
 --
 -- Name: posts_op_id_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX posts_op_id_idx ON public.posts USING btree (op_id);
+CREATE INDEX posts_op_id_idx ON public.posts USING lsm (op_id);
 --
 -- Name: posts_updated_at_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX posts_updated_at_idx ON public.posts USING btree (updated_at);
+CREATE INDEX posts_updated_at_idx ON public.posts USING lsm (updated_at);
 --
 -- Name: tags_name_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX tags_name_idx ON public.tags USING btree (name);
+CREATE INDEX tags_name_idx ON public.tags USING lsm (name);
 --
 -- Name: tags_post_count_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX tags_post_count_idx ON public.tags USING btree (post_count);
+CREATE INDEX tags_post_count_idx ON public.tags USING lsm (post_count);
 --
 -- Name: to_user_id_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX to_user_id_idx ON public.votes USING btree (to_user_id);
+CREATE INDEX to_user_id_idx ON public.votes USING lsm (to_user_id);
 --
 -- Name: tokens_token_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX tokens_token_idx ON public.tokens USING btree (token);
-CREATE INDEX tokens_email_idx ON public.tokens USING btree (email);
+CREATE INDEX tokens_token_idx ON public.tokens USING lsm (token);
+CREATE INDEX tokens_email_idx ON public.tokens USING lsm (email);
 --
 -- Name: topic_id_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX topic_id_idx ON public.votes USING btree (topic_id);
+CREATE INDEX topic_id_idx ON public.votes USING lsm (topic_id);
 --
 -- Name: users_karma_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX users_karma_idx ON public.users USING btree (karma);
+CREATE INDEX users_karma_idx ON public.users USING lsm (karma);
 --
 -- Name: posts posts_posted_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shiv
 --
@@ -499,6 +483,17 @@ ADD CONSTRAINT posts_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES p
 
 ALTER TABLE ONLY public.tags
 ADD CONSTRAINT tags_last_updated_by_id_fkey FOREIGN KEY (last_updated_by_id) REFERENCES public.users(id);
+
+CREATE TRIGGER trg_views_delete_old_rows
+BEFORE INSERT ON public.views
+FOR EACH ROW
+EXECUTE FUNCTION public.views_delete_old_rows();
+
+CREATE TRIGGER trg_tokens_delete_old_rows
+BEFORE INSERT ON public.tokens
+FOR EACH ROW
+EXECUTE FUNCTION public.tokens_delete_old_rows();
+
 --
 -- PostgreSQL database dump complete
 --

@@ -3,7 +3,7 @@
 ## What is kunjika?
 Kunjika is a minimal QA/forum application built using Rust, ntex, Svelte, YugabyeDB(changed
 from CockroachDB because SQLx 0.9 does not work well with Cockroachdb ),
-and Redis. Demo at https://kunjika.ashtavakra.org (down right now).
+and Redis. Demo at https://kunjika.ashtavakra.org.
 
 ## Is it usable?
 No. It is under active development and not suitable for production.

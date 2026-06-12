@@ -6,7 +6,7 @@
 	<section>
 		<h1>What is kunjika?</h1>
 		<p>
-			Kunjika is a minimal QA/forum application built using Rust, Svelte, PostgreSQL, ElasticSearch
+			Kunjika is a minimal QA/forum application built using Rust, Svelte, Yugabyte DB
 			and Redis.
 		</p>
 		<h3>Is it usable?</h3>

@@ -33,7 +33,7 @@ export const actions = {
 					let i = cookie.indexOf('=');
 					const cookie_name = cookie.slice(0, i).trim();
 					console.log(request.headers.host);
-					cookies.delete(cookie_name, { path: '/', domain: `.${request.headers.host}` });
+					cookies.delete(cookie_name, { path: '/', domain: `.${host}` });
 				}
 
 			}

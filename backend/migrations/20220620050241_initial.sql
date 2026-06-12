@@ -196,6 +196,8 @@ CREATE TABLE public.tokens (
     created_date timestamp with time zone DEFAULT now()
 );
 ALTER TABLE public.tokens OWNER TO shiv;
+
+CREATE VIEW active_tokens AS SELECT * FROM tokens WHERE created_date > NOW() + interval '15 minutes';
 --
 -- Name: tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
 --

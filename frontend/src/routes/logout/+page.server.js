@@ -14,7 +14,7 @@ export const actions = {
 		let text = await resp.text();
 		let j = text ? JSON.parse(text) : {};
 
-		if (j.errors || resp.status != 200) {
+		if (j.errors || resp.status != 200 || resp.status != 302) {
 			return fail(resp.status, j);
 		}
 

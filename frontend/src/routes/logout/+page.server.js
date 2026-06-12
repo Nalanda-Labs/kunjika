@@ -18,14 +18,22 @@ export const actions = {
 			return fail(resp.status, j);
 		}
 
+		let host;
+
+		for (const pair of request.headers.entries()) {
+			if (pair[0] === 'host') {
+				host = pair[1];
+			}
+		}
+
 		for (const pair of request.headers.entries()) {
 			if (pair[0] === 'cookie') {
 				let split_cookie = pair[1].split(';');
 				for (let cookie of split_cookie) {
 					let i = cookie.indexOf('=');
 					const cookie_name = cookie.slice(0, i).trim();
-					console.log(cookie_name);
-					cookies.delete(cookie_name, {path: '/', domain: `.${request.headers.host}`});
+					console.log(request.headers.host);
+					cookies.delete(cookie_name, { path: '/', domain: `.${request.headers.host}` });
 				}
 
 			}

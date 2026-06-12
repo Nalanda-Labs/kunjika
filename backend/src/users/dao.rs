@@ -36,11 +36,12 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
             "SELECT id, username, email, status, email_verified, image_url, created_date, modified_date,
             designation, location, git, website, is_superuser
             FROM users
-            where");
+            where ");
 
         builder.push(column);
         builder.push("=");
-        builder.push(placeholder);
+        builder.push_bind(who);
+
         let query = builder.build_query_as::<User>();
 
         query.fetch_one(&self.sql).await
@@ -544,7 +545,7 @@ fn column_placeholder(id_or_name_or_email: &str) -> (&'static str, &'static str)
         column = "username";
     }
 
-    let placeholder = "$1";
+    let placeholder = "?";
 
     (column, placeholder)
 }

@@ -45,7 +45,7 @@ json5 = "1.3.1"
 ring = "0.17.14"
 rand = { version = "0.10.1", features=["thread_rng"]}
 hex = "0.4.3"
-jsonwebtoken = "10.4.0"
+jsonwebtoken = { version = "10.4.0", features=["rust_crypto"]}
 lazy_static = "1.5.0"
 futures = "0.3.32"
 thiserror = "2.0.18"

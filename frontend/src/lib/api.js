@@ -1,7 +1,4 @@
-// import { error } from '@sveltejs/kit';
-
-// change this to point it to a different host
-const base = 'http://localhost:8000/api/v1';
+import { api_base } from "../env";
 
 async function send({ method, path, data, xsrf_token, headers }) {
 	const opts = { method, headers: {}, credentials: 'include' };
@@ -33,7 +30,7 @@ async function send({ method, path, data, xsrf_token, headers }) {
 	// this is needed so that cookies are set when request originate from browser
 	opts.credentials = 'include';
 
-	return fetch(`${base}/${path}`, opts);
+	return fetch(`${api_base}/${path}`, opts);
 
 	// if (res.ok || res.status === 422) {
 	// return res;

@@ -14,18 +14,43 @@ export const actions = {
 		let text = await resp.text();
 		let j = text ? JSON.parse(text) : {};
 
-		if (j.errors || resp.status != 200 || resp.status != 302) {
+		if (j.errors || resp.status != 200) {
 			return fail(resp.status, j);
 		}
 
 		for (const pair of request.headers.entries()) {
 			if (pair[0] === 'cookie') {
 				let split_cookie = pair[1].split(';');
-				split_cookie.forEach((c) => {
-					var i = c.indexOf('=');
-					var name = c.slice(0, i);
-					cookies.delete(name, {path: '/'});
-				});
+				const httpOnly = true;
+				const secure = true;
+				let path = '';
+				let domain = '';
+				let maxAge = 0;
+				for (let cookie of split_cookie) {
+					let i = cookie.indexOf('=');
+					const cookie_name = cookie.slice(0, i).trim();
+					const cookie_value = cookie.slice(i + 1).trim();
+
+					if (cookie_name !== 'xsrf_token') {
+						cookies.set(cookie_name, cookie_value, {
+							httpOnly: httpOnly,
+							domain: request.hostname,
+							maxAge: 0,
+							path: '/',
+							secure: secure,
+							sameSite: 'None'
+						});
+					} else {
+						cookies.set(cookie_name, cookie_value, {
+							httpOnly: false,
+							domain: request.hostname,
+							maxAge: 0,
+							path: '/',
+							secure: secure,
+							sameSite: 'None'
+						});
+					}
+				}
 
 			}
 		}

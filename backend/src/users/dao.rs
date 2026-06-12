@@ -30,7 +30,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn get_email_for_login(&self, email: &str) -> sqlx::Result<bool>;
     async fn validate_login_otp(&self, email: &str, otp: &str) -> sqlx::Result<bool>;
     async fn user_query(&self, who: &str) -> sqlx::Result<User> {
-        let (column) = column_placeholder(who);
+        let column = column_placeholder(who);
 
         let mut builder = sqlx::QueryBuilder::new(
             "SELECT id, username, email, status, email_verified, image_url, created_date, modified_date,
@@ -536,8 +536,8 @@ impl IUser for &AppStateRaw {
     }
 }
 
-fn column_placeholder(id_or_name_or_email: &str) -> (&'static str) {
-    let mut column;
+fn column_placeholder(id_or_name_or_email: &str) -> &'static str {
+    let column;
 
     if id_or_name_or_email.contains("@") {
         column = "email";

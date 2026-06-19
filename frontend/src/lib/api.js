@@ -82,5 +82,5 @@ export function upload({ method, path, data, xsrf_token, headers }) {
 	// this is needed so that cookies are set when request originate from browser
 	opts.credentials = 'include';
 
-	return fetch(`${base}/${path}`, opts);
+	return fetch(`${api_base}/${path}`, opts);
 }

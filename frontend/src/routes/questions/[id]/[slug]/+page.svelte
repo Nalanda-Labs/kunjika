@@ -154,7 +154,7 @@
 					<Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />
 					<Preview {markup} />
 					<div class="b-wrapper">
-						<button class="btn"> Reply </button>
+						<button class="btn btn-primary"> Reply </button>
 					</div>
 				</div>
 				<div style="min-height: 20px;"></div>

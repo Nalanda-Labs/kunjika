@@ -54,3 +54,9 @@
 	</main>
 	<Footer />
 </div>
+
+<style>
+.container{
+	max-width: 900px!important;
+}
+</style>

@@ -116,3 +116,9 @@
 		</div>
 	</div>
 </nav>
+
+<style>
+.container{
+	max-width: 900px!important;
+}
+</style>

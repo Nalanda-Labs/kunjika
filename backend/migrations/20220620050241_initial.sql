@@ -89,7 +89,7 @@ ALTER TABLE public.post_tags OWNER TO shiv;
 
 CREATE TABLE public.tags (
     id bigint NOT NULL,
-    name varchar(64) NOT NULL,
+    name CITEXT NOT NULL,
     info character varying(1048576),
     post_count bigint DEFAULT 0,
     created_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,

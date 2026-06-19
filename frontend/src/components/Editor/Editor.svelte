@@ -143,6 +143,10 @@
 			<i class="fa-solid fa-warning" />
 			<span class="tooltiptext">Warning command</span>
 		</p>
+		<a class="tooltip" href="/markdown-help" target="_blank">
+			<i class="fa-solid fa-help" />
+			<span class="tooltiptext">Markdown help</span>
+		</a>
 	</div>
 	<div class="others"></div>
 </div>

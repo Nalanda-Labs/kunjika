@@ -6,10 +6,7 @@ from CockroachDB because SQLx 0.9 does not work well with Cockroachdb ),
 and Redis. Demo at https://kunjika.ashtavakra.org.
 
 ## Is it usable?
-No. It is under active development and not suitable for production.
-It is not even alpha release. Please check
-[github](https://github.com/Nalanda-Labs/kunjika) for upcoming releases.
-Once it is stable releases will be made on github.
+It is under active development and is being used in production. Look at demo site
 
 ## Is there a binary release for installation?
 There is no binary release nor there is any plan to do so.

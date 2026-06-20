@@ -275,214 +275,255 @@
 		{/if}
 	</h4>
 	<div class="row">
-		<div style="margin-top:20px">
-			<ul class="nav nav-tabs">
-				<li class="nav-item">
-					<a
-						class="nav-link active"
-						href="#all-questions"
-						data-bs-toggle="tab"
-						on:click={() => updateCount()}>All Questions</a
-					>
-				</li>
-				<li class="nav-item">
-					<a
-						class="nav-link"
-						href="#unanswered"
-						data-bs-toggle="tab"
-						on:click={() => {
-							getUnansweredCount();
-							loadUnanswered();
-						}}>Unanswered</a
-					>
-				</li>
-			</ul>
-			<div class="tab-content">
-				<div class="tab-pane active" id="all-questions">
-					{#each pinned as { id, slug, title, tags, shown_ts, uid, username, answers, views, answer_accepted }}
-						<hr
-							style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
-						/>
-						{#if answer_accepted}
-							<div
-								style="margin-right:0px;flex-basis: 60px;min-width:60px;max-width:60px;height:60px;float:left;background-color: green;color: white;"
-							>
-								<p style="text-align:center;font-size:16px;margin-top:5px">
-									{answers}
-								</p>
-								<p style="text-align:center;font-size:10px;margin-top:0px;">answers</p>
-							</div>
-						{:else}
-							<div
-								style="margin-right:0px;flex-basis: 60px;min-width:60px;max-width:60px;height:60px;float:left;"
-							>
-								<p style="text-align:center;font-size:16px;margin-top:5px">
-									{answers}
-								</p>
-								<p style="text-align:center;font-size:10px;margin-top:0px;">answers</p>
-							</div>
-						{/if}
-						<div
-							style="margin-right:0px;flex-basis: 60px;min-width:60px;max-width:60px;height:60px;float:left"
+		{#if count > 0}
+			<div style="margin-top:20px">
+				<ul class="nav nav-tabs">
+					<li class="nav-item">
+						<a
+							class="nav-link active"
+							href="#all-questions"
+							data-bs-toggle="tab"
+							on:click={() => updateCount()}>All Questions</a
 						>
-							<p style="text-align:center;font-size:16px;margin-top:5px">
-								{views}
-							</p>
-							<p style="text-align:center;font-size:10px;margin-top:10px;">views</p>
-						</div>
-						<div style="width:85%;float:left;position:relative">
-							<a
-								href="/questions/{id}/{slug}"
-								class="blue-text text-darken-2"
-								style="text-decoration:none; font-size:16px; font-weight:400"
-								><span class="material-icons" style="vertical-align:bottom">push_pin</span>{title}</a
-							>
-							<div style="margin-top:20px;clear:both"></div>
-							{#each tags as tag, i}
-								<a
-									href="/questions/tagged/{encodeURIComponent(tag)}"
-									class="light-blue darken-2"
-									style="display:inline;padding:5px;border-radius:3px;text-decoration:none; background-color:#f0f0ff;margin-right:10px;font-size:12px"
-									>{tag}</a
-								>
-							{/each}
-							<span style="float:right"
-								>{shown_ts}
-								<a href="/users/{uid}/{username}" style="text-decoration:none; color:#4285F4;"
-									>{username}</a
-								></span
-							>
-						</div>
-						<div style="clear:both"></div>
-					{/each}
-					{#each questions as { id, slug, title, tags, shown_ts, uid, username, answers, views, answer_accepted }}
-						<hr
-							style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
-						/>
-						{#if answer_accepted}
-							<div
-								style="margin-right:0px;flex-basis: 60px;min-width:60px;max-width:60px;height:60px;float:left;background-color: green;color: white;"
-							>
-								<p style="text-align:center;font-size:16px;margin-top:5px">
-									{answers}
-								</p>
-								<p style="text-align:center;font-size:10px;margin-top:0px;">answers</p>
-							</div>
-						{:else}
-							<div
-								style="margin-right:0px;flex-basis: 60px;min-width:60px;max-width:60px;height:60px;float:left;"
-							>
-								<p style="text-align:center;font-size:16px;margin-top:5px">
-									{answers}
-								</p>
-								<p style="text-align:center;font-size:10px;margin-top:0px;">answers</p>
-							</div>
-						{/if}
-						<div
-							style="margin-right:0px;flex-basis: 60px;min-width:60px;max-width:60px;height:60px;float:left"
+					</li>
+					<li class="nav-item">
+						<a
+							class="nav-link"
+							href="#unanswered"
+							data-bs-toggle="tab"
+							on:click={() => {
+								getUnansweredCount();
+								loadUnanswered();
+							}}>Unanswered</a
 						>
-							<p style="text-align:center;font-size:16px;margin-top:5px">
-								{views}
-							</p>
-							<p style="text-align:center;font-size:10px;margin-top:10px;">views</p>
-						</div>
-						<div style="width:85%;float:left;position:relative">
-							<a
-								href="/questions/{id}/{slug}"
-								class="blue-text text-darken-2"
-								style="text-decoration:none; font-size:16px; font-weight:400">{title}</a
-							>
-							<div style="margin-top:20px;clear:both"></div>
-							{#each tags as tag, i}
-								<a
-									href="/questions/tagged/{encodeURIComponent(tag)}"
-									class="light-blue darken-2"
-									style="display:inline;padding:5px;border-radius:3px;text-decoration:none; background-color:#f0f0ff;margin-right:10px;font-size:12px"
-									>{tag}</a
+					</li>
+				</ul>
+
+				<div class="tab-content">
+					<div class="tab-pane active" id="all-questions">
+						{#each pinned as { id, slug, title, tags, shown_ts, uid, username, answers, views, answer_accepted }}
+							<hr
+								style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
+							/>
+							{#if answer_accepted}
+								<div
+									style="margin-right:0px;flex-basis: 60px;min-width:60px;max-width:60px;height:60px;float:left;background-color: green;color: white;"
 								>
-							{/each}
-							<span style="float:right"
-								>{shown_ts}
-								<a href="/users/{uid}/{username}" style="text-decoration:none; color:#4285F4;"
-									>{username}</a
-								></span
+									<p style="text-align:center;font-size:16px;margin-top:5px">
+										{answers}
+									</p>
+									<p style="text-align:center;font-size:10px;margin-top:0px;">answers</p>
+								</div>
+							{:else}
+								<div
+									style="margin-right:0px;flex-basis: 60px;min-width:60px;max-width:60px;height:60px;float:left;"
+								>
+									<p style="text-align:center;font-size:16px;margin-top:5px">
+										{answers}
+									</p>
+									<p style="text-align:center;font-size:10px;margin-top:0px;">answers</p>
+								</div>
+							{/if}
+							<div
+								style="margin-right:0px;flex-basis: 60px;min-width:60px;max-width:60px;height:60px;float:left"
 							>
-						</div>
-						<div style="clear:both"></div>
-					{/each}
-					<hr
-						style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px"
-					/>
-					<div style="clear:both;margin:auto;width:100%;margin-top:20px"></div>
-					<div style="float: right;">
-						<ul class="pagination">
-							<!-- svelte-ignore a11y-invalid-attribute -->
-							{#if current_page == 1}
-								<li class="disabled">
-									<i class="material-icons" title="first page">first_page</i>
-								</li>
-								<li class="disabled">
-									<button type="button" style="background:none;border:none;cursor:pointer;padding:0;" on:click={nextPage} aria-label="Next page">
-										<i class="material-icons" title="previouse page">chevron_left</i>
-									</button>
-								</li>
-								{#if pages > 1}
+								<p style="text-align:center;font-size:16px;margin-top:5px">
+									{views}
+								</p>
+								<p style="text-align:center;font-size:10px;margin-top:10px;">views</p>
+							</div>
+							<div style="width:85%;float:left;position:relative">
+								<a
+									href="/questions/{id}/{slug}"
+									class="blue-text text-darken-2"
+									style="text-decoration:none; font-size:16px; font-weight:400"
+									><span class="material-icons" style="vertical-align:bottom">push_pin</span
+									>{title}</a
+								>
+								<div style="margin-top:20px;clear:both"></div>
+								{#each tags as tag, i}
+									<a
+										href="/questions/tagged/{encodeURIComponent(tag)}"
+										class="light-blue darken-2"
+										style="display:inline;padding:5px;border-radius:3px;text-decoration:none; background-color:#f0f0ff;margin-right:10px;font-size:12px"
+										>{tag}</a
+									>
+								{/each}
+								<span style="float:right"
+									>{shown_ts}
+									<a href="/users/{uid}/{username}" style="text-decoration:none; color:#4285F4;"
+										>{username}</a
+									></span
+								>
+							</div>
+							<div style="clear:both"></div>
+						{/each}
+						{#each questions as { id, slug, title, tags, shown_ts, uid, username, answers, views, answer_accepted }}
+							<hr
+								style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px;margin-bottom:20px"
+							/>
+							{#if answer_accepted}
+								<div
+									style="margin-right:0px;flex-basis: 60px;min-width:60px;max-width:60px;height:60px;float:left;background-color: green;color: white;"
+								>
+									<p style="text-align:center;font-size:16px;margin-top:5px">
+										{answers}
+									</p>
+									<p style="text-align:center;font-size:10px;margin-top:0px;">answers</p>
+								</div>
+							{:else}
+								<div
+									style="margin-right:0px;flex-basis: 60px;min-width:60px;max-width:60px;height:60px;float:left;"
+								>
+									<p style="text-align:center;font-size:16px;margin-top:5px">
+										{answers}
+									</p>
+									<p style="text-align:center;font-size:10px;margin-top:0px;">answers</p>
+								</div>
+							{/if}
+							<div
+								style="margin-right:0px;flex-basis: 60px;min-width:60px;max-width:60px;height:60px;float:left"
+							>
+								<p style="text-align:center;font-size:16px;margin-top:5px">
+									{views}
+								</p>
+								<p style="text-align:center;font-size:10px;margin-top:10px;">views</p>
+							</div>
+							<div style="width:85%;float:left;position:relative">
+								<a
+									href="/questions/{id}/{slug}"
+									class="blue-text text-darken-2"
+									style="text-decoration:none; font-size:16px; font-weight:400">{title}</a
+								>
+								<div style="margin-top:20px;clear:both"></div>
+								{#each tags as tag, i}
+									<a
+										href="/questions/tagged/{encodeURIComponent(tag)}"
+										class="light-blue darken-2"
+										style="display:inline;padding:5px;border-radius:3px;text-decoration:none; background-color:#f0f0ff;margin-right:10px;font-size:12px"
+										>{tag}</a
+									>
+								{/each}
+								<span style="float:right"
+									>{shown_ts}
+									<a href="/users/{uid}/{username}" style="text-decoration:none; color:#4285F4;"
+										>{username}</a
+									></span
+								>
+							</div>
+							<div style="clear:both"></div>
+						{/each}
+						<hr
+							style="border-bottom:1px solid;color:#ccc;display:block;min-width:100%;margin-top:20px"
+						/>
+						<div style="clear:both;margin:auto;width:100%;margin-top:20px"></div>
+						<div style="float: right;">
+							<ul class="pagination">
+								Page {current_page} of {pages}
+								{#if current_page == 1}
+									<li class="disabled">
+										<i class="material-icons" title="first page">first_page</i>
+									</li>
+									<li class="disabled">
+										<button
+											type="button"
+											style="background:none;border:none;cursor:pointer;padding:0;"
+											on:click={nextPage}
+											aria-label="Next page"
+										>
+											<i class="material-icons" title="previouse page">chevron_left</i>
+										</button>
+									</li>
+									{#if pages > 1}
+										<li>
+											<button
+												type="button"
+												style="background:none;border:none;cursor:pointer;padding:0;"
+												on:click={nextPage}
+												aria-label="Next page"
+											>
+												<i class="material-icons" title="next page">chevron_right</i>
+											</button>
+										</li>
+									{/if}
+									{#if current_page != pages && pages != 0}
+										<li class="disabled">
+											<i class="material-icons" title="last page">last_page</i>
+										</li>
+									{/if}
+								{:else if current_page != pages}
 									<li>
-										<button type="button" style="background:none;border:none;cursor:pointer;padding:0;" on:click={nextPage} aria-label="Next page">
+										<button
+											type="button"
+											style="background:none;border:none;cursor:pointer;padding:0;"
+											on:click={firstPage}
+											aria-label="First page"
+										>
+											<i class="material-icons" title="first page">first_page</i>
+										</button>
+									</li>
+									<li>
+										<button
+											type="button"
+											style="background:none;border:none;cursor:pointer;padding:0;"
+											on:click={prevPage}
+											aria-label="Previous page"
+										>
+											<i class="material-icons" title="previouse page">chevron_left</i>
+										</button>
+									</li>
+									<li>
+										<button
+											type="button"
+											style="background:none;border:none;cursor:pointer;padding:0;"
+											on:click={nextPage}
+											aria-label="Next page"
+										>
 											<i class="material-icons" title="next page">chevron_right</i>
 										</button>
 									</li>
-								{/if}
-								{#if current_page != pages && pages != 0}
+								{:else if current_page == pages}
+									<li>
+										<button
+											type="button"
+											style="background:none;border:none;cursor:pointer;padding:0;"
+											on:click={firstPage}
+											aria-label="First page"
+										>
+											<i class="material-icons" title="first page">first_page</i>
+										</button>
+									</li>
+									<li>
+										<button
+											type="button"
+											style="background:none;border:none;cursor:pointer;padding:0;"
+											on:click={prevPage}
+											aria-label="Previous page"
+										>
+											<i class="material-icons" title="previouse page">chevron_left</i>
+										</button>
+									</li>
+									<li class="disabled">
+										<i class="material-icons" title="next page">chevron_right</i>
+									</li>
 									<li class="disabled">
 										<i class="material-icons" title="last page">last_page</i>
 									</li>
 								{/if}
-							{:else if current_page != pages}
-								<li>
-									<button type="button" style="background:none;border:none;cursor:pointer;padding:0;" on:click={firstPage} aria-label="First page">
-										<i class="material-icons" title="first page">first_page</i>
-									</button>
-								</li>
-								<li>
-									<button type="button" style="background:none;border:none;cursor:pointer;padding:0;" on:click={prevPage} aria-label="Previous page">
-										<i class="material-icons" title="previouse page">chevron_left</i>
-									</button>
-								</li>
-								<li>
-									<button type="button" style="background:none;border:none;cursor:pointer;padding:0;" on:click={nextPage} aria-label="Next page">
-										<i class="material-icons" title="next page">chevron_right</i>
-									</button>
-								</li>
-							{:else if current_page == pages}
-								<li>
-									<button type="button" style="background:none;border:none;cursor:pointer;padding:0;" on:click={firstPage} aria-label="First page">
-										<i class="material-icons" title="first page">first_page</i>
-									</button>
-								</li>
-								<li>
-									<button type="button" style="background:none;border:none;cursor:pointer;padding:0;" on:click={prevPage} aria-label="Previous page">
-										<i class="material-icons" title="previouse page">chevron_left</i>
-									</button>
-								</li>
-								<li class="disabled">
-									<i class="material-icons" title="next page">chevron_right</i>
-								</li>
-								<li class="disabled"><i class="material-icons" title="last page">last_page</i></li>
-							{/if}
-						</ul>
+							</ul>
+						</div>
+					</div>
+				</div>
+				<div class="tab-content">
+					<div class="tab-pane" id="unanswered">
+						{#if unanswered}
+							{#await unanswered then { default: Unanswered }}
+								<Unanswered bind:count />
+							{/await}
+						{/if}
 					</div>
 				</div>
 			</div>
-			<div class="tab-content">
-				<div class="tab-pane" id="unanswered">
-					{#if unanswered}
-						{#await unanswered then { default: Unanswered }}
-							<Unanswered bind:count />
-						{/await}
-					{/if}
-				</div>
-			</div>
-		</div>
+		{/if}
 	</div>
 </div>

@@ -1,8 +1,8 @@
 use crate::state::AppState;
 use itsdangerous::{default_builder, IntoTimestampSigner, TimestampSigner};
-use std::time::Duration;
-use rand::prelude::*;
 use rand::distr::Alphanumeric;
+use rand::prelude::*;
+use std::time::Duration;
 
 pub fn sign_in_code(len: &usize) -> String {
     let rng = rand::rng(); // previously thread_rng()
@@ -25,7 +25,10 @@ pub async fn check_signature(text: &str, state: &AppState) -> String {
         .build()
         .into_timestamp_signer();
 
-    let unsigned = signer.unsign(&text).expect("Signature was not valid");
+    let unsigned = match signer.unsign(&text) {
+        Ok(u) => u,
+        Err(_e) => return String::from("Invalid signature"),
+    };
     unsigned
         .value_if_not_expired(Duration::from_secs(
             state.config.email_verification_expiry_time,
@@ -39,6 +42,9 @@ pub async fn extract_email(text: &str, state: &AppState) -> String {
         .build()
         .into_timestamp_signer();
 
-    let unsigned = signer.unsign(&text).expect("Signature was not valid");
+    let unsigned = match signer.unsign(&text) {
+        Ok(u) => u,
+        Err(_e) => return String::from("Invalid signature"),
+    };
     unsigned.value().to_string()
 }

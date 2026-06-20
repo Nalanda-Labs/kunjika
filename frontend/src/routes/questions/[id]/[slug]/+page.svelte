@@ -102,7 +102,7 @@
 </svelte:head>
 
 <div class="row justify-content-center align-items-center" style="margin-top:20px">
-	<div class="col-8">
+	<div class="col-12">
 		<div class="col-xs-12">
 			<Questions {id} {slug} bind:reply_to_id bind:questions bind:user_replied />
 			<hr style="border-bottom:1px solidl;color:#eee" />

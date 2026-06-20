@@ -131,7 +131,7 @@ https://{}
 
 Thanks,
 Team Kunjika",
-                         login_otp, state.config.host
+                        login_otp, state.config.host
                     );
                     debug!("{:?}, {:?}", from, to);
                     let email = Message::builder()
@@ -182,132 +182,141 @@ async fn login(form: web::types::Json<LoginForm>, state: AppState) -> impl Respo
     match state.get_ref().user_query(&form.email).await {
         Ok(user) => {
             info!("find user {:?} ok: {:?}", form, user);
-            match state.get_ref().validate_login_otp(&form.email, &form.otp).await {
+            match state
+                .get_ref()
+                .validate_login_otp(&form.email, &form.otp)
+                .await
+            {
                 Ok(_t) => {
+                    let access_token_details = match token::generate_jwt_token(
+                        user.id,
+                        state.config.access_token_max_age,
+                        state.config.access_token_private_key.to_owned(),
+                    ) {
+                        Ok(token_details) => token_details,
+                        Err(e) => {
+                            return HttpResponse::BadGateway().json(
+                                &json!({"status": "fail", "message": format_args!("{}", e)}),
+                            );
+                        }
+                    };
 
-                        let access_token_details = match token::generate_jwt_token(
-                            user.id,
-                            state.config.access_token_max_age,
-                            state.config.access_token_private_key.to_owned(),
-                        ) {
-                            Ok(token_details) => token_details,
-                            Err(e) => {
-                                return HttpResponse::BadGateway()
-                                    .json(&json!({"status": "fail", "message": format_args!("{}", e)}));
-                            }
-                        };
+                    info!("Access token built");
+                    let refresh_token_details = match token::generate_jwt_token(
+                        user.id,
+                        state.config.refresh_token_max_age,
+                        state.config.refresh_token_private_key.to_owned(),
+                    ) {
+                        Ok(token_details) => token_details,
+                        Err(e) => {
+                            return HttpResponse::BadGateway().json(
+                                &json!({"status": "fail", "message": format_args!("{}", e)}),
+                            );
+                        }
+                    };
 
-                        info!("Access token built");
-                        let refresh_token_details = match token::generate_jwt_token(
-                            user.id,
-                            state.config.refresh_token_max_age,
-                            state.config.refresh_token_private_key.to_owned(),
-                        ) {
-                            Ok(token_details) => token_details,
-                            Err(e) => {
-                                return HttpResponse::BadGateway()
-                                    .json(&json!({"status": "fail", "message": format_args!("{}", e)}));
-                            }
-                        };
-
-                        let mut redis_client = match state.kv.get().await {
-                            Ok(redis_client) => redis_client,
-                            Err(_e) => {
-                                // debug!("{}",             format_args!(e));
-                                return HttpResponse::InternalServerError().json(
+                    let mut redis_client = match state.kv.get().await {
+                        Ok(redis_client) => redis_client,
+                        Err(_e) => {
+                            // debug!("{}",             format_args!(e));
+                            return HttpResponse::InternalServerError().json(
                                     &json!({"status": "fail", "message": "An internal server occurred!"}),
                                 );
-                            }
-                        };
-
-                        let access_result: redis::RedisResult<()> = redis_client
-                            .set_ex(
-                                access_token_details.token_uuid.to_string(),
-                                user.id.to_string(),
-                                (state.config.access_token_max_age * 60) as u64,
-                            )
-                            .await;
-
-                        if let Err(e) = access_result {
-                            return HttpResponse::UnprocessableEntity()
-                                .json(&json!({"status": "error", "message": format_args!("{}", e)}));
                         }
+                    };
 
-                        let refresh_result: redis::RedisResult<()> = redis_client
-                            .set_ex(
-                                refresh_token_details.token_uuid.to_string(),
-                                user.id.to_string(),
-                                (state.config.refresh_token_max_age * 60) as u64,
+                    let access_result: redis::RedisResult<()> = redis_client
+                        .set_ex(
+                            access_token_details.token_uuid.to_string(),
+                            user.id.to_string(),
+                            (state.config.access_token_max_age * 60) as u64,
+                        )
+                        .await;
+
+                    if let Err(e) = access_result {
+                        return HttpResponse::UnprocessableEntity()
+                            .json(&json!({"status": "error", "message": format_args!("{}", e)}));
+                    }
+
+                    let refresh_result: redis::RedisResult<()> = redis_client
+                        .set_ex(
+                            refresh_token_details.token_uuid.to_string(),
+                            user.id.to_string(),
+                            (state.config.refresh_token_max_age * 60) as u64,
+                        )
+                        .await;
+
+                    if let Err(e) = refresh_result {
+                        return HttpResponse::UnprocessableEntity()
+                            .json(&json!({"status": "error", "message": format_args!("{}", e)}));
+                    }
+
+                    drop(redis_client);
+
+                    let access_cookie = Cookie::build((
+                        "access_token",
+                        access_token_details.token.clone().unwrap(),
+                    ))
+                    .domain(state.config.host.clone())
+                    .path("/")
+                    .secure(true)
+                    .max_age(Duration::seconds(state.config.access_token_max_age * 60))
+                    .http_only(true)
+                    .same_site(cookie::SameSite::None);
+                    let refresh_cookie =
+                        Cookie::build(("refresh_token", refresh_token_details.token.unwrap()))
+                            .domain(state.config.host.clone())
+                            .path("/")
+                            .secure(true)
+                            .max_age(Duration::seconds(state.config.refresh_token_max_age * 60))
+                            .http_only(true)
+                            .same_site(cookie::SameSite::None);
+                    let xsrf_cookie =
+                        Cookie::build(("xsrf_token", access_token_details.token_uuid.to_string()))
+                            .domain(state.config.host.clone())
+                            .max_age(Duration::seconds(state.config.access_token_max_age * 60))
+                            .path("/")
+                            .secure(true)
+                            .http_only(false)
+                            .same_site(cookie::SameSite::None);
+
+                    let r: LoginResponse = LoginResponse {
+                        user,
+                        success: true,
+                    };
+                    let resp = match serde_json::to_string(&r) {
+                        Ok(json) => HttpResponse::Ok()
+                            .cookie(access_cookie)
+                            .cookie(refresh_cookie)
+                            .cookie(xsrf_cookie)
+                            .cookie(
+                                Cookie::build(("logged_in", json))
+                                    .domain(state.config.host.clone())
+                                    .path("/")
+                                    .secure(true)
+                                    .http_only(true)
+                                    .max_age(Duration::seconds(
+                                        state.config.access_token_max_age * 60,
+                                    ))
+                                    .same_site(cookie::SameSite::None),
                             )
-                            .await;
-
-                        if let Err(e) = refresh_result {
-                            return HttpResponse::UnprocessableEntity()
-                                .json(&json!({"status": "error", "message": format_args!("{}", e)}));
-                        }
-
-                        drop(redis_client);
-
-                        let access_cookie =
-                            Cookie::build(("access_token", access_token_details.token.clone().unwrap()))
-                                .domain(state.config.host.clone())
-                                .path("/")
-                                .secure(true)
-                                .max_age(Duration::seconds(state.config.access_token_max_age * 60))
-                                .http_only(true)
-                                .same_site(cookie::SameSite::None);
-                        let refresh_cookie =
-                            Cookie::build(("refresh_token", refresh_token_details.token.unwrap()))
-                                .domain(state.config.host.clone())
-                                .path("/")
-                                .secure(true)
-                                .max_age(Duration::seconds(state.config.refresh_token_max_age * 60))
-                                .http_only(true)
-                                .same_site(cookie::SameSite::None);
-                        let xsrf_cookie =
-                            Cookie::build(("xsrf_token", access_token_details.token_uuid.to_string()))
-                                .domain(state.config.host.clone())
-                                .max_age(Duration::seconds(state.config.access_token_max_age * 60))
-                                .path("/")
-                                .secure(true)
-                                .http_only(false)
-                                .same_site(cookie::SameSite::None);
-
-                        let r: LoginResponse = LoginResponse {
-                            user,
-                            success: true,
-                        };
-                        let resp = match serde_json::to_string(&r) {
-                            Ok(json) => HttpResponse::Ok()
-                                .cookie(access_cookie)
-                                .cookie(refresh_cookie)
-                                .cookie(xsrf_cookie)
-                                .cookie(
-                                    Cookie::build(("logged_in", json))
-                                        .domain(state.config.host.clone())
-                                        .path("/")
-                                        .secure(true)
-                                        .http_only(true)
-                                        .max_age(Duration::seconds(state.config.access_token_max_age * 60))
-                                        .same_site(cookie::SameSite::None),
-                                )
-                                .content_type("application/json")
-                                .body(""),
-                            Err(e) => Error::from(e).into(),
-                        };
-                        resp
-                    }
-                    Err(e) => {
-                        info!("find user {:?} error: {:?}", form, e);
-                        HttpResponse::Unauthorized().finish()
-                    }
+                            .content_type("application/json")
+                            .body(""),
+                        Err(e) => Error::from(e).into(),
+                    };
+                    resp
+                }
+                Err(e) => {
+                    info!("find user {:?} error: {:?}", form, e);
+                    HttpResponse::Unauthorized().finish()
                 }
             }
-                Err(e) => {
-                info!("find user {:?} error: {:?}", form, e);
-                HttpResponse::Unauthorized().finish()
-            }
         }
+        Err(e) => {
+            info!("find user {:?} error: {:?}", form, e);
+            HttpResponse::Unauthorized().finish()
+        }
+    }
 }
 
 #[get("/auth/refresh")]
@@ -565,6 +574,8 @@ async fn confirm_email(form: web::types::Path<String>, state: AppState) -> impl 
         HttpResponse::BadRequest()
             .json(&json!({"status": "fail", "message": "Signature has expired!
             You can get another token by clicking the resend email button."}))
+    } else if &email == "Invalid signature" {
+        HttpResponse::BadRequest().json(&json!({"status": "fail", "message": "Invalid signature!"}))
     } else {
         match state.get_ref().verify_email(&email, &token).await {
             Ok(t) => {
@@ -593,9 +604,11 @@ async fn resend_confirmation_email(
 ) -> impl Responder {
     let token = form.into_inner();
     let email = extract_email(&token, &state).await;
-    if &email == "Signature was not valid" {
+    if &email == "Invalid signature" {
         HttpResponse::BadRequest()
             .json(&json!({"status": "fail", "message": "Bad signature. Use link from your email."}))
+    } else if &email == "Invalid signature" {
+        HttpResponse::BadRequest().json(&json!({"status": "fail", "message": "Invalid signature!"}))
     } else {
         let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
         let to = email.clone();

@@ -1,4 +1,5 @@
 use super::tag::*;
+use crate::sqlx::{Postgres, Row, QueryBuilder};
 use crate::state::AppStateRaw;
 
 #[async_trait]
@@ -18,13 +19,25 @@ pub trait ITag: std::ops::Deref<Target = AppStateRaw> {
 #[async_trait]
 impl ITag for &AppStateRaw {
     async fn tag_query(&self, name: &str) -> sqlx::Result<Vec<TagResponse>> {
-        sqlx::query_as(
+        let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
             "SELECT id, name, post_count, info
-            FROM tags
-            where name like '?%';",
-        ).bind(name)
-        .fetch_all(&self.sql)
-        .await
+        FROM tags
+        where name like ",
+        );
+        let pattern = format!("%{}%", name);
+        query_builder.push_bind(pattern);
+        let tags = query_builder.build().fetch_all(&self.sql).await?;
+        let mut v = Vec::new();
+        for t in tags {
+            let tag = TagResponse {
+                id: t.get("id"),
+                name: t.get("name"),
+                post_count: t.get("post_count"),
+                info: t.get("info"),
+            };
+            v.push(tag);
+        }
+        Ok(v)
     }
 
     async fn get_all_tags_by_name(

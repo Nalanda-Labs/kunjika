@@ -54,6 +54,15 @@ impl Config {
         let kvm =
             RedisConnectionManager::new(Client::open(self.redis.clone()).expect("redis open"));
         let kv = KvPool::builder().build(kvm);
+        match kv.get().await {
+            Ok(_c) => info!("Connected to redis!"),
+            Err(e) => panic!("Could not connect to Redis: {}", e),
+        }
+        match sql.try_acquire() {
+            Some(_c) => info!("Connected to db!"),
+            None => panic!("Could not connect to db!"),
+        }
+
         // let _smtp_credentials =
         //     Credentials::new(self.mail_username.clone(), self.mail_password.clone());
 

@@ -1,50 +1,116 @@
+<script>
+	import { onMount } from 'svelte';
+
+	onMount(async () => {
+		const phrases = ['No more Slack archaeology.', 'Signal over noise.', 'Built for builders.'];
+		let pi = 0,
+			ci = 0,
+			deleting = false;
+		const el = document.getElementById('typed-line');
+
+		function tick() {
+			const phrase = phrases[pi];
+			const cursor = '<span class="typed-cursor"></span>';
+			if (!deleting) {
+				ci++;
+				el.innerHTML = phrase.slice(0, ci) + cursor;
+				if (ci === phrase.length) {
+					deleting = true;
+					setTimeout(tick, 2200);
+					return;
+				}
+				setTimeout(tick, 68);
+			} else {
+				ci--;
+				el.innerHTML = phrase.slice(0, ci) + cursor;
+				if (ci === 0) {
+					deleting = false;
+					pi = (pi + 1) % phrases.length;
+					setTimeout(tick, 400);
+					return;
+				}
+				setTimeout(tick, 32);
+			}
+		}
+
+		setTimeout(tick, 1200);
+	});
+</script>
+
 <svelte:head>
 	<title>Home ❤ Kunjika</title>
 </svelte:head>
 
 <main>
 	<!-- HERO -->
-<section class="hero">
-  <p class="hero-tag">minimal qa &amp; forum software</p>
-  <h1 class="hero-title">
-    Ask anything.<br>
-    Find it<span class="amber"> forever</span>.<br>
-    <span class="typed-line" id="typed-line"><span class="typed-cursor"></span></span>
-  </h1>
-  <p class="hero-sub">
-    Kunjika keeps your team's knowledge where it belongs — in a searchable, votable, permanent thread. No more Slack archaeology.
-  </p>
-  <div class="hero-actions">
-    <a href="https://github.com/Nalanda-Labs/kunjika" class="btn-amber" taget="_blank">Start your forum</a>
-    <a href="/questions" class="btn-ghost">View demo →</a>
-  </div>
-</section>
+	<section class="hero">
+		<p class="hero-tag">minimal qa &amp; forum software</p>
+		<h1 class="hero-title">
+			Ask anything.<br />
+			Find it<span class="amber"> forever</span>.<br />
+			<span class="typed-line" id="typed-line"><span class="typed-cursor"></span></span>
+		</h1>
+		<p class="hero-sub">
+			Kunjika keeps your team's knowledge where it belongs — in a searchable, votable, permanent
+			thread. No more Slack archaeology.
+		</p>
+		<div class="hero-actions">
+			<a href="https://github.com/Nalanda-Labs/kunjika" class="btn-amber" taget="_blank"
+				>Start your forum</a
+			>
+			<a href="/questions" class="btn-ghost">View demo →</a>
+		</div>
+	</section>
 
-<!-- TERMINAL DEMO -->
-<div class="terminal-wrap">
-  <div class="terminal-bar">
-    <div class="dot"></div>
-    <div class="dot"></div>
-    <div class="dot"></div>
-    <span class="terminal-title">kunjika.yourteam.io — questions</span>
-  </div>
-  <div class="terminal-body">
-    <div><span class="t-prompt"><span class="t-question">How do we handle secrets rotation without downtime?</span></span></div>
-    <div class="t-meta"><span class="t-tag">ops</span><span class="t-tag">security</span> · asked by arjun · 2 days ago</div>
-    <div class="t-blank"></div>
-    <div class="t-answer"><span class="t-vote">▲ 24 </span>Use HashiCorp Vault's dynamic secrets — rotate at the source, not the config. Services get short-lived creds they renew automatically.</div>
-    <div class="t-meta t-answer">answered by riya · accepted ✓</div>
-    <div class="t-blank"></div>
-    <div><span class="t-prompt"><span class="t-question">When should I prefer event sourcing over CRUD?</span></span></div>
-    <div class="t-meta"><span class="t-tag">architecture</span> · asked by priya · 5 hours ago · <span style="color: #1E7A62">3 answers</span></div>
-    <div class="t-blank"></div>
-    <div><span class="t-prompt"><span class="t-question">Is JSONB safe for high-frequency writes on large tables?</span></span></div>
-    <div class="t-meta"><span class="t-tag">postgres</span> · asked by dev_k · 1 hour ago · <span style="color:var(--muted)">awaiting answers</span></div>
-  </div>
-</div>
+	<!-- TERMINAL DEMO -->
+	<div class="terminal-wrap">
+		<div class="terminal-bar">
+			<div class="dot"></div>
+			<div class="dot"></div>
+			<div class="dot"></div>
+			<span class="terminal-title">kunjika.yourteam.io — questions</span>
+		</div>
+		<div class="terminal-body">
+			<div>
+				<span class="t-prompt"
+					><span class="t-question">How do we handle secrets rotation without downtime?</span></span
+				>
+			</div>
+			<div class="t-meta">
+				<span class="t-tag">ops</span><span class="t-tag">security</span> · asked by arjun · 2 days ago
+			</div>
+			<div class="t-blank"></div>
+			<div class="t-answer">
+				<span class="t-vote">▲ 24 </span>Use HashiCorp Vault's dynamic secrets — rotate at the
+				source, not the config. Services get short-lived creds they renew automatically.
+			</div>
+			<div class="t-meta t-answer">answered by riya · accepted ✓</div>
+			<div class="t-blank"></div>
+			<div>
+				<span class="t-prompt"
+					><span class="t-question">When should I prefer event sourcing over CRUD?</span></span
+				>
+			</div>
+			<div class="t-meta">
+				<span class="t-tag">architecture</span> · asked by priya · 5 hours ago ·
+				<span style="color: #1E7A62">3 answers</span>
+			</div>
+			<div class="t-blank"></div>
+			<div>
+				<span class="t-prompt"
+					><span class="t-question">Is JSONB safe for high-frequency writes on large tables?</span
+					></span
+				>
+			</div>
+			<div class="t-meta">
+				<span class="t-tag">postgres</span> · asked by dev_k · 1 hour ago ·
+				<span style="color:var(--muted)">awaiting answers</span>
+			</div>
+		</div>
+	</div>
 
-<!-- SOCIAL PROOF MARQUEE -->
-<!--div class="proof-bar">
+	<!-- SOCIAL PROOF MARQUEE -->
+	<!--div class="proof-bar">
   <div class="marquee-track" id="marquee">
     <span class="marquee-item"><span class="hi">94%</span> questions answered within 24h</span>
     <span class="marquee-item">average response time <span class="hi">47 min</span></span>
@@ -59,85 +125,105 @@
   </div>
 </div-->
 
+	<!-- TECH STACK -->
+	<section class="stack-section">
+		<p class="stack-label">built with precision</p>
+		<div class="stack-grid">
+			<div class="stack-item stack-rust">
+				<div class="stack-name">Rust</div>
+				<div class="stack-role">
+					Memory-safe, zero-cost abstractions. The backend runs fast because it has to.
+				</div>
+				<span class="stack-badge">systems lang</span>
+			</div>
+			<div class="stack-item stack-ntex">
+				<div class="stack-name">ntex</div>
+				<div class="stack-role">
+					Async I/O framework built on Rust's actor model. Handles thousands of concurrent
+					connections.
+				</div>
+				<span class="stack-badge">web framework</span>
+			</div>
+			<div class="stack-item stack-svelte">
+				<div class="stack-name">Svelte</div>
+				<div class="stack-role">
+					Compiled, no virtual DOM. The UI ships as lean vanilla JS — fast on day one, fast forever.
+				</div>
+				<span class="stack-badge">frontend</span>
+			</div>
+			<div class="stack-item stack-yuga">
+				<div class="stack-name">YugabyteDB</div>
+				<div class="stack-role">
+					Distributed SQL that speaks Postgres. Horizontally scalable, resilient, ACID-compliant.
+				</div>
+				<span class="stack-badge">database</span>
+			</div>
+		</div>
+	</section>
 
-<!-- TECH STACK -->
-<section class="stack-section">
-  <p class="stack-label">built with precision</p>
-  <div class="stack-grid">
-    <div class="stack-item stack-rust">
-      <div class="stack-name">Rust</div>
-      <div class="stack-role">Memory-safe, zero-cost abstractions. The backend runs fast because it has to.</div>
-      <span class="stack-badge">systems lang</span>
-    </div>
-    <div class="stack-item stack-ntex">
-      <div class="stack-name">ntex</div>
-      <div class="stack-role">Async I/O framework built on Rust's actor model. Handles thousands of concurrent connections.</div>
-      <span class="stack-badge">web framework</span>
-    </div>
-    <div class="stack-item stack-svelte">
-      <div class="stack-name">Svelte</div>
-      <div class="stack-role">Compiled, no virtual DOM. The UI ships as lean vanilla JS — fast on day one, fast forever.</div>
-      <span class="stack-badge">frontend</span>
-    </div>
-    <div class="stack-item stack-yuga">
-      <div class="stack-name">YugabyteDB</div>
-      <div class="stack-role">Distributed SQL that speaks Postgres. Horizontally scalable, resilient, ACID-compliant.</div>
-      <span class="stack-badge">database</span>
-    </div>
-  </div>
-</section>
+	<!-- FEATURES -->
+	<section class="features">
+		<p class="section-head">what makes it different</p>
+		<div class="feat-grid">
+			<div class="feat">
+				<div class="feat-index">01</div>
+				<div class="feat-title">permanent answers,<br />not buried threads</div>
+				<p class="feat-desc">
+					Every resolved question becomes a reference. Searchable, linkable, ranked by community
+					votes — not buried under 200 Slack messages from 2021.
+				</p>
+			</div>
+			<div class="feat">
+				<div class="feat-index">02</div>
+				<div class="feat-title">tags that actually<br />organize things</div>
+				<p class="feat-desc">
+					Lightweight tag taxonomy — no nested folders, no admin overhead. Topics emerge from usage.
+					Filter by project, stack, or team instantly.
+				</p>
+			</div>
+			<div class="feat">
+				<div class="feat-index">03</div>
+				<div class="feat-title">vote what's right,<br />not what's newest</div>
+				<p class="feat-desc">
+					Upvotes surface the best answer to the top. No more scrolling past three "have you tried
+					restarting?" replies to find the one that works.
+				</p>
+			</div>
+			<div class="feat">
+				<div class="feat-index">04</div>
+				<div class="feat-title">self-host or<br />deploy with docs</div>
+				<p class="feat-desc">
+					Runs on a $5 VPS or your existing infra. No vendor lock-in, no SaaS pricing ratchet. Your
+					data, your rules.
+				</p>
+			</div>
+		</div>
+	</section>
 
-<!-- FEATURES -->
-<section class="features">
-  <p class="section-head">what makes it different</p>
-  <div class="feat-grid">
-    <div class="feat">
-      <div class="feat-index">01</div>
-      <div class="feat-title">permanent answers,<br>not buried threads</div>
-      <p class="feat-desc">Every resolved question becomes a reference. Searchable, linkable, ranked by community votes — not buried under 200 Slack messages from 2021.</p>
-    </div>
-    <div class="feat">
-      <div class="feat-index">02</div>
-      <div class="feat-title">tags that actually<br>organize things</div>
-      <p class="feat-desc">Lightweight tag taxonomy — no nested folders, no admin overhead. Topics emerge from usage. Filter by project, stack, or team instantly.</p>
-    </div>
-    <div class="feat">
-      <div class="feat-index">03</div>
-      <div class="feat-title">vote what's right,<br>not what's newest</div>
-      <p class="feat-desc">Upvotes surface the best answer to the top. No more scrolling past three "have you tried restarting?" replies to find the one that works.</p>
-    </div>
-    <div class="feat">
-      <div class="feat-index">04</div>
-      <div class="feat-title">self-host or<br>deploy with docs</div>
-      <p class="feat-desc">Runs on a $5 VPS or your existing infra. No vendor lock-in, no SaaS pricing ratchet. Your data, your rules.</p>
-    </div>
-  </div>
-</section>
+	<!-- STATS -->
+	<div class="stats-row">
+		<div class="stat">
+			<div class="stat-n">94%</div>
+			<div class="stat-l">questions answered</div>
+		</div>
+		<div class="stat">
+			<div class="stat-n">3×</div>
+			<div class="stat-l">faster than wiki search</div>
+		</div>
+		<div class="stat">
+			<div class="stat-n">0</div>
+			<div class="stat-l">config required to start</div>
+		</div>
+	</div>
 
-<!-- STATS -->
-<div class="stats-row">
-  <div class="stat">
-    <div class="stat-n">94%</div>
-    <div class="stat-l">questions answered</div>
-  </div>
-  <div class="stat">
-    <div class="stat-n">3×</div>
-    <div class="stat-l">faster than wiki search</div>
-  </div>
-  <div class="stat">
-    <div class="stat-n">0</div>
-    <div class="stat-l">config required to start</div>
-  </div>
-</div>
-
-<footer>
-  <a href="/" class="footer-logo">kunjika</a>
-  <ul class="footer-links">
-    <li><a href="https://github.com/Nalanda-Labs/kunjika">github</a></li>
-    <li><a href="/privacy">privacy</a></li>
-    <li><a href="mailto:shivshankar.dayal@gmail.com">Contact email</li>
-  </ul>
-</footer>
+	<footer>
+		<a href="/" class="footer-logo">kunjika</a>
+		<ul class="footer-links">
+			<li><a href="https://github.com/Nalanda-Labs/kunjika">github</a></li>
+			<li><a href="/privacy">privacy</a></li>
+			<li><a href="mailto:shivshankar.dayal@gmail.com">Contact email</a></li>
+		</ul>
+	</footer>
 </main>
 
 <style>
@@ -470,7 +556,7 @@
 	}
 
 	/* .section-head::before {
-		content: '/* '; 
+		content: '/* ';
 	}
 	/* .section-head::after {
 		content: ' ';

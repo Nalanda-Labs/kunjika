@@ -135,7 +135,7 @@
 </script>
 
 <div class="row">
-	<div class="col s12 m8 offset-m4 xl10 offset-xl2">
+	<div class="col s12 m12 xl10 offset-xl2">
 		{#if showContentValueToast}
 			<Toast>Question length should be 20 to 1000000 Characters!</Toast>
 		{/if}

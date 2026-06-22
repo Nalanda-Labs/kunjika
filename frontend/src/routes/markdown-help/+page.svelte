@@ -6,7 +6,7 @@
 	<p>
 		Markdown is a simple format popularized by Stackoverflow. You can read original stuff at
 		<a href="https://daringfireball.net/linked/2014/01/08/markdown-extension"
-			>Daring Fireball's website</a
+			>Official Markdown Website</a
 		>. Most popular variation of markdown is called CommonMark but there is also github flavoured
 		markdown. We also use markdown for Kunjika.
 	</p>
@@ -115,7 +115,7 @@ ___</pre>
 7. So this will be item 3.</pre>
 	<p>A double-spaced list:</p>
 	<pre>- This list gets wrapped in &lt;p&gt; tags
- 
+
 - So there will be extra space between items</pre>
 	<h3>Nesting in lists</h3>
 	<p>To put other Markdown blocks in a list, just indent four spaces for each nesting level:</p>
@@ -128,28 +128,126 @@ ___</pre>
     You can get away with three, but it can get
     confusing when you nest other things.
     Stick to four.
- 
+
     We indented the first line an extra space to align
     it with these paragraphs. In real use, we might do
     that to the entire list so that all items line up.
- 
+
     This paragraph is still part of the list item, but it looks messy to humans. So it's a good idea to wrap your nested paragraphs manually, as we did with the first two.
- 
+
 3. Blockquotes in a list item:
- 
+
     &gt; Skip a line and
     &gt; indent the &gt;'s four spaces.
- 
+
 4. Preformatted text in a list item:
- 
+
         Skip a line and indent eight spaces.
         That's four spaces for the list
         and four to trigger the code block.</pre>
+	<h3>Simple Blockquotes</h3>
+	<p>Add a > to the beginning of any line to create a blockquote.</p>
+	<pre>> The syntax is based on the way email programs
+> usually do quotations. You don't need to hard-wrap
+> the paragraphs in your blockquotes, but it looks much nicer if you do.  Depends how lazy you feel.</pre>
+	<p>
+		To put other Markdown blocks in a blockquote, just add a <code>></code> followed by a space:
+	</p>
+	<pre>> The `>` on the blank lines is required
+> to create a single blockquote.
+>
+> If you leave out the extra `>`
+> you will end up with
+> two distinct blockquotes.</pre>
+	<p>Blockquotes within a blockquote:</p>
+	<pre>> A standard blockquote is indented
+> > A nested blockquote is indented more
+> > > > You can nest to any depth.</pre>
+	<p>Lists in a blockquote:</p>
+	<pre>> - A list in a blockquote
+> - With a &gt; and space in front of it
+>    * A sublist</pre>
+	<p>Preformatted text in a blockquote:</p>
+	<pre>>     Indent five spaces total.  The first
+>     one is part of the blockquote designator.</pre>
+	<h3>Images</h3>
+	<p>Images are exactly like links, but they have an exclamation point in front of them:</p>
+	<pre>![Valid XHTML](https://w3.org/Icons/valid-xhtml10).</pre>
+	<p>
+		The word in square brackets is the alt text, which gets displayed if the browser can't show the
+		image. Be sure to include meaningful alt text for screen-reading software.
+	</p>
+
+	<p>Just like links, images work with reference syntax and titles:</p>
+	<pre>This page is ![valid XHTML][checkmark].
+
+[checkmark]: https://w3.org/Icons/valid-xhtml10
+             "What are you smiling at?"</pre>
+	<p>
+		You can also use standard HTML image syntax, which allows you to scale the width and height of
+		the image.
+	</p>
+	<pre>&lt;img src="https://example.com/sample.png" width="100" height="100" /></pre>
+	<p>URLs can be relative or full.</p>
+	<h3>Inline HTML</h3>
+	<p>The editor supports a strict subset of HTML directly in code</p>
+	<pre>To reboot your computer, press &lt;kbd>ctrl&lt;kbd>+&lt;kbd>alt&lt;kbd>+&lt;kbd>del&lt;kbd>.</pre>
+	<p>Markdown is smart enough not to mangle your span-level HTML:</p>
+	<pre>&lt;b>Markdown works *fine* in here.&lt;b></pre>
+	<p>Block-level HTML elements have a few restrictions:</p>
+	<ol>
+		<li>They must be separated from surrounding text by blank lines.</li>
+		<li>The begin and end tags of the outermost block element must not be indented.</li>
+		<li>Markdown can't be used within HTML blocks.</li>
+	</ol>
+	<pre>&lt;pre>
+    You can &lt;em>not&lt;em> use Markdown in here.
+&lt;pre><pre></pre></pre>
+	<h3>Syntax highlighting for code</h3>
+	<p>
+		Code blocks can be highlighted using <a
+			href="https://github.com/highlightjs/highlight.js/"
+			target="_blank">highlight.js</a
+		>. Usually the highlight code will be automatically figure out the language but sometimes it may
+		not.
+	</p>
+	<p>
+		To manually specify the language of a fenced code block, add the language to the line with the
+		opening fence:
+	</p>
+	<pre>```pythhon
+import math
+
+print('Hello world!')
+```</pre>
+	<h3>Tables</h3>
+	<p>
+		Our support for tables is based on the <a
+			href="https://github.github.com/gfm/#tables-extension-"
+			target="_blank">GitHub-flavored markdown table extension specification</a
+		>.
+	</p>
+	<pre>| A header | Another header |
+| -------- | -------------- |
+| First    | row            |
+| Second   | row            |</pre>
+	<h3>Admonitions</h3>
+	<p>
+		We have three admonitionns note, tip and warning; these generate HTML for the admonitions and
+		graphics. Use the UI(top bar above editor) to generate these.
+	</p>
+	<h3>Mmath Support</h3>
+	<p>
+		LaTeX math is supported via <a href="https://www.mathjax.org/" target="_blank">MathJax 2</a>.
+		Use $$ for inline and \[\] for display math. Refer to LaTeX and MathJax for more details. Soon
+		we will support MathJax 4. Right now this is not enabled for ask page but only for questions.
+	</p>
 </main>
 
 <style>
 	h3 {
 		margin-top: 10px;
+		color: #094;
 	}
 	main {
 		max-width: 800px;

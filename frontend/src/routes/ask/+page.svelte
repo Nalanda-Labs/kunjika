@@ -78,7 +78,7 @@
 </script>
 
 <div class="row justify-content-center align-items-center" style="margin-top:20px">
-	<div class="col-8">
+	<div class="col-12">
 		{#if showContentValueToast}
 			<Toast>Question length should be 20 to 1000000 Characters!</Toast>
 		{/if}

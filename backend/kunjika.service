@@ -1,0 +1,13 @@
+[Unit]
+Description=kunjika service
+After=network.target
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=shiv
+ExecStart=<Path to Kunjika binary> -c <Path to template.json config file> -v 1
+
+[Install]
+WantedBy=multi-user.target

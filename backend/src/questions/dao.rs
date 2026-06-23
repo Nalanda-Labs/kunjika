@@ -1,4 +1,5 @@
-use super::{question::*};
+use std::collections::HashSet;
+use super::question::*;
 use crate::state::AppStateRaw;
 use sqlx::error::Error;
 
@@ -71,6 +72,7 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
     ) -> sqlx::Result<(AnswersResponse1, i64)>;
     async fn get_questions_count(&self) -> sqlx::Result<i64>;
     async fn get_unanswered_questions_count(&self) -> sqlx::Result<i64>;
+    async fn find_participants(&self, id: i64, user_id: i64) -> sqlx::Result<FindParticipants>;
 }
 
 #[cfg(any(feature = "postgres"))]
@@ -243,7 +245,7 @@ impl IQuestion for &AppStateRaw {
         for t in tags {
             trs.push(t.name);
         }
-        let image_url = question.image_url; 
+        let image_url = question.image_url;
         let title = match question.title {
             Some(t) => t,
             None => "".to_owned(),
@@ -268,7 +270,9 @@ impl IQuestion for &AppStateRaw {
             updated_by_id: updated_by_id.to_string(),
             created_at: question.created_at,
             updated_at: question.updated_at,
-            username: question.username.expect("This is not null so must be there"), // seems a bug
+            username: question
+                .username
+                .expect("This is not null so must be there"), // seems a bug
             image_url,
             tags: trs,
             vote_by_current_user,
@@ -1509,5 +1513,48 @@ impl IQuestion for &AppStateRaw {
         };
 
         Ok(c)
+    }
+
+    async fn find_participants(&self, id: i64, user_id: i64) -> sqlx::Result<FindParticipants> {
+
+        let qr = sqlx::query!(
+            r#"
+            select email from users where id in(select posted_by_id from posts where id = $1 or op_id=$1)
+            "#, id)
+            .fetch_all(&self.sql)
+            .await?;
+
+        let op_email = sqlx::query!(
+            r#"
+            select email from users where id=$1
+            "#,
+            user_id
+        )
+        .fetch_one(&self.sql)
+        .await?;
+
+        let s = sqlx::query!(
+            r#"
+            select slug from posts where id=$1
+            "#,
+            id
+        )
+        .fetch_one(&self.sql)
+        .await?.slug;
+
+        let slug = match s{
+            Some(st) => st,
+            None => "".to_string()
+        };
+
+        let mut h = HashSet::new();
+
+        for q in qr {
+            if q.email != op_email.email {
+                h.insert(q.email);
+            }
+        }
+
+        Ok(FindParticipants(h, slug))
     }
 }

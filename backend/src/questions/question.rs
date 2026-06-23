@@ -1,4 +1,5 @@
 use time;
+use std::collections::HashSet;
 
 #[cfg(any(feature = "postgres"))]
 type SqlID = i64;
@@ -243,3 +244,6 @@ pub struct BookmarkIDs {
     pub qid: i64,
     pub aid: i64,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FindParticipants(pub HashSet<String>, pub String);

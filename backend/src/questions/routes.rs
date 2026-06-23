@@ -8,6 +8,9 @@ use crate::users::user::UserCookie;
 use crate::utils::slug::create_slug;
 
 use futures::{StreamExt, TryStreamExt};
+use lettre::{
+    AsyncTransport, Message
+};
 use ntex::{
     http::HttpMessage,
     web::{self, get, post, HttpRequest, HttpResponse, Responder},
@@ -137,7 +140,8 @@ async fn get_questions(
         .get_questions(&uat, form.questions_per_page, &form.direction)
         .await
     {
-        Ok((questions, pinned)) => HttpResponse::Ok().json(&json!({"data": questions, "pinned": pinned, "count": questions.count})),
+        Ok((questions, pinned)) => HttpResponse::Ok()
+            .json(&json!({"data": questions, "pinned": pinned, "count": questions.count})),
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": false, "message": e.to_string()})),
     }
@@ -172,7 +176,9 @@ async fn get_questions_by_tag(
         .get_questions_by_tag(&uat, form.questions_per_page, &tag, &form.direction)
         .await
     {
-        Ok(db_questions) => HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count})),
+        Ok(db_questions) => {
+            HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count}))
+        }
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": false, "message": e.to_string()})),
     }
@@ -237,7 +243,57 @@ async fn answer(
     );
 
     match state.get_ref().insert_answer(&answer, &auth.user.id).await {
-        Ok(answer_res) => HttpResponse::Ok().json(&json!({"data": answer_res.to_string()})),
+        Ok(answer_res) => {
+            let p = state
+                .get_ref()
+                .find_participants(answer.id.parse::<i64>().unwrap(), auth.user.id)
+                .await;
+
+            match p {
+                Ok(h1) => {
+                    let FindParticipants(h, slug) = h1; 
+                    let from =
+                        state.config.from_name.clone() + "<" + &state.config.from_email + ">";
+                    let subject = "A new answer has been poted for a question you ineteracted with";
+
+                    let body = format!(
+                        "Hi,
+
+A new answer has been posted for the question you interacted with.
+You can read it at https://{}/questions/{}/{}
+Thanks,
+Team Kunjika",
+                        state.config.host, answer.id, slug
+                    );
+
+                    let mut builder = Message::builder()
+                        .from(from.parse().unwrap())
+                        .subject(subject);
+
+                    for e in h {
+                        builder = builder.bcc(e.parse().unwrap());
+                    }
+                    let email = builder.body(body).unwrap();
+
+                    debug!("Sending email");
+                    match &state.mailer.send(email).await {
+                        Ok(r) => {
+                            debug!("{:?}", r);
+                            HttpResponse::Ok().json(&json!({"data": answer_res.to_string()}))
+                        }
+                        Err(e) => {
+                            info!("{:?}", e);
+                            HttpResponse::InternalServerError().json(
+                            &json!({"status": "fail", "message": "Something went wrong, try again!"}),
+                        )
+                        }
+                    }
+                }
+                Err(e) => HttpResponse::InternalServerError().json(
+                    &json!({"status": "fail", "message": "Could not send email to participants."}),
+                ),
+            }
+        }
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": "fail", "message": e.to_string()})),
     }
@@ -479,7 +535,9 @@ async fn pin(
     let uid = auth.user.id;
 
     match state.get_ref().pin(qid, uid).await {
-        Ok(_t) => HttpResponse::Ok().json(&json!({"messaage": "The post has been pinned/unpinned."})),
+        Ok(_t) => {
+            HttpResponse::Ok().json(&json!({"messaage": "The post has been pinned/unpinned."}))
+        }
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": "fail", "message": e.to_string()})),
     }
@@ -512,7 +570,9 @@ async fn get_unanswered_questions(
         .get_unanswered_questions(&uat, form.questions_per_page, &form.direction)
         .await
     {
-        Ok(db_questions) => HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count})),
+        Ok(db_questions) => {
+            HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count}))
+        }
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": false, "message": e.to_string()})),
     }
@@ -545,21 +605,17 @@ async fn get_questions_by_score(
         .get_unanswered_questions(&uat, form.questions_per_page, &form.direction)
         .await
     {
-        Ok(db_questions) => HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count})),
+        Ok(db_questions) => {
+            HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count}))
+        }
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": false, "message": e.to_string()})),
     }
 }
 
 #[get("/get-questions-count/")]
-async fn get_questions_count(
-    state: AppState,
-) -> impl Responder {
-    match state
-        .get_ref()
-        .get_questions_count()
-        .await
-    {
+async fn get_questions_count(state: AppState) -> impl Responder {
+    match state.get_ref().get_questions_count().await {
         Ok(count) => HttpResponse::Ok().json(&json!({"count": count})),
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": false, "message": e.to_string()})),
@@ -567,14 +623,8 @@ async fn get_questions_count(
 }
 
 #[get("/get-unanswered-questions-count/")]
-async fn get_unanswered_questions_count(
-    state: AppState,
-) -> impl Responder {
-    match state
-        .get_ref()
-        .get_unanswered_questions_count()
-        .await
-    {
+async fn get_unanswered_questions_count(state: AppState) -> impl Responder {
+    match state.get_ref().get_unanswered_questions_count().await {
         Ok(count) => HttpResponse::Ok().json(&json!({"count": count})),
         Err(e) => HttpResponse::InternalServerError()
             .json(&json!({"status": false, "message": e.to_string()})),

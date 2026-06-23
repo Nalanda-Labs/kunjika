@@ -13,6 +13,10 @@ There is no binary release nor there is any plan to do so.
 The installation must be done using source code. Perhaps later I would release a docker
 config.
 
+## Installation
+Refer to individual READMEs in both backend and frontend directory.
+
+
 ## Why another QA?
 It is not about QA/forum only. Most web software is written using inefficient languages
 like PHP, Python, Java, Ruby and so on. It is an attempt to develop a web application

@@ -9,7 +9,8 @@ Then `cargo build && cargo watch -x 'run -- -v 2 -c template.json'` will get the
 running.
 
 Make sure to run the migrations. There is no script at the moment as entire schema is in one
-file. You will also need to setup three materialized view refresh scripts in tools directory.
+file. Make sure to add CORS in `src/main.rs`. You will need a mail server, yugabyte and redis
+running for this. Right now email server has to be on the same server as backend server.
 
 ## Details
 

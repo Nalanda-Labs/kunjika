@@ -9,6 +9,8 @@ For production build run `pnpm build && node build` which will get server up and
 Do not forget to whitelist the schme://host:port on backend. If you want to run something like
 `PM2` then you can invoke `pm2 start build/index.js -i <no. of instances>`
 
+Edit `env.js` file to point it to your backend server.
+
 ## Details
 
 This is the frontend of Kunjika, a minimal QA framework or forum. Though it is minimal

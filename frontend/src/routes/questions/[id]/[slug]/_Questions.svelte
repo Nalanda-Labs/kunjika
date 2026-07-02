@@ -251,9 +251,7 @@
 				alert('The post has been pinned/unpinned.');
 			} else {
 				const r = JSON.parse(await response.text());
-				alert(
-					r.message + '. Please send this message to support if this is not already pinned.'
-				);
+				alert(r.message + '. Please send this message to support if this is not already pinned.');
 			}
 		}
 	}
@@ -298,8 +296,14 @@
 			<br />
 			<div style="text-align: center;font-size: 24px">
 				{#if $page.data.user && posted_by != $page.data.user.id}
-					<a href="/vote-up" class={vote_class1} id="vu-{id}" on:click|preventDefault={vote(1, id)}>
-						<i class="fas fa-angle-up" />
+					<a
+						href="/vote-up"
+						class={vote_class1}
+						id="vu-{id}"
+						on:click|preventDefault={vote(1, id)}
+						title="This question show effort and research."
+					>
+						<i class="fas fa-angle-up"></i>
 					</a>
 				{/if}
 				<span style="text-align:center">{votes}</span>
@@ -309,8 +313,9 @@
 						class={vote_class2}
 						id="vd-{id}"
 						on:click|preventDefault={vote(-1, id)}
+						title="This question does not show effort and research."
 					>
-						<i class="fas fa-angle-down" />
+						<i class="fas fa-angle-down"></i>
 					</a>
 				{/if}
 			</div>
@@ -377,14 +382,14 @@
 			{/if}
 		</div>
 	</div>
-	<div style="clear:both;margin-bottom:10px" />
+	<div style="clear:both;margin-bottom:10px"></div>
 	{#each questions as { question_id, description, votes, posted_by_id, username, initials, image_url, shown_ts, answer_accepted, reply_to_id, rusername, rimage_url, vote_class1, vote_class2 }}
 		<hr style="border-bottom:1px solid;color:#ccc;" />
 		<div style="margin-top:10px;" href="#{question_id}">
 			<div style="float:left;margin-right:10px">
 				{#if image_url === '' || image_url === undefined}
-					<a href="/users/{posted_by_id}/{username}">
-						<p data-letters={initials.toUpperCase()} />
+					<a href="/users/{posted_by_id}/{username}" title={username}>
+						<p data-letters={initials.toUpperCase()}></p>
 					</a>
 				{:else}
 					<a href="/users/{posted_by_id}/{username}">
@@ -403,8 +408,9 @@
 							class={vote_class1}
 							id="vu-{question_id}"
 							on:click|preventDefault={vote(1, question_id)}
+							title="This answer show effort and research."
 						>
-							<i class="fas fa-angle-up" />
+							<i class="fas fa-angle-up"></i>
 						</a>
 					{/if}
 					<span style="text-align:center">{votes}</span>
@@ -415,8 +421,9 @@
 							id="vd-{question_id}"
 							style="display:block"
 							on:click|preventDefault={vote(-1, question_id)}
+							title="This answer does not show effort and research."
 						>
-							<i class="fas fa-angle-down" />
+							<i class="fas fa-angle-down"></i>
 						</a>
 					{/if}
 					{#if $page.data.user && posted_by == $page.data.user.id}
@@ -426,8 +433,9 @@
 								class="anchor answer"
 								id="a-{question_id}"
 								on:click|preventDefault={acceptAnswer(question_id)}
+								title="Accepted answer!"
 							>
-								<i class="fas fa-check" />
+								<i class="fas fa-check"></i>
 							</a>
 						{:else}
 							<a
@@ -435,8 +443,9 @@
 								class="anchor"
 								id="a-{question_id}"
 								on:click|preventDefault={acceptAnswer(question_id)}
+								title="Accept answer!"
 							>
-								<i class="fas fa-check" />
+								<i class="fas fa-check"></i>
 							</a>
 						{/if}
 					{/if}
@@ -456,7 +465,7 @@
 						></span
 					>
 				{/if}
-				<div style="margin:10px" />
+				<div style="margin:10px"></div>
 				<div class="answers" id={question_id}>
 					<Preview markup={description} />
 				</div>
@@ -503,7 +512,7 @@
 				{/if}
 			</div>
 		</div>
-		<div style="clear:both" />
+		<div style="clear:both"></div>
 	{/each}
 </div>
 

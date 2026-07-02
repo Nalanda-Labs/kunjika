@@ -76,11 +76,11 @@
 	async function searchUsers() {
 		let pagination = document.getElementsByClassName('pagination');
 
-		if(searchQuery && pagination[0]) {
+		if (searchQuery && pagination[0]) {
 			pagination[0].style.display = 'none';
 		} else {
 			pagination[0].style.display = 'flex';
-			users = []
+			users = [];
 			pages = 0;
 			await firstPage();
 			return;
@@ -106,11 +106,18 @@
 			<span class="input-group-text" id="basic-addon1"
 				><i class="material-icons" style="display:inline">search</i></span
 			>
-			<input type="text" class="form-control" id="search" placeholder="Filter by user" bind:value={searchQuery} on:keyup={() => searchUsers()} />
+			<input
+				type="text"
+				class="form-control"
+				id="search"
+				placeholder="Filter by user"
+				bind:value={searchQuery}
+				on:keyup={() => searchUsers()}
+			/>
 		</div>
 		<div style="margin-top:20px" class="row">
 			{#each users as { id, displayname, username, location, karma, image_url }}
-				<div class="col-sm-3">
+				<div class="col-sm-3" style="margin-bottom: 10px;">
 					<div class="card">
 						<div class="card-body">
 							<a href="/users/{id}/{username}" style="display:flex;float:left">

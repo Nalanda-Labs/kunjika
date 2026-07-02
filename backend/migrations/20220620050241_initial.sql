@@ -8,13 +8,23 @@ CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
   END;
 $$ LANGUAGE plpgsql;
 
+
+CREATE TRIGGER expire_views_delete_old_rows_trigger
+    AFTER INSERT ON public.views
+EXECUTE PROCEDURE public.views_delete_old_rows();
+
 CREATE FUNCTION public.tokens_delete_old_rows() RETURNS trigger
   AS $$
   BEGIN
-    DELETE FROM views WHERE created_date < NOW() - INTERVAL '55 minute';
+    DELETE FROM views WHERE created_date < NOW() - INTERVAL '5 minute';
     RETURN NEW;
   END;
 $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER expire_tokens_delete_old_rows_trigger
+    AFTER INSERT ON public.tokens
+EXECUTE PROCEDURE public.tokens_delete_old_rows();
+
 
 CREATE TABLE public.posts (
     id bigint NOT NULL,

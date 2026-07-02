@@ -169,7 +169,7 @@ Team Kunjika",
         }
         Err(e) => {
             debug!("find user {:?} error: {:?}", form, e);
-            HttpResponse::InternalServerError().finish()
+            HttpResponse::Unauthorized().finish()
         }
     }
 }

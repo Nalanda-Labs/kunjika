@@ -63,14 +63,20 @@ impl Config {
             None => panic!("Could not connect to db!"),
         }
 
+        // TODO: This code is correct but I am lazy to configure TLS auth with postfix(which I use as mail server).
+        // Fix it by configuring postfiix properly. Till then the Postfix must run on the same node as the server
+        // so that unauthenticated email can be sent by system users.
         // let _smtp_credentials =
         //     Credentials::new(self.mail_username.clone(), self.mail_password.clone());
-
         // let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&self.mail_host)
         let mailer = AsyncSmtpTransport::<Tokio1Executor>::unencrypted_localhost();
         // .unwrap()
         // .credentials(smtp_credentials)
         // .build();
+        match mailer.test_connection().await {
+            Ok(_t) => info!("Connection successful!"),
+            Err(e) => panic!("Error connecting to mail server! {:?}", e),
+        }
 
         Arc::new(State {
             config: self,

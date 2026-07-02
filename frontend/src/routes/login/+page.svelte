@@ -21,6 +21,8 @@
 
 		if (response.status === 200) {
 			step = 2;
+		} else if (response.status === 401) {
+			alert('You are unauthorized to login!');
 		} else {
 			alert('Something went wrong! Try again or contact support!');
 		}

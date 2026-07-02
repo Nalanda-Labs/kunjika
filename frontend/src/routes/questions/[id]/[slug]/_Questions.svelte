@@ -87,9 +87,12 @@
 			goto('/404');
 		}
 
-		response = await api.post(`question/get-answers/${id}/?limit=${limit}`, {
-			cat: asked_ts
-		});
+		response = await api.post(
+			`question/get-answers/${id}/?limit=${limit}`,
+			{
+				cat: asked_ts
+			}
+		);
 
 		response = JSON.parse(await response.text());
 
@@ -132,6 +135,7 @@
 				}
 			}
 
+			asked_ts = response.data.questions[response.data.questions.length - 1].cat;
 			offset += limit;
 
 			if (response.data.questions.length) {

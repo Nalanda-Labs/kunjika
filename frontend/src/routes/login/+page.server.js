@@ -53,7 +53,12 @@ export const actions = {
 						if (name === 'Path') {
 							path = value;
 						} else if (name === 'Domain') {
-							domain = value;
+							// for a real domian it does not matter but for dev server it is usually localhost:5173
+							// which is invalid domain for cookies so we get localhost out of it. It causes problems
+							// setting the cookies. console log says error setting cookies but the cookies are set.
+							// in fact cookies are not set and we cannot login if we do not split this and take the
+							// host part.
+							domain = value.split(':')[0];
 						} else if (name === 'Max-Age') {
 							maxAge = parseInt(value);
 						}

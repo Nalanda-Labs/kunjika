@@ -23,6 +23,8 @@ export const actions = {
 		for (const pair of request.headers.entries()) {
 			if (pair[0] === 'host') {
 				host = pair[1];
+				// like setting cookies this is needed for localhost:5173 look at login server function
+				host = host.split(':')[0];
 			}
 		}
 

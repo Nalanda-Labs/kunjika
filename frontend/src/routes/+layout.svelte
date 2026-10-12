@@ -3,6 +3,7 @@
     import { onDestroy, onMount } from 'svelte';
     import { page, navigating } from '$app/stores';
     import Nav from './Nav.svelte';
+    import Sidebar from './Sidebar.svelte';
     import PreloadingIndicator from './PreloadingIndicator.svelte';
     import * as api from '../lib/api.js';
     import { browser } from '$app/environment';
@@ -48,15 +49,39 @@
 {/if}
 
 <Nav />
-<div class="container">
-    <main>
-        <slot />
-    </main>
-    <Footer />
+<div class="app-shell">
+    <Sidebar />
+    <div class="content-column">
+        <div class="container">
+            <main>
+                <slot />
+            </main>
+        </div>
+        <Footer />
+    </div>
 </div>
 
 <style>
+    .app-shell {
+        display: flex;
+        align-items: flex-start;
+        min-height: calc(100vh - 56px);
+    }
+
+    .content-column {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
     .container {
         max-width: 900px !important;
+    }
+
+    @media (max-width: 767.98px) {
+        .app-shell {
+            flex-direction: column;
+        }
     }
 </style>

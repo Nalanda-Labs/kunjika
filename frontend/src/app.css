@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities; */
 
+:root {
+    /* Shared width so the left sidebar and the top-nav offset stay in sync. */
+    --sidebar-width: 232px;
+}
+
 body {
     font-family: Roboto;
     font-weight: 300 !important;

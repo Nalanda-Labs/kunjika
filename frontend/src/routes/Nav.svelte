@@ -1,36 +1,5 @@
 <script>
     import { page } from '$app/stores';
-    import { browser } from '$app/environment';
-
-    let app = '';
-
-    if (browser) {
-        (() => {
-            ('use strict');
-            const tooltipTriggerList = Array.from(
-                document.querySelectorAll('[data-bs-toggle="tooltip"]')
-            );
-            tooltipTriggerList.forEach((tooltipTriggerEl) => {
-                new bootstrap.Tooltip(tooltipTriggerEl);
-            });
-        })();
-
-        const path = window.location.pathname.split('/')[1];
-        switch (path) {
-            case 'questions':
-                app = 'forum';
-                break;
-            case 'tags':
-                app = 'forum';
-                break;
-            case 'users':
-                app = 'forum';
-                break;
-            default:
-                app = 'forum';
-                break;
-        }
-    }
 </script>
 
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
@@ -48,45 +17,6 @@
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
-            {#if app == 'forum'}
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item">
-                        <a
-                            rel="prefetch"
-                            class="nav-link"
-                            class:active={$page.url.pathname.startsWith('/questions')}
-                            href="/questions"
-                            >Questions
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a
-                            rel="prefetch"
-                            class="nav-link"
-                            class:active={$page.url.pathname.startsWith('/tags')}
-                            href="/tags"
-                            >Tags
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a
-                            rel="prefetch"
-                            class="nav-link"
-                            class:active={$page.url.pathname.startsWith('/users')}
-                            href="/users">Users {$page.path}</a
-                        >
-                    </li>
-                    <li class="nav-item">
-                        <a
-                            class="nav-link"
-                            href="https://github.com/Nalanda-Labs/kunjika"
-                            target="_blank"
-                            aria-label="github"
-                            ><i class="fa-brands fa-github"></i>
-                        </a>
-                    </li>
-                </ul>
-            {/if}
             <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                 {#if $page.data.user}
                     <li class="nav-item">
@@ -124,7 +54,22 @@
 </nav>
 
 <style>
+    /* Keep the navbar bar full-width, but shift its inner contents to the
+       right by the sidebar width so the brand + auth controls line up with
+       the page body (which sits to the right of the left sidebar). */
+    .navbar {
+        padding-left: var(--sidebar-width, 232px);
+    }
+
     .container {
         max-width: 900px !important;
+    }
+
+    @media (max-width: 767.98px) {
+        /* On small screens the sidebar becomes a full-width row above the
+           content, so the navbar no longer needs the left offset. */
+        .navbar {
+            padding-left: 0;
+        }
     }
 </style>

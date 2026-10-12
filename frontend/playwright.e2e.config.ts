@@ -17,27 +17,27 @@ const PORT = 5173;
 const BASE_URL = `http://localhost:${PORT}`;
 
 export default defineConfig({
-	testDir: 'tests/e2e',
-	// Keep run artifacts inside tests/e2e/ so the repo-root .gitignore (which we
-	// must not modify) does not need a new entry.
-	outputDir: 'tests/e2e/.artifacts',
-	testMatch: /(.+\.)?(test|spec)\.[jt]s/,
-	fullyParallel: false,
-	forbidOnly: !!process.env.CI,
-	retries: process.env.CI ? 1 : 0,
-	reporter: [['list']],
-	timeout: 60_000,
-	expect: { timeout: 15_000 },
-	use: {
-		baseURL: BASE_URL,
-		trace: 'retain-on-failure',
-		screenshot: 'only-on-failure'
-	},
-	projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-	webServer: {
-		command: `npm run build && npm run preview -- --port ${PORT} --strictPort`,
-		url: BASE_URL,
-		reuseExistingServer: !process.env.CI,
-		timeout: 240_000
-	}
+    testDir: 'tests/e2e',
+    // Keep run artifacts inside tests/e2e/ so the repo-root .gitignore (which we
+    // must not modify) does not need a new entry.
+    outputDir: 'tests/e2e/.artifacts',
+    testMatch: /(.+\.)?(test|spec)\.[jt]s/,
+    fullyParallel: false,
+    forbidOnly: !!process.env.CI,
+    retries: process.env.CI ? 1 : 0,
+    reporter: [['list']],
+    timeout: 60_000,
+    expect: { timeout: 15_000 },
+    use: {
+        baseURL: BASE_URL,
+        trace: 'retain-on-failure',
+        screenshot: 'only-on-failure'
+    },
+    projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+    webServer: {
+        command: `npm run build && npm run preview -- --port ${PORT} --strictPort`,
+        url: BASE_URL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 240_000
+    }
 });

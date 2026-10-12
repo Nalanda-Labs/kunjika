@@ -17,7 +17,9 @@
     <div class="tab-content">
         <div class="tab-pane active" id="activity">
             <ul class="nav nav-tabs" id="repoTabs">
-                <li><a class="nav-link active" href="#summary1" data-bs-toggle="tab">Summary</a></li>
+                <li>
+                    <a class="nav-link active" href="#summary1" data-bs-toggle="tab">Summary</a>
+                </li>
                 <li><a class="nav-link" href="#questions" data-bs-toggle="tab">Questions</a></li>
                 <li><a class="nav-link" href="#answers" data-bs-toggle="tab">Answers</a></li>
             </ul>

@@ -8,11 +8,11 @@
  * rule so the user finds out before the round-trip.
  */
 export function firstDuplicateTag(tags) {
-	const seen = new Set();
-	for (const tag of tags) {
-		const key = tag.trim().toLowerCase();
-		if (seen.has(key)) return tag;
-		seen.add(key);
-	}
-	return null;
+    const seen = new Set();
+    for (const tag of tags) {
+        const key = tag.trim().toLowerCase();
+        if (seen.has(key)) return tag;
+        seen.add(key);
+    }
+    return null;
 }

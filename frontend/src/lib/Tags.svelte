@@ -1,11 +1,11 @@
 <script>
-    import { createEventDispatcher } from "svelte";
+    import { createEventDispatcher } from 'svelte';
 
     const dispatch = createEventDispatcher();
-    let tag = "";
+    let tag = '';
     let arrelementsmatch = [];
     let regExpEscape = (s) => {
-        return s.replace(/[-\\^$*+?.()|[\]{}]/g, "\\$&");
+        return s.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&');
     };
 
     export let tags;
@@ -29,18 +29,18 @@
     $: maxTags = maxTags || false;
     $: onlyUnique = onlyUnique || false;
     $: removeKeys = removeKeys || [8];
-    $: placeholder = placeholder || "";
+    $: placeholder = placeholder || '';
     $: allowPaste = allowPaste || false;
     $: allowDrop = allowDrop || false;
-    $: splitWith = splitWith || ",";
+    $: splitWith = splitWith || ',';
     $: autoComplete = autoComplete || false;
-    $: name = name || "svelte-tags-input";
+    $: name = name || 'svelte-tags-input';
     $: id = id || uniqueID();
     $: allowBlur = allowBlur || false;
     $: disable = disable || false;
     $: minChars = minChars || 1;
 
-    $: matchsID = id + "_matchs";
+    $: matchsID = id + '_matchs';
 
     let storePlaceholder = placeholder;
 
@@ -55,14 +55,10 @@
                     switch (input.keyCode) {
                         case 9:
                             // TAB add first element on the autoComplete list
-                            if (
-                                autoComplete &&
-                                document.getElementById(matchsID)
-                            ) {
+                            if (autoComplete && document.getElementById(matchsID)) {
                                 addTag(
-                                    document
-                                        .getElementById(matchsID)
-                                        .querySelectorAll("li")[0].textContent
+                                    document.getElementById(matchsID).querySelectorAll('li')[0]
+                                        .textContent
                                 );
                             } else {
                                 addTag(currentTag);
@@ -78,12 +74,12 @@
 
         if (removeKeys) {
             removeKeys.forEach(function (key) {
-                if (key === input.keyCode && tag === "") {
+                if (key === input.keyCode && tag === '') {
                     tags.pop();
                     tags = tags;
 
-                    dispatch("tags", {
-                        tags: tags,
+                    dispatch('tags', {
+                        tags: tags
                     });
 
                     arrelementsmatch = [];
@@ -95,43 +91,29 @@
         }
 
         // ArrowDown : focus on first element of the autocomplete
-        if (
-            input.keyCode === 40 &&
-            autoComplete &&
-            document.getElementById(matchsID)
-        ) {
+        if (input.keyCode === 40 && autoComplete && document.getElementById(matchsID)) {
             event.preventDefault();
-            document
-                .getElementById(matchsID)
-                .querySelector("li:first-child")
-                .focus();
+            document.getElementById(matchsID).querySelector('li:first-child').focus();
         } // ArrowUp : focus on last element of the autocomplete
-        else if (
-            input.keyCode === 38 &&
-            autoComplete &&
-            document.getElementById(matchsID)
-        ) {
+        else if (input.keyCode === 38 && autoComplete && document.getElementById(matchsID)) {
             event.preventDefault();
-            document
-                .getElementById(matchsID)
-                .querySelector("li:last-child")
-                .focus();
+            document.getElementById(matchsID).querySelector('li:last-child').focus();
         }
     }
 
     function addTag(currentTag) {
         currentTag = currentTag.trim();
 
-        if (currentTag == "") return;
+        if (currentTag == '') return;
         if (maxTags && tags.length == maxTags) return;
         if (onlyUnique && tags.includes(currentTag)) return;
 
         tags.push(currentTag);
         tags = tags;
-        tag = "";
+        tag = '';
 
-        dispatch("tags", {
-            tags: tags,
+        dispatch('tags', {
+            tags: tags
         });
 
         // Hide autocomplete list
@@ -141,7 +123,7 @@
 
         if (maxTags && tags.length == maxTags) {
             document.getElementById(id).readOnly = true;
-            placeholder = "";
+            placeholder = '';
         }
     }
 
@@ -149,8 +131,8 @@
         tags.splice(i, 1);
         tags = tags;
 
-        dispatch("tags", {
-            tags: tags,
+        dispatch('tags', {
+            tags: tags
         });
 
         // Hide autocomplete list
@@ -175,7 +157,7 @@
 
         e.preventDefault();
 
-        const data = e.dataTransfer.getData("Text");
+        const data = e.dataTransfer.getData('Text');
         const tags = splitTags(data).map((tag) => addTag(tag));
     }
 
@@ -188,14 +170,14 @@
 
     function getClipboardData(e) {
         if (window.clipboardData) {
-            return window.clipboardData.getData("Text");
+            return window.clipboardData.getData('Text');
         }
 
         if (e.clipboardData) {
-            return e.clipboardData.getData("text/plain");
+            return e.clipboardData.getData('text/plain');
         }
 
-        return "";
+        return '';
     }
 
     function splitTags(data) {
@@ -208,7 +190,7 @@
         var value = input.target.value;
 
         // Escape
-        if (value == "" || input.keyCode === 27 || value.length < minChars) {
+        if (value == '' || input.keyCode === 27 || value.length < minChars) {
             arrelementsmatch = [];
             return;
         }
@@ -222,9 +204,9 @@
                 return {
                     label: matchTag,
                     search: matchTag.replace(
-                        RegExp(regExpEscape(value.toLowerCase()), "i"),
-                        "<strong>$&</strong>"
-                    ),
+                        RegExp(regExpEscape(value.toLowerCase()), 'i'),
+                        '<strong>$&</strong>'
+                    )
                 };
             });
 
@@ -235,11 +217,7 @@
         arrelementsmatch = matchs;
     }
 
-    function navigateAutoComplete(
-        autoCompleteIndex,
-        autoCompleteLength,
-        autoCompleteElement
-    ) {
+    function navigateAutoComplete(autoCompleteIndex, autoCompleteLength, autoCompleteElement) {
         if (!autoComplete) return;
 
         event.preventDefault();
@@ -248,30 +226,18 @@
         if (event.keyCode === 40) {
             // Last element on the list ? Go to the first
             if (autoCompleteIndex + 1 === autoCompleteLength) {
-                document
-                    .getElementById(matchsID)
-                    .querySelector("li:first-child")
-                    .focus();
+                document.getElementById(matchsID).querySelector('li:first-child').focus();
                 return;
             }
-            document
-                .getElementById(matchsID)
-                .querySelectorAll("li")
-                [autoCompleteIndex + 1].focus();
+            document.getElementById(matchsID).querySelectorAll('li')[autoCompleteIndex + 1].focus();
         } else if (event.keyCode === 38) {
             // ArrowUp
             // First element on the list ? Go to the last
             if (autoCompleteIndex === 0) {
-                document
-                    .getElementById(matchsID)
-                    .querySelector("li:last-child")
-                    .focus();
+                document.getElementById(matchsID).querySelector('li:last-child').focus();
                 return;
             }
-            document
-                .getElementById(matchsID)
-                .querySelectorAll("li")
-                [autoCompleteIndex - 1].focus();
+            document.getElementById(matchsID).querySelectorAll('li')[autoCompleteIndex - 1].focus();
         } else if (event.keyCode === 13) {
             // Enter
             addTag(autoCompleteElement);
@@ -283,7 +249,7 @@
     }
 
     function uniqueID() {
-        return "sti_" + Math.random().toString(36).substr(2, 9);
+        return 'sti_' + Math.random().toString(36).substr(2, 9);
     }
 </script>
 
@@ -293,10 +259,7 @@
             <span class="svelte-tags-input-tag"
                 >{tag}
                 {#if !disable}
-                    <span
-                        class="svelte-tags-input-tag-remove"
-                        on:click={() => removeTag(i)}
-                    >
+                    <span class="svelte-tags-input-tag-remove" on:click={() => removeTag(i)}>
                         &#215;</span
                     >
                 {/if}
@@ -326,11 +289,7 @@
                 <li
                     tabindex="-1"
                     on:keydown={() =>
-                        navigateAutoComplete(
-                            index,
-                            arrelementsmatch.length,
-                            element.label
-                        )}
+                        navigateAutoComplete(index, arrelementsmatch.length, element.label)}
                     on:click={() => addTag(element.label)}
                 >
                     {@html element.search}
@@ -346,9 +305,9 @@
     .svelte-tags-input,
     .svelte-tags-input-tag,
     .svelte-tags-input-matchs {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-            Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans",
-            "Helvetica Neue", sans-serif;
+        font-family:
+            -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
+            'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
         font-size: 14px;
         padding: 2px 5px;
     }
@@ -398,7 +357,7 @@
         display: flex;
         white-space: nowrap;
         list-style: none;
-        background: #4285F4;
+        background: #4285f4;
         color: #fff;
         border-radius: 2px;
         margin-right: 5px;
@@ -443,7 +402,7 @@
 
     .svelte-tags-input-matchs li:hover,
     .svelte-tags-input-matchs li:focus {
-        background: #4285F4;
+        background: #4285f4;
         color: #fff;
         outline: none;
     }

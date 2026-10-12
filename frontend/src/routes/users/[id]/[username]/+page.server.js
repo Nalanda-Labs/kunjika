@@ -6,11 +6,16 @@ export const actions = {
     default: async ({ cookies, locals, request }) => {
         let xsrf_token = cookies.get('xsrf_token');
 
-        let response = await api.post(`delete-profile/${locals.user.id}`, {}, xsrf_token, request.headers);
+        let response = await api.post(
+            `delete-profile/${locals.user.id}`,
+            {},
+            xsrf_token,
+            request.headers
+        );
 
         console.log(response.status);
         if (response.status === 200) {
-            const resp = await api.post('auth/logout', {}, xsrf_token, request.headers)
+            const resp = await api.post('auth/logout', {}, xsrf_token, request.headers);
 
             let text = await resp.text();
             let j = text ? JSON.parse(text) : {};
@@ -18,10 +23,9 @@ export const actions = {
             // in case of delete profile backend wont find the user in redis and 401 will
             // be retruned
             if (resp.status === 401) {
-                if(j.message === "the user belonging to this token no logger exists") {
-                    console.log("User deleted!");
-                }
-                else {
+                if (j.message === 'the user belonging to this token no logger exists') {
+                    console.log('User deleted!');
+                } else {
                     return fail(resp.status, j);
                 }
             }
@@ -37,7 +41,6 @@ export const actions = {
                     var name = c.slice(0, i).trim();
                     cookies.delete(name, { path: '/' });
                 });
-
             }
         }
 
@@ -45,4 +48,4 @@ export const actions = {
 
         throw redirect(307, '/questions');
     }
-}
+};

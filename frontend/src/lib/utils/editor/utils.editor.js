@@ -25,13 +25,13 @@ const setCaretPosition = (ctrl, startPos, endPos) => {
 export const getCaretPosition = (ctrl) =>
     ctrl.selectionStart
         ? {
-            start: ctrl.selectionStart,
-            end: ctrl.selectionEnd
-        }
+              start: ctrl.selectionStart,
+              end: ctrl.selectionEnd
+          }
         : {
-            start: 0,
-            end: 0
-        };
+              start: 0,
+              end: 0
+          };
 
 /**
  * Parses markdown to HTML using `marked` and `sanitizes` the HTML using `DOMPurify`.
@@ -160,7 +160,10 @@ export const addLinkCommand = (contentTextArea) => {
  */
 export const addUnorderedListCommand = (contentTextArea) => {
     if (contentTextArea.value.indexOf(`\n- First item\n- Second item\n`) !== -1) {
-        contentTextArea.value = contentTextArea.value.replace(`\n- First item\n- Second item\n`, '');
+        contentTextArea.value = contentTextArea.value.replace(
+            `\n- First item\n- Second item\n`,
+            ''
+        );
     } else {
         updateTexareaValue(
             contentTextArea,
@@ -177,7 +180,10 @@ export const addUnorderedListCommand = (contentTextArea) => {
  */
 export const addOrderedListCommand = (contentTextArea) => {
     if (contentTextArea.value.indexOf(`\n1. First item\n2. Second item\n`) !== -1) {
-        contentTextArea.value = contentTextArea.value.replace(`\n1. First item\n2. Second item\n`, '');
+        contentTextArea.value = contentTextArea.value.replace(
+            `\n1. First item\n2. Second item\n`,
+            ''
+        );
     } else {
         updateTexareaValue(
             contentTextArea,
@@ -282,9 +288,9 @@ export const addHeadingSixCommand = (contentTextArea) => {
  */
 export const addImageCommand = (contentTextArea) => {
     // if (contentTextArea.value.indexOf(`![alt text](url)`) !== -1) {
-    // 	contentTextArea.value = contentTextArea.value.replace(`![alt text](url)`, '');
+    //  contentTextArea.value = contentTextArea.value.replace(`![alt text](url)`, '');
     // } else {
-    // 	updateTexareaValue(contentTextArea, `![alt text](url)`, `![`.length, `alt text`.length);
+    //  updateTexareaValue(contentTextArea, `![alt text](url)`, `![`.length, `alt text`.length);
     // }
 };
 
@@ -297,18 +303,15 @@ export const closeForm = () => {
 };
 
 export const addImageURL = (imageURL) => {
-    let textarea = document.getElementById("textAreaContent");
+    let textarea = document.getElementById('textAreaContent');
     let start_position = textarea.selectionStart;
     let end_position = textarea.selectionEnd;
 
     textarea.value = `${textarea.value.substring(
         0,
         start_position
-    )}${imageURL}${textarea.value.substring(
-        end_position,
-        textarea.value.length
-    )}`;
-}
+    )}${imageURL}${textarea.value.substring(end_position, textarea.value.length)}`;
+};
 
 /**
  * Add markdown codeblock command to input or textarea element. Remove if present.
@@ -317,7 +320,10 @@ export const addImageURL = (imageURL) => {
  */
 export const addCodeBlockCommand = (contentTextArea) => {
     if (contentTextArea.value.indexOf('\n```language\n<code here>\n```') !== -1) {
-        contentTextArea.value = contentTextArea.value.replace('\n```language\n<code here>\n```', '');
+        contentTextArea.value = contentTextArea.value.replace(
+            '\n```language\n<code here>\n```',
+            ''
+        );
     } else {
         updateTexareaValue(
             contentTextArea,

@@ -1,6 +1,224 @@
 <svelte:head>
     <title>Markdown Help ❤ Kunjika</title>
+    <!-- Load MathJax v4 so the example formulas render live on this page.
+         Config must precede the component script. Single-`$` inline delimiters
+         are enabled explicitly (v4 doesn't turn them on by default).
+         MathJax skips <pre>/<code> by default, so the copy-paste source blocks
+         below stay literal while the rendered preview divs get typeset. -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [
+                    ['$', '$'],
+                    ['\\(', '\\)']
+                ],
+                displayMath: [
+                    ['$$', '$$'],
+                    ['\\[', '\\]']
+                ]
+            },
+            startup: {
+                ready: () => {
+                    window.MathJax.startup.defaultReady();
+                    window.MathJax.startup.promise.then(() => window.MathJax.typesetPromise());
+                }
+            }
+        };
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
 </svelte:head>
+<script>
+    // Reference examples for the MathJax (LaTeX) formulas supported on
+    // question pages. Rendered as plain text so users can copy the source.
+    // `String.raw` keeps backslashes literal (LaTeX commands).
+    const mathExamples = [
+        {
+            title: 'Inline and display math',
+            code: String.raw`Inline:   $e^{i\pi} + 1 = 0$
+Inline:   \(a^2 + b^2 = c^2\)
+
+Display using $$ ... $$:
+$$
+\int_{-\infty}^{\infty} e^{-x^{2}}\,dx = \sqrt{\pi}
+$$
+
+Display using \[ ... \]:
+\[
+  \frac{-b \pm \sqrt{b^{2} - 4ac}}{2a}
+\]`,
+            render: String.raw`$e^{i\pi} + 1 = 0 \qquad \int_{-\infty}^{\infty} e^{-x^{2}}\,dx = \sqrt{\pi} \qquad \dfrac{-b \pm \sqrt{b^{2} - 4ac}}{2a}$`
+        },
+        {
+            title: 'Superscripts, subscripts and primes',
+            code: String.raw`$x^{2}$          superscript
+$x_i$          subscript
+$x^{2}_{i}$    both together
+$x^{y^{z}}$    grouped / nested
+$x_{i,j}$      multiple subscripts
+$\sum_{i=1}^{n}$   limits attach to big operators
+$\,{}^{14}C$   prescript (e.g. isotopes)
+$f'(x)$, $f''(x)$, $a'$   primes`,
+            render: String.raw`$x^{2}$, $x_i$, $x^{2}_{i}$, $x^{y^{z}}$, $x_{i,j}$, $\sum_{i=1}^{n}$, $\,{}^{14}C$, $f'(x)$, $f''(x)$`
+        },
+        {
+            title: 'Greek letters',
+            code: String.raw`Lowercase:
+\alpha \beta \gamma \delta \epsilon \varepsilon \zeta \eta \theta
+\iota \kappa \lambda \mu \nu \xi \omicron \pi \varpi \rho \varrho
+\sigma \varsigma \tau \upsilon \phi \varphi \chi \psi \omega
+
+Uppercase:
+\Gamma \Delta \Theta \Lambda \Xi \Pi \Sigma \Upsilon \Phi \Psi \Omega`,
+            render: String.raw`$\alpha\ \beta\ \gamma\ \delta\ \epsilon\ \varepsilon\ \zeta\ \eta\ \theta\ \iota\ \kappa\ \lambda\ \mu\ \nu\ \xi\ \pi\ \rho\ \sigma\ \tau\ \phi\ \chi\ \psi\ \omega \qquad \Gamma\ \Delta\ \Theta\ \Lambda\ \Xi\ \Pi\ \Sigma\ \Phi\ \Psi\ \Omega$`
+        },
+        {
+            title: 'Fractions and binomials',
+            code: String.raw`$\frac{a}{b}$          fraction
+$\dfrac{a}{b}$         larger (display) fraction
+$\tfrac{a}{b}$         smaller (text) fraction
+$a/b$                  slash form
+$\binom{n}{k}$         binomial coefficient
+$1 + \cfrac{1}{1 + \cfrac{1}{2}}$   continued fraction`,
+            render: String.raw`$\frac{a}{b}$, $\dfrac{a}{b}$, $\binom{n}{k}$, $1 + \cfrac{1}{1 + \cfrac{1}{2}}$`
+        },
+        {
+            title: 'Roots',
+            code: String.raw`$\sqrt{2}$             square root
+$\sqrt[3]{x}$          cube / nth root
+$\sqrt{1 + \sqrt{2}}$  nested roots
+$\sqrt[n]{\frac{a}{b}}$`,
+            render: String.raw`$\sqrt{2}$, $\sqrt[3]{x}$, $\sqrt{1 + \sqrt{2}}$, $\sqrt[n]{\frac{a}{b}}$`
+        },
+        {
+            title: 'Sums, products, limits and integrals',
+            code: String.raw`$\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$
+$\prod_{i=1}^{n} i = n!$
+$\lim_{x \to 0} \frac{\sin x}{x} = 1$
+$\lim_{n \to \infty} a_n = L$
+$\int_a^b f(x)\,dx$
+$\int_0^1 \int_0^1 f(x,y)\,dx\,dy$
+$\oint_C \vec{F}\cdot d\vec{r}$      closed line integral
+$\iint_D$, $\iiint_V$, $\bigcup_{i=1}^n A_i$, $\bigcap_{i=1}^n A_i$`,
+            render: String.raw`$\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$, $\prod_{i=1}^{n} i = n!$, $\lim_{x \to 0} \frac{\sin x}{x} = 1$, $\int_a^b f(x)\,dx$, $\oint_C \vec{F}\cdot d\vec{r}$, $\bigcup_{i=1}^n A_i$`
+        },
+        {
+            title: 'Matrices and arrays',
+            code: String.raw`$\begin{matrix} a & b \\ c & d \end{matrix}$
+
+$\begin{pmatrix} 1 & 2 \\ 3 & 4 \end{pmatrix}$   parentheses
+
+$\begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix}$   square brackets
+
+$\begin{vmatrix} a & b \\ c & d \end{vmatrix}$   determinant
+
+$\begin{Vmatrix} a & b \\ c & d \end{Vmatrix}$   norm
+
+$\begin{array}{cc|c} 1 & 2 & 3 \\ 4 & 5 & 6 \end{array}$   custom columns`,
+            render: String.raw`$$\begin{pmatrix} 1 & 2 \\ 3 & 4 \end{pmatrix} \qquad \begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix} \qquad \begin{vmatrix} a & b \\ c & d \end{vmatrix}$$`
+        },
+        {
+            title: 'Aligning multiple equations',
+            code: String.raw`\begin{align}
+  (a + b)^2 &= a^2 + 2ab + b^2 \\
+  (a - b)^2 &= a^2 - 2ab + b^2
+\end{align}`,
+            render: String.raw`$$\begin{align} (a+b)^2 &= a^2 + 2ab + b^2 \\ (a-b)^2 &= a^2 - 2ab + b^2 \end{align}$$`
+        },
+        {
+            title: 'Piecewise functions (cases)',
+            code: String.raw`f(x) = \begin{cases}
+  1   & \text{if } x \geq 0 \\
+  -1  & \text{if } x < 0
+\end{cases}`,
+            render: String.raw`$$f(x) = \begin{cases} 1 & \text{if } x \geq 0 \\ -1 & \text{if } x < 0 \end{cases}$$`
+        },
+        {
+            title: 'Common functions and operators',
+            code: String.raw`$\sin x$, $\cos x$, $\tan x$, $\cot x$, $\sec x$, $\csc x$
+$\arcsin x$, $\arccos x$, $\arctan x$
+$\sinh x$, $\cosh x$, $\tanh x$
+$\log x$, $\ln x$, $\log_{2} x$, $\lg x$, $\exp(x)$
+$\max$, $\min$, $\sup$, $\inf$, $\arg$, $\deg$, $\det$, $\dim$, $\gcd$, $\ker$, $\Pr$
+$\frac{d}{dx}$, $\frac{\partial f}{\partial x}$, $\nabla f$, $\Delta x$`,
+            render: String.raw`$\sin x, \cos x, \tan x$, $\arcsin x$, $\sinh x$, $\log x$, $\ln x$, $\exp(x)$, $\frac{d}{dx}$, $\frac{\partial f}{\partial x}$, $\nabla f$, $\Delta x$`
+        },
+        {
+            title: 'Accents and annotations',
+            code: String.raw`$\hat{a}$, $\bar{a}$, $\vec{a}$, $\tilde{a}$, $\dot{a}$, $\ddot{a}$
+$\widehat{abc}$, $\widetilde{abc}$
+$\overline{a + b}$, $\underline{a + b}$
+$\overrightarrow{AB}$, $\overleftrightarrow{AB}$
+$\overbrace{a + b + c}^{\text{sum}}$, $\underbrace{a + b + c}_{\text{sum}}$`,
+            render: String.raw`$\hat{a}$, $\vec{a}$, $\tilde{a}$, $\dot{a}$, $\overline{a + b}$, $\overrightarrow{AB}$, $\overbrace{a + b + c}^{\text{sum}}$`
+        },
+        {
+            title: 'Sets, logic and relations',
+            code: String.raw`$\mathbb{R}$, $\mathbb{N}$, $\mathbb{Z}$, $\mathbb{Q}$, $\mathbb{C}$
+$\emptyset$, $\varnothing$, $\infty$
+$\in$, $\notin$, $\ni$, $\subset$, $\subseteq$, $\supset$, $\supseteq$
+$\cup$, $\cap$, $\setminus$, $\times$
+$\forall$, $\exists$, $\nexists$, $\neg$, $\land$, $\lor$
+$\leq$, $\geq$, $\neq$, $\approx$, $\equiv$, $\sim$, $\cong$, $\propto$, $\ll$, $\gg$
+$\pm$, $\mp$, $\cdot$, $\ast$, $\star$, $\circ$, $\bullet$, $\oplus$, $\otimes$`,
+            render: String.raw`$\mathbb{R}, \mathbb{N}, \mathbb{Z}$, $\emptyset$, $\infty$, $\in$, $\subset$, $\subseteq$, $\cup$, $\cap$, $\forall$, $\exists$, $\leq$, $\geq$, $\neq$, $\approx$, $\pm$, $\cdot$`
+        },
+        {
+            title: 'Arrows',
+            code: String.raw`$\to$, $\gets$, $\leftrightarrow$, $\uparrow$, $\downarrow$
+$\Rightarrow$, $\Leftarrow$, $\Leftrightarrow$
+$\Longrightarrow$, $\longleftarrow$
+$\mapsto$, $\longmapsto$, $\rightsquigarrow$
+$x \xrightarrow{f} y$   extensible arrow`,
+            render: String.raw`$\to$, $\Rightarrow$, $\Leftrightarrow$, $\mapsto$, $x \xrightarrow{f} y$`
+        },
+        {
+            title: 'Brackets, delimiters and auto-sizing',
+            code: String.raw`$(a)$, $[a]$, $\{a\}$, $|a|$, $\|a\|$, $\langle a \rangle$
+$\left( \frac{a}{b} \right)$        auto-sized parentheses
+$\left[ \frac{a}{b} \right]$        auto-sized brackets
+$\left\{ \frac{a}{b} \right\}$      auto-sized braces
+$\left\| \frac{a}{b} \right\|$      auto-sized norm
+$\left. \frac{df}{dx} \right|_{x=0}$   evaluation bar`,
+            render: String.raw`$\left( \frac{a}{b} \right)$, $\left[ \frac{a}{b} \right]$, $\left\| \frac{a}{b} \right\|$, $\left. \frac{df}{dx} \right|_{x=0}$`
+        },
+        {
+            title: 'Fonts and text styles',
+            code: String.raw`$\mathbb{R}$   blackboard bold
+$\mathbf{v}$   bold
+$\mathcal{L}$   calligraphy
+$\mathfrak{g}$   fraktur
+$\mathrm{d}$    roman (upright)
+$\mathit{x}$    italic
+$\mathsf{s}$    sans-serif
+$\mathtt{c}$    typewriter
+$\boldsymbol{\alpha}$   bold symbol
+$\textbf{bold}$, $\textit{italic}$, $\texttt{code}$   (inside \text)`,
+            render: String.raw`$\mathbb{R}$, $\mathbf{v}$, $\mathcal{L}$, $\mathfrak{g}$, $\mathrm{d}$, $\mathit{x}$, $\mathsf{s}$, $\mathtt{c}$, $\boldsymbol{\alpha}$`
+        },
+        {
+            title: 'Spacing and text inside math',
+            code: String.raw`$a\,b$      thin space
+$a\;b$      medium space
+$a\quad b$  one em
+$a\qquad b$  two em
+$a\!b$      negative thin space
+$\text{if } x > 0$   text inside math
+$\text{velocity} = \frac{dx}{dt}$`,
+            render: String.raw`$a\,b$, $a\quad b$, $\text{if } x > 0$, $\text{velocity} = \frac{dx}{dt}$`
+        },
+        {
+            title: 'Boxes, cancel and color (extensions)',
+            code: String.raw`$\boxed{E = mc^{2}}$
+
+$\require{cancel} \cancel{x} + \bcancel{y} + \xcancel{xyz}$
+
+$\require{color} \color{red}{x^2} + \color{blue}{y^2}$
+
+Note: cancel and color are loaded on demand via \require{...}.`,
+            render: String.raw`$$\boxed{E = mc^{2}} \qquad \require{cancel}\cancel{x} + \bcancel{y} \qquad \require{color}\color{red}{x^2} + \color{blue}{y^2}$$`
+        }
+    ];
+</script>
 <main style="margin-top:20px">
     <h2>Introduction</h2>
     <p>
@@ -240,19 +458,43 @@ print('Hello world!')
         We have three admonitionns note, tip and warning; these generate HTML for the admonitions
         and graphics. Use the UI(top bar above editor) to generate these.
     </p>
-    <h3>Mmath Support</h3>
+    <h3>Math Support</h3>
     <p>
-        LaTeX math is supported via <a href="https://www.mathjax.org/" target="_blank">MathJax 2</a
-        >. Use $$ for inline and \[\] for display math. Refer to LaTeX and MathJax for more details.
-        Soon we will support MathJax 4. Right now this is not enabled for ask page but only for
-        questions.
+        LaTeX math is supported via <a href="https://www.mathjax.org/" target="_blank">MathJax 4</a
+        >. Use <code>$...$</code> for inline math and <code>$$...$$</code> (or
+        <code>\[...\]</code>) for display math. Right now math is enabled on question pages only, not
+        the ask page.
     </p>
+    <p>
+        Below are common formulas you can copy. Each block shows the LaTeX source; wrap inline
+        expressions in single dollars and display expressions in double dollars or brackets.
+    </p>
+    {#each mathExamples as { title, code, render }}
+        <h4>{title}</h4>
+        <!-- Rendered output (MathJax typesets this; it is NOT inside <pre>). -->
+        <div class="math-render">{render}</div>
+        <!-- Copy-paste source (MathJax skips <pre> content by default). -->
+        <pre><code>{code}</code></pre>
+    {/each}
 </main>
 
 <style>
     h3 {
         margin-top: 10px;
         color: #094;
+    }
+    h4 {
+        margin-top: 16px;
+        color: #0a6c4f;
+    }
+    /* Live-rendered math preview (outside <pre>), above the copy-paste source. */
+    .math-render {
+        padding: 10px 12px;
+        margin-top: 8px;
+        background-color: #f6f9fb;
+        border: 1px solid #dfe6ec;
+        border-radius: 4px;
+        overflow-x: auto;
     }
     main {
         max-width: 800px;

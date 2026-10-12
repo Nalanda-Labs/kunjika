@@ -132,10 +132,12 @@
                 }
             }
 
-            asked_ts = response.data.questions[response.data.questions.length - 1].cat;
-            offset += limit;
-
+            // Use the last answer's timestamp as the pagination cursor. Guard
+            // against an empty answers array: a question with no answers yields
+            // `questions[-1] === undefined`, and reading `.cat` off it threw.
             if (response.data.questions.length) {
+                asked_ts = response.data.questions[response.data.questions.length - 1].cat;
+                offset += limit;
                 time = response.data.questions[response.data.questions.length - 1].created_at;
             }
         }
@@ -262,22 +264,53 @@
     }
 
     afterUpdate(() => {
-        if (browser) {
-            if (window.MathJax) {
-                window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub]);
-                console.log('Mathjax ');
-            }
+        if (!browser) return;
+        // MathJax v4 loads asynchronously and has no `Hub.Queue` to defer work
+        // until it is ready. Re-typeset math after dynamic DOM updates (new
+        // answers, edited content) by waiting for MathJax's startup promise.
+        // On the very first render MathJax may not be initialized yet — the
+        // `startup.ready` hook in <svelte:head> handles that initial pass.
+        if (window.MathJax && window.MathJax.startup && window.MathJax.startup.promise) {
+            window.MathJax.startup.promise.then(() => window.MathJax.typesetPromise());
         }
     });
 </script>
 
 <svelte:head>
     <title>{title}</title>
-    <!-- This is version 2 of MathJax. Need to make it version 3 -->
-    <script
-        async
-        src="https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS_CHTML"
-    ></script>
+    <!-- MathJax v4 (TeX input + CommonHTML output). Replaces the old v2
+         TeX-AMS_CHTML bundle; v4 dropped the /es5/ CDN path.
+         The config block must come BEFORE the component script so MathJax
+         knows how to start. `startup.ready` performs the initial typeset once
+         MathJax has finished loading asynchronously — this replaces the v2
+         behaviour where MathJax typeset the page automatically on load. -->
+    <script>
+        window.MathJax = {
+            tex: {
+                // MathJax v4 does NOT enable single-`$` inline delimiters by
+                // default (only `\(...\)`), so single-`$` math like
+                // `$\frac{a}{b}$` would render as literal text. Opt in
+                // explicitly, matching common Q&A convention and the
+                // markdown-help page. Display math (`$$...$$`, `\[...\]`) is
+                // already on by default; listed here for clarity.
+                inlineMath: [
+                    ['$', '$'],
+                    ['\\(', '\\)']
+                ],
+                displayMath: [
+                    ['$$', '$$'],
+                    ['\\[', '\\]']
+                ]
+            },
+            startup: {
+                ready: () => {
+                    window.MathJax.startup.defaultReady();
+                    window.MathJax.startup.promise.then(() => window.MathJax.typesetPromise());
+                }
+            }
+        };
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
 </svelte:head>
 <div>
     <h3>{title}</h3>

@@ -13,6 +13,7 @@
 	import { onMount } from 'svelte';
 	import { parseMarkdown } from '../../../../lib/utils/editor/utils.editor';
 	import onImageUpload from '../../../../lib/imageUpload';
+	import { firstDuplicateTag } from '../../../../lib/utils/tags.js';
 
 	let title = '';
 	let tagList = [];
@@ -29,7 +30,8 @@
 	let user_replied;
 	let contentValue = '',
 		markup = '';
-	let showContentValueToast = false;
+	let formError = '';
+	let notAuthor = false;
 
 	onMount(async () => {
 		let xsrf_token = getCookie('xsrf_token');
@@ -46,6 +48,9 @@
 			time = response.data.created_at;
 			votes = response.data.votes;
 			posted_by = response.data.posted_by_id;
+			// Only the author may edit; the API enforces this too, but the
+			// form should not be offered at all.
+			notAuthor = !($page.data.user && posted_by === $page.data.user.id);
 			username = response.data.username;
 			reply_to_id = response.data.posted_by_id;
 			user_replied = username;
@@ -80,11 +85,23 @@
 	async function onSubmit() {
 		if ($page.data.user) {
 			if (contentValue.length < 20 || contentValue.length > 100000) {
-				showContentValueToast = true;
+				formError = 'Question length should be 20 to 1000000 Characters!';
+				return;
 			}
 			if (tagList.length < 1) {
-				// Toast('At least one tag should be supplied.');
+				formError = 'At least one tag should be supplied.';
+				return;
 			}
+			if (tagList.length > 5) {
+				formError = 'Too many tags.';
+				return;
+			}
+			const duplicate = firstDuplicateTag(tagList);
+			if (duplicate) {
+				formError = `Duplicate tag: ${duplicate}`;
+				return;
+			}
+			formError = '';
 
 			if (browser) {
 				let xsrf_token = getCookie('xsrf_token');
@@ -101,8 +118,12 @@
 					let id = j.data.id;
 					let slug = j.data.slug;
 					await goto(`/questions/${id}/${slug}`);
-				} else if (response.code === 400) {
-					M.toast({ html: j.message });
+				} else {
+					// Was `response.code === 400`, always undefined on a Response, so
+					// backend errors were swallowed. And `M.toast` is not defined
+					// anywhere in the app, so it threw a ReferenceError. The API now
+					// answers 403 for someone else's post, so surface that too.
+					formError = j.message || 'Something went wrong, try again!';
 				}
 			}
 		} else {
@@ -137,52 +158,59 @@
 
 <div class="row">
 	<div class="col s12 m12 xl10 offset-xl2">
-		{#if showContentValueToast}
-			<Toast>Question length should be 20 to 1000000 Characters!</Toast>
+		{#if formError}
+			<div class="alert alert-danger" role="alert" id="editError">{formError}</div>
+		{/if}
+		{#if notAuthor}
+			<div class="alert alert-warning" role="alert" id="editNotAuthor">
+				You can only edit your own post.
+			</div>
 		{/if}
 		<h4>Post your question for discussion</h4>
 		<hr />
-		<form class="col s12" on:submit|preventDefault={onSubmit}>
-			{#if title}
-				<div class="input-field">
-					<input
-						bind:value={title}
-						label="Title"
-						id="title"
-						type="text"
-						minlength="6"
-						maxlength="256"
-						style="min-width:100%"
+		{#if !notAuthor}
+			<form class="col s12" on:submit|preventDefault={onSubmit}>
+				{#if title}
+					<div class="input-field">
+						<input
+							bind:value={title}
+							label="Title"
+							id="title"
+							type="text"
+							minlength="6"
+							maxlength="256"
+							style="min-width:100%"
+						/>
+						<label for="title">Summary</label>
+					</div>
+				{/if}
+				<Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />
+				<Preview {markup} />
+				{#if tagList.length}
+					<div style="margin:30px"></div>
+					<Tags
+						name={'tags'}
+						bind:tags={tagList}
+						addKeys={[9]}
+						maxTags={5}
+						allowPaste={true}
+						allowDrop={true}
+						splitWith={','}
+						onlyUnique={true}
+						removeKeys={[27, 8]}
+						placeholder="Tags, tab to complete"
+						allowBlur={true}
+						disable={false}
+						id={'tags'}
+						minChars={1}
+						autoComplete={ts}
 					/>
-					<label for="title">Summary</label>
+				{/if}
+				<div class="b-wrapper">
+					<button type="submit" class="btn btn-primary">Edit</button>
 				</div>
-			{/if}
-			<Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />
-			<Preview {markup} />
-			{#if tagList.length }
-				<div style="margin:30px"></div>
-				<Tags
-					name={'tags'}
-					bind:tags={tagList}
-					addKeys={[9]}
-					maxTags={5}
-					allowPaste={true}
-					allowDrop={true}
-					splitWith={','}
-					onlyUnique={true}
-					removeKeys={[27, 8]}
-					placeholder="Tags, tab to complete"
-					allowBlur={true}
-					disable={false}
-					id={'tags'}
-					minChars={1}
-					autoComplete={ts}
-				/>
-			{/if}
-			<div class="b-wrapper">
-				<button type="submit" class="btn btn-primary">Edit</button>
-			</div>
-		</form>
+			</form>
+		{/if}
 		<div
 			class="modal modal-dialog-centered"
 			tabindex="-1"

@@ -151,8 +151,12 @@ pub struct AR {
     pub image_url: String,
     pub answer_accepted: bool,
     pub reply_to_id: Option<i64>,
-    pub rusername: String,
-    pub rimage_url: String,
+    // Both come from `left join users u1 on t.reply_to_id = u1.id`, so they
+    // are NULL for every answer that is not a reply. Plain `String` made the
+    // whole 500 with "decoding column 12: unexpected null" as soon as the
+    // result set contained a single ordinary (non-reply) answer.
+    pub rusername: Option<String>,
+    pub rimage_url: Option<String>,
     pub vote_by_current_user: i64,
     pub cat: i64,
 }
@@ -196,12 +200,63 @@ pub struct AnswersResponse {
     pub questions: Vec<AR>,
 }
 
-#[derive(Deserialize, Validate)]
+/// Accept a JSON integer or a numeric string.
+///
+/// The SvelteKit client is inconsistent about these ids: the question id comes
+/// from the route (a string), while `reply_to` is copied straight from
+/// `response.data.posted_by_id` (a JSON number), and is `undefined` for a
+/// top-level answer - which serde renders as a missing field. Accepting both
+/// shapes keeps `AnswerReq` deserialisable instead of 400-ing.
+fn de_i64<'de, D: serde::Deserializer<'de>>(d: D) -> Result<i64, D::Error> {
+    #[derive(serde::Deserialize)]
+    #[serde(untagged)]
+    enum Num {
+        Int(i64),
+        Str(String),
+    }
+    match <Num as serde::Deserialize>::deserialize(d)? {
+        Num::Int(i) => Ok(i),
+        Num::Str(s) => s.trim().parse::<i64>().map_err(serde::de::Error::custom),
+    }
+}
+
+/// Same as [`de_i64`] but also tolerates `null`, a missing field, and `""`.
+///
+/// An absent `reply_to` means "top-level answer" and maps to a NULL
+/// `posts.reply_to_id`. It must NOT be parsed unconditionally: the previous
+/// `answer.reply_to.parse::<i64>().unwrap()` panicked with `ParseIntError
+/// { kind: Empty }` and aborted the connection without a status line.
+fn de_opt_i64<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<i64>, D::Error> {
+    #[derive(serde::Deserialize)]
+    #[serde(untagged)]
+    enum Num {
+        Int(i64),
+        Str(String),
+    }
+    match <Option<Num> as serde::Deserialize>::deserialize(d)? {
+        None => Ok(None),
+        Some(Num::Int(i)) => Ok(Some(i)),
+        Some(Num::Str(s)) => {
+            let t = s.trim();
+            if t.is_empty() {
+                Ok(None)
+            } else {
+                t.parse::<i64>().map(Some).map_err(serde::de::Error::custom)
+            }
+        }
+    }
+}
+
+#[derive(Deserialize, Validate, Debug)]
 pub struct AnswerReq {
-    pub id: String,
+    /// Id of the question being answered.
+    #[serde(deserialize_with = "de_i64")]
+    pub id: i64,
     #[validate(length(min = 20, max = 100000))]
     pub value: String,
-    pub reply_to: String,
+    /// The user being replied to; `None` for a top-level answer.
+    #[serde(default, deserialize_with = "de_opt_i64")]
+    pub reply_to: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -387,9 +387,14 @@ impl IUser for &AppStateRaw {
     }
 
     async fn get_summary(&self, uid: i64) -> sqlx::Result<SummaryResponse> {
+        // answers_count / questions_count_by_user are GROUP BY views, so a
+        // user with no answers (or no questions) has NO row in them and
+        // fetch_one died with RowNotFound -> 500 on the profile Summary tab
+        // of every freshly registered user. A scalar subquery + coalesce
+        // always returns exactly one row.
         let answers_count = sqlx::query!(
             r#"
-            select count as answers_count from answers_count where posted_by_id=$1
+            select coalesce((select count from answers_count where posted_by_id=$1), 0) as answers_count
             "#,
             uid
         )
@@ -397,7 +402,7 @@ impl IUser for &AppStateRaw {
         .await?;
         let questions_count = sqlx::query!(
             r#"
-            select count as questions_count from questions_count_by_user where posted_by_id=$1
+            select coalesce((select count from questions_count_by_user where posted_by_id=$1), 0) as questions_count
             "#,
             uid
         )

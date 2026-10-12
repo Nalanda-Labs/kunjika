@@ -39,6 +39,9 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         direction: &Option<String>,
     ) -> sqlx::Result<QuestionsResponse>;
     async fn get_post(&self, pid: i64) -> sqlx::Result<PostResponse>;
+    /// Owner of the post, used to authorise `/edit-post/{id}`.
+    /// Returns `sqlx::Error::RowNotFound` when the post does not exist.
+    async fn post_owner(&self, pid: i64) -> sqlx::Result<i64>;
     async fn insert_answer(&self, answer: &AnswerReq, user_id: &i64) -> sqlx::Result<u64>;
     async fn update_post(
         &self,
@@ -294,7 +297,8 @@ impl IQuestion for &AppStateRaw {
             r#"
             select count(1) over(), t.id, t.description, t.visible, t.created_at, t.posted_by_id, t.updated_at,
             t.votes, t.answer_accepted, t.reply_to_id, u.username, u.image_url,
-            u1.username as rusername, u1.image_url as rimage_url,
+            u1.username as "rusername: Option<String>",
+            u1.image_url as "rimage_url: Option<String>",
             (CASE WHEN v.vote IS NULL THEN 0
             ELSE vote::bigint END) as vote
             from posts t left join users as u on t.posted_by_id=u.id
@@ -653,6 +657,18 @@ impl IQuestion for &AppStateRaw {
         Ok(pr)
     }
 
+    async fn post_owner(&self, pid: i64) -> sqlx::Result<i64> {
+        let r = sqlx::query!(
+            r#"
+            select posted_by_id from posts where id = $1
+            "#,
+            pid
+        )
+        .fetch_one(&self.sql)
+        .await?;
+        Ok(r.posted_by_id)
+    }
+
     async fn insert_answer(&self, answer: &AnswerReq, user_id: &i64) -> sqlx::Result<u64> {
         let mut tx = self.sql.begin().await?;
 
@@ -663,8 +679,8 @@ impl IQuestion for &AppStateRaw {
             "#,
             answer.value,
             user_id,
-            answer.id.parse::<i64>().unwrap(),
-            answer.reply_to.parse::<i64>().unwrap()
+            answer.id,
+            answer.reply_to
         )
         .fetch_one(&mut *tx)
         .await?;
@@ -673,7 +689,7 @@ impl IQuestion for &AppStateRaw {
             r#"
             update posts set answer_count = answer_count + 1 where id = $1
             "#,
-            answer.id.parse::<i64>().unwrap()
+            answer.id
         }
         .execute(&mut *tx)
         .await?;
@@ -824,7 +840,9 @@ impl IQuestion for &AppStateRaw {
             .fetch_one(&mut *tx)
             .await?;
             id = pr1.id;
-            slug = pr1.slug.unwrap();
+            // An answer's parent question always has a slug, but a NULL would
+            // previously panic here instead of degrading gracefully.
+            slug = pr1.slug.unwrap_or_default();
         }
 
         tx.commit().await?;

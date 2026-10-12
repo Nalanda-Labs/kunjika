@@ -23,7 +23,25 @@ use serde_json::json;
 use uuid::Uuid;
 use validator::Validate;
 
-// curl -v --data '{"name": "Bob", "email": "Bob@google.com", "password": "Bobpass"}' -H "Content-Type: application/json" -X POST localhost:8080/user/register
+/// The `Domain` attribute to stamp on a session cookie.
+///
+/// RFC 6265 forbids a port in `Domain`, and browsers reject the entire cookie
+/// when one is present. `Config::host` is `localhost:5173` in the shipped
+/// `template.json`, so the port has to be stripped here - the port belongs in
+/// the URL, not in the cookie. Without this the session cookie is silently
+/// dropped and the user never appears logged in.
+fn cookie_domain(host: &str) -> String {
+    let trimmed = host.trim();
+    let bare = trimmed.split(':').next().unwrap_or(trimmed).trim();
+    // A misconfigured/empty `host` must not crash the handler; fall back to
+    // whatever was configured rather than inventing a value.
+    if bare.is_empty() {
+        trimmed.to_string()
+    } else {
+        bare.to_string()
+    }
+}
+
 #[post("/register")]
 async fn register(form: web::types::Json<Register>, state: AppState) -> impl Responder {
     let form = form.into_inner();
@@ -97,11 +115,33 @@ Team Kunjika",
             }
         }
         Err(e) => {
-            error!("regitser {:?} error: {:?}", form, e);
-            HttpResponse::Conflict()
-                .json(&json!({"status": "fail", "message": "Either email or username is taken"}))
+            // Only a genuine unique violation means "already taken". Mapping
+            // *every* DAO error here used to report SQLSTATE 22001 (value too
+            // long) as 409 "Either email or username is taken", which hid real
+            // database problems behind a misleading conflict message.
+            if is_unique_violation(&e) {
+                HttpResponse::Conflict().json(
+                    &json!({"status": "fail", "message": "Either email or username is taken"}),
+                )
+            } else {
+                error!("register {:?} database error: {:?}", form, e);
+                HttpResponse::InternalServerError()
+                    .json(&json!({"status": "fail", "message": "Something went wrong, try again!"}))
+            }
         }
     }
+}
+
+/// SQLSTATE 23505 - unique_violation. Raised by the `users_name_key` UNIQUE
+/// index on `username` and by the unique index on `users.email`.
+const UNIQUE_VIOLATION: &str = "23505";
+
+/// True only when `err` is a PostgreSQL/YugabyteDB unique violation.
+fn is_unique_violation(err: &sqlx::Error) -> bool {
+    err.as_database_error()
+        .and_then(|db| db.code())
+        .map(|code| code == UNIQUE_VIOLATION)
+        .unwrap_or(false)
 }
 
 #[post("/submit-email")]
@@ -257,7 +297,7 @@ async fn login(form: web::types::Json<LoginForm>, state: AppState) -> impl Respo
                         "access_token",
                         access_token_details.token.clone().unwrap(),
                     ))
-                    .domain(state.config.host.clone())
+                    .domain(cookie_domain(&state.config.host))
                     .path("/")
                     .secure(true)
                     .max_age(Duration::seconds(state.config.access_token_max_age * 60))
@@ -265,7 +305,7 @@ async fn login(form: web::types::Json<LoginForm>, state: AppState) -> impl Respo
                     .same_site(cookie::SameSite::None);
                     let refresh_cookie =
                         Cookie::build(("refresh_token", refresh_token_details.token.unwrap()))
-                            .domain(state.config.host.clone())
+                            .domain(cookie_domain(&state.config.host))
                             .path("/")
                             .secure(true)
                             .max_age(Duration::seconds(state.config.refresh_token_max_age * 60))
@@ -273,7 +313,7 @@ async fn login(form: web::types::Json<LoginForm>, state: AppState) -> impl Respo
                             .same_site(cookie::SameSite::None);
                     let xsrf_cookie =
                         Cookie::build(("xsrf_token", access_token_details.token_uuid.to_string()))
-                            .domain(state.config.host.clone())
+                            .domain(cookie_domain(&state.config.host))
                             .max_age(Duration::seconds(state.config.access_token_max_age * 60))
                             .path("/")
                             .secure(true)
@@ -291,7 +331,7 @@ async fn login(form: web::types::Json<LoginForm>, state: AppState) -> impl Respo
                             .cookie(xsrf_cookie)
                             .cookie(
                                 Cookie::build(("logged_in", json))
-                                    .domain(state.config.host.clone())
+                                    .domain(cookie_domain(&state.config.host))
                                     .path("/")
                                     .secure(true)
                                     .http_only(true)
@@ -428,7 +468,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
 
     let access_cookie =
         Cookie::build(("access_token", access_token_details.token.clone().unwrap()))
-            .domain(state.config.host.clone())
+            .domain(cookie_domain(&state.config.host))
             .path("/")
             .secure(true)
             .max_age(Duration::seconds(state.config.access_token_max_age * 60))
@@ -436,7 +476,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
             .same_site(cookie::SameSite::None);
 
     let refresh_cookie = Cookie::build(("refresh_token", refresh_token_details.token.unwrap()))
-        .domain(state.config.host.clone())
+        .domain(cookie_domain(&state.config.host))
         .path("/")
         .secure(true)
         .max_age(Duration::seconds(state.config.refresh_token_max_age * 60))
@@ -444,7 +484,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         .same_site(cookie::SameSite::None);
 
     let xsrf_cookie = Cookie::build(("xsrf_token", access_token_details.token_uuid.to_string()))
-        .domain(state.config.host.clone())
+        .domain(cookie_domain(&state.config.host))
         .path("/")
         .secure(true)
         .max_age(cookie::time::Duration::seconds(
@@ -467,7 +507,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
             .cookie(xsrf_cookie)
             .cookie(
                 Cookie::build(("logged_in", json))
-                    .domain(state.config.host.clone())
+                    .domain(cookie_domain(&state.config.host))
                     .path("/")
                     .secure(true)
                     .http_only(true)
@@ -1201,4 +1241,37 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(search_users);
     cfg.service(delete_profile);
     cfg.service(submit_email_for_login);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::cookie_domain;
+
+    /// RFC 6265 forbids a port in `Domain`. The shipped `template.json` has
+    /// `host: "localhost:5173"`, and browsers silently drop the whole session
+    /// cookie when the attribute carries one.
+    #[test]
+    fn cookie_domain_strips_the_port() {
+        assert_eq!(cookie_domain("localhost:5173"), "localhost");
+        assert_eq!(cookie_domain("localhost:3000"), "localhost");
+        assert_eq!(
+            cookie_domain("kunjika.example.com:8080"),
+            "kunjika.example.com"
+        );
+    }
+
+    #[test]
+    fn cookie_domain_keeps_a_bare_host() {
+        assert_eq!(cookie_domain("localhost"), "localhost");
+        assert_eq!(cookie_domain("kunjika.example.com"), "kunjika.example.com");
+    }
+
+    /// A misconfigured/empty `host` must not panic the request handler, and
+    /// surrounding whitespace must not leak into the attribute.
+    #[test]
+    fn cookie_domain_is_total() {
+        assert_eq!(cookie_domain(""), "");
+        assert_eq!(cookie_domain(" localhost "), "localhost");
+        assert_eq!(cookie_domain("localhost :5173"), "localhost");
+    }
 }

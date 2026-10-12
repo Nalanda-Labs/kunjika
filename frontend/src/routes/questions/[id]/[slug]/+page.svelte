@@ -27,6 +27,7 @@
 	let markup = '',
 		contentValue = '';
 	let xsrf_token = '';
+	let formError = '';
 
 	function show_editor(reply_to, username) {
 		reply_to_id = reply_to;
@@ -41,14 +42,15 @@
 
 	async function reply() {
 		if ($page.data.user) {
-			inProgress = true;
 			value = contentValue;
 			if (value.length < 20 || value.length > 100000) {
-				M.toast({
-					html: 'Body should not be less than 20 or more than 100000 characters.'
-				});
+				// Was `M.toast({ html: ... })`, but `M` is not defined or
+				// imported anywhere in the app, so this threw a ReferenceError.
+				formError = 'Body should not be less than 20 or more than 100000 characters.';
 				return;
 			}
+			inProgress = true;
+			formError = '';
 
 			if (browser) {
 				xsrf_token = getCookie('xsrf_token');
@@ -149,6 +151,9 @@
 				>
 			{/if}
 			<form on:submit|preventDefault={reply}>
+				{#if formError}
+					<div class="alert alert-danger" role="alert" id="replyError">{formError}</div>
+				{/if}
 				<div id="editor" style="display:none;margin-top:10px">
 					<span style="color:#4285F4">Replying to @{user_replied}</span>
 					<Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />

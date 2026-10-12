@@ -8,11 +8,6 @@ CREATE FUNCTION public.views_delete_old_rows() RETURNS trigger
   END;
 $$ LANGUAGE plpgsql;
 
-
-CREATE TRIGGER expire_views_delete_old_rows_trigger
-    AFTER INSERT ON public.views
-EXECUTE PROCEDURE public.views_delete_old_rows();
-
 CREATE FUNCTION public.tokens_delete_old_rows() RETURNS trigger
   AS $$
   BEGIN
@@ -20,11 +15,6 @@ CREATE FUNCTION public.tokens_delete_old_rows() RETURNS trigger
     RETURN NEW;
   END;
 $$ LANGUAGE plpgsql;
-
-CREATE TRIGGER expire_tokens_delete_old_rows_trigger
-    AFTER INSERT ON public.tokens
-EXECUTE PROCEDURE public.tokens_delete_old_rows();
-
 
 CREATE TABLE public.posts (
     id bigint NOT NULL,
@@ -44,7 +34,6 @@ CREATE TABLE public.posts (
     updated_by_id bigint,
     pinned boolean default false
 );
-ALTER TABLE public.posts OWNER TO shiv;
 --
 -- Name: answers_count; Type: VIEW; Schema: public; Owner: shiv
 --
@@ -58,7 +47,6 @@ WHERE (
         AND (posted_by_id = posted_by_id)
     )
 GROUP BY posted_by_id;
-ALTER VIEW public.answers_count OWNER TO shiv;
 --
 -- Name: bookmarks; Type: TABLE; Schema: public; Owner: shiv
 --
@@ -69,7 +57,6 @@ CREATE TABLE public.bookmarks (
     uid bigint NOT NULL,
     created_at timestamp with time zone DEFAULT now()
 );
-ALTER TABLE public.bookmarks OWNER TO shiv;
 --
 -- Name: bookmarks_count; Type: VIEW; Schema: public; Owner: shiv
 --
@@ -80,7 +67,6 @@ SELECT count(1) AS count,
 FROM public.bookmarks
 WHERE (uid = uid)
 GROUP BY uid;
-ALTER VIEW public.bookmarks_count OWNER TO shiv;
 --
 -- Name: post_tags; Type: TABLE; Schema: public; Owner: shiv
 --
@@ -92,7 +78,6 @@ CREATE TABLE public.post_tags (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
-ALTER TABLE public.post_tags OWNER TO shiv;
 --
 -- Name: tags; Type: TABLE; Schema: public; Owner: shiv
 --
@@ -106,7 +91,6 @@ CREATE TABLE public.tags (
     updated_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     last_updated_by_id bigint
 );
-ALTER TABLE public.tags OWNER TO shiv;
 --
 -- Name: daily_tags_by_popularity; Type: VIEW; Schema: public; Owner: shiv
 --
@@ -125,13 +109,11 @@ WHERE (
 GROUP BY post_tags.tag_id,
     t.name
 ORDER BY (count(post_tags.tag_id));
-ALTER VIEW public.daily_tags_by_popularity OWNER TO shiv;
 --
 -- Name: post_tags_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
 --
 
 CREATE SEQUENCE public.post_tags_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.post_tags_id_seq OWNER TO shiv;
 --
 -- Name: post_tags_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
 --
@@ -142,7 +124,6 @@ ALTER SEQUENCE public.post_tags_id_seq OWNED BY public.post_tags.id;
 --
 
 CREATE SEQUENCE public.posts_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.posts_id_seq OWNER TO shiv;
 --
 -- Name: posts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
 --
@@ -161,7 +142,6 @@ SELECT count(1) AS count
 FROM public.posts
 where op_id = 0
     and answer_count = 0;
-ALTER VIEW public.questions_count OWNER TO shiv;
 --
 -- Name: questions_count_by_user; Type: VIEW; Schema: public; Owner: shiv
 --
@@ -175,7 +155,6 @@ WHERE (
         AND (op_id = 0)
     )
 GROUP BY posted_by_id;
-ALTER VIEW public.questions_count_by_user OWNER TO shiv;
 --
 -- Name: tags_count; Type: VIEW; Schema: public; Owner: shiv
 --
@@ -183,13 +162,11 @@ ALTER VIEW public.questions_count_by_user OWNER TO shiv;
 CREATE VIEW public.tags_count AS
 SELECT count(1) AS count
 FROM public.tags;
-ALTER VIEW public.tags_count OWNER TO shiv;
 --
 -- Name: tags_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
 --
 
 CREATE SEQUENCE public.tags_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.tags_id_seq OWNER TO shiv;
 --
 -- Name: tags_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
 --
@@ -205,19 +182,16 @@ CREATE TABLE public.tokens (
     token character varying(256) NOT NULL,
     created_date timestamp with time zone DEFAULT now()
 );
-ALTER TABLE public.tokens OWNER TO shiv;
 
 CREATE VIEW active_tokens AS SELECT * FROM tokens WHERE created_date > NOW() + interval '15 minutes';
 --
 -- Name: tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
 --
 
-CREATE SEQUENCE public.tokens_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.tokens_id_seq OWNER TO shiv;
---
--- Name: tokens_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
---
-
+-- No CREATE SEQUENCE here: `public.tokens.id` is declared `bigserial` above,
+-- which already creates tokens_id_seq. The dump emitted an explicit
+-- CREATE SEQUENCE for it as well, so applying the file to an empty database
+-- failed with `relation "tokens_id_seq" already exists`.
 ALTER SEQUENCE public.tokens_id_seq OWNED BY public.tokens.id;
 --
 -- Name: users; Type: TABLE; Schema: public; Owner: shiv
@@ -246,13 +220,11 @@ CREATE TABLE public.users (
     is_moderator boolean default false
 );
 
-ALTER TABLE public.users OWNER TO shiv;
 --
 -- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
 --
 
 CREATE SEQUENCE public.users_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.users_id_seq OWNER TO shiv;
 --
 -- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
 --
@@ -270,13 +242,11 @@ CREATE TABLE public.views (
     id bigint NOT NULL
 );
 
-ALTER TABLE public.views OWNER TO shiv;
 --
 -- Name: views_id_seq; Type: SEQUENCE; Schema: public; Owner: shiv
 --
 
 CREATE SEQUENCE public.views_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER SEQUENCE public.views_id_seq OWNER TO shiv;
 --
 -- Name: views_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shiv
 --
@@ -292,7 +262,6 @@ CREATE TABLE public.votes (
     from_user_id bigint,
     vote bigint NOT NULL
 );
-ALTER TABLE public.votes OWNER TO shiv;
 --
 -- Name: weekly_tags_by_popularity; Type: VIEW; Schema: public; Owner: shiv
 --
@@ -311,7 +280,6 @@ WHERE (
 GROUP BY post_tags.tag_id,
     t.name
 ORDER BY (count(post_tags.tag_id));
-ALTER VIEW public.weekly_tags_by_popularity OWNER TO shiv;
 
 create view public.pinned_count as select count(1) from public.posts where pinned=true;
 
@@ -367,8 +335,21 @@ ADD CONSTRAINT posts_pkey PRIMARY KEY (id);
 -- Name: tags tags_name_key; Type: CONSTRAINT; Schema: public; Owner: shiv
 --
 
-ALTER TABLE ONLY public.tags
-ADD CONSTRAINT tags_name_key UNIQUE (name);
+-- The two UNIQUE constraints below cannot be created on YugabyteDB: `name` and
+-- `email` are `citext`, and YugabyteDB rejects an index on a
+-- `user_defined_type` column:
+--     ERROR: INDEX on column of type 'user_defined_type' not yet supported
+-- The dump therefore failed here on every database, and since YugabyteDB does
+-- not roll back DDL the rest of the file kept going against a half-built
+-- schema. Both invariants are restored by
+-- 20261001160000_widen_username_to_33.sql as unique indexes over lower(name) /
+-- lower(email), which YugabyteDB does accept, so the outcome is the same
+-- case-insensitive uniqueness the dump intended.
+--
+-- Kept commented rather than deleted, so the original intent stays visible and
+-- this file still applies cleanly on vanilla PostgreSQL, where these are legal.
+-- ALTER TABLE ONLY public.tags
+-- ADD CONSTRAINT tags_name_key UNIQUE (name);
 --
 -- Name: tags tags_pkey; Type: CONSTRAINT; Schema: public; Owner: shiv
 --
@@ -385,8 +366,12 @@ ADD CONSTRAINT tokens_pkey PRIMARY KEY (id);
 -- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: shiv
 --
 
-ALTER TABLE ONLY public.users
-ADD CONSTRAINT users_email_key UNIQUE (email);
+-- See the note on tags_name_key above: `users.email` is `citext`, so this
+-- UNIQUE constraint is equally uncreatable on YugabyteDB, and
+-- 20261001160000_widen_username_to_33.sql restores it as a unique index over
+-- lower(email).
+-- ALTER TABLE ONLY public.users
+-- ADD CONSTRAINT users_email_key UNIQUE (email);
 --
 -- Name: users users_name_key; Type: CONSTRAINT; Schema: public; Owner: shiv
 --
@@ -444,7 +429,10 @@ CREATE INDEX posts_updated_at_idx ON public.posts USING lsm (updated_at);
 -- Name: tags_name_idx; Type: INDEX; Schema: public; Owner: shiv
 --
 
-CREATE INDEX tags_name_idx ON public.tags USING lsm (name);
+-- Plain (non-unique) index on a `citext` column: same YugabyteDB limitation as
+-- the two UNIQUE constraints above. Nothing depends on it, so it is simply
+-- dropped rather than reworked.
+-- CREATE INDEX tags_name_idx ON public.tags USING lsm (name);
 --
 -- Name: tags_post_count_idx; Type: INDEX; Schema: public; Owner: shiv
 --
@@ -460,7 +448,8 @@ CREATE INDEX to_user_id_idx ON public.votes USING lsm (to_user_id);
 --
 
 CREATE INDEX tokens_token_idx ON public.tokens USING lsm (token);
-CREATE INDEX tokens_email_idx ON public.tokens USING lsm (email);
+-- Same citext limitation as tags_name_idx above; dropped.
+-- CREATE INDEX tokens_email_idx ON public.tokens USING lsm (email);
 --
 -- Name: topic_id_idx; Type: INDEX; Schema: public; Owner: shiv
 --
@@ -496,6 +485,14 @@ ADD CONSTRAINT posts_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES p
 ALTER TABLE ONLY public.tags
 ADD CONSTRAINT tags_last_updated_by_id_fkey FOREIGN KEY (last_updated_by_id) REFERENCES public.users(id);
 
+-- Triggers are attached after every table exists. The dump emitted two of them
+-- (expire_*_delete_old_rows_trigger) above the CREATE TABLE statements they
+-- attach to, which made this file unrunnable on an empty database: CREATE
+-- TRIGGER ... ON public.views failed with "relation public.views does not
+-- exist" because that table is not created until far below. The plpgsql
+-- functions themselves are defined at the top of the file; that is fine,
+-- because a function body is not resolved until it runs.
+
 CREATE TRIGGER trg_views_delete_old_rows
 BEFORE INSERT ON public.views
 FOR EACH ROW
@@ -505,6 +502,71 @@ CREATE TRIGGER trg_tokens_delete_old_rows
 BEFORE INSERT ON public.tokens
 FOR EACH ROW
 EXECUTE FUNCTION public.tokens_delete_old_rows();
+
+-- The two triggers the dump also carried, kept so the resulting schema matches
+-- the databases this migration was originally applied to: both tables ended up
+-- with an AFTER INSERT expiry trigger *and* the BEFORE INSERT one above.
+CREATE TRIGGER expire_views_delete_old_rows_trigger
+    AFTER INSERT ON public.views
+EXECUTE PROCEDURE public.views_delete_old_rows();
+
+CREATE TRIGGER expire_tokens_delete_old_rows_trigger
+    AFTER INSERT ON public.tokens
+EXECUTE PROCEDURE public.tokens_delete_old_rows();
+
+-- Ownership.
+--
+-- The dump this file came from was taken on a machine whose owning role was
+-- `shiv`, and it carried 21 `ALTER ... OWNER TO shiv` statements. Applying it
+-- anywhere that role does not exist failed 21 times with
+-- `ERROR: role "shiv" does not exist`; under ON_ERROR_STOP that aborted the
+-- migration, and because YugabyteDB does not roll back DDL it left a half-built
+-- schema behind.
+--
+-- Those statements are replaced by the block below, which reassigns ownership
+-- only when the role actually exists. So a fresh database ends up with objects
+-- owned by the connecting role - the same end state the live test database
+-- already has - while a machine that does have a `shiv` role still ends up with
+-- the ownership the dump described.
+--
+-- The object list is spelled out rather than looped over pg_class, so this
+-- cannot accidentally capture tables that belong to other tooling, such as the
+-- kunjika_migrations bookkeeping table created by run_migrations.sh.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'shiv') THEN
+        RAISE NOTICE
+            'role "shiv" does not exist; leaving these objects owned by the connecting role';
+        RETURN;
+    END IF;
+
+    EXECUTE 'ALTER TABLE public.posts OWNER TO shiv';
+    EXECUTE 'ALTER TABLE public.bookmarks OWNER TO shiv';
+    EXECUTE 'ALTER TABLE public.post_tags OWNER TO shiv';
+    EXECUTE 'ALTER TABLE public.tags OWNER TO shiv';
+    EXECUTE 'ALTER TABLE public.tokens OWNER TO shiv';
+    EXECUTE 'ALTER TABLE public.users OWNER TO shiv';
+    EXECUTE 'ALTER TABLE public.views OWNER TO shiv';
+    EXECUTE 'ALTER TABLE public.votes OWNER TO shiv';
+
+    EXECUTE 'ALTER VIEW public.answers_count OWNER TO shiv';
+    EXECUTE 'ALTER VIEW public.bookmarks_count OWNER TO shiv';
+    EXECUTE 'ALTER VIEW public.daily_tags_by_popularity OWNER TO shiv';
+    EXECUTE 'ALTER VIEW public.questions_count OWNER TO shiv';
+    EXECUTE 'ALTER VIEW public.questions_count_by_user OWNER TO shiv';
+    EXECUTE 'ALTER VIEW public.tags_count OWNER TO shiv';
+    EXECUTE 'ALTER VIEW public.weekly_tags_by_popularity OWNER TO shiv';
+
+    EXECUTE 'ALTER SEQUENCE public.post_tags_id_seq OWNER TO shiv';
+    EXECUTE 'ALTER SEQUENCE public.posts_id_seq OWNER TO shiv';
+    EXECUTE 'ALTER SEQUENCE public.tags_id_seq OWNER TO shiv';
+    EXECUTE 'ALTER SEQUENCE public.tokens_id_seq OWNER TO shiv';
+    EXECUTE 'ALTER SEQUENCE public.users_id_seq OWNER TO shiv';
+    EXECUTE 'ALTER SEQUENCE public.views_id_seq OWNER TO shiv';
+
+    RAISE NOTICE 'reassigned 21 objects to role "shiv"';
+END
+$$;
 
 --
 -- PostgreSQL database dump complete

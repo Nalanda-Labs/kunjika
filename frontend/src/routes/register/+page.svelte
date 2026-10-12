@@ -19,7 +19,7 @@
 	let errors = null;
 
 	async function check_username_availablity() {
-		if (username.length < 3) {
+		if (username.length < 3 || username.length > 33) {
 			return;
 		} else {
 			let response = await post('check-username-availability', {
@@ -42,7 +42,7 @@
 		}
 	}
 	async function submit() {
-		if (username.length < 3) {
+		if (username.length < 3 || username.length > 33) {
 			document.getElementById('username-helper').innerHTML =
 				'Username must be at least three characters!';
 			document.getElementById('username-helper').style.color = '#800';
@@ -101,6 +101,8 @@
 						on:keyup={check_username_availablity}
 						id="username"
 						placeholder="Username minimum three characters"
+						minlength="3"
+						maxlength="33"
 					/>
 				</div>
 				<p id="username-helper" />

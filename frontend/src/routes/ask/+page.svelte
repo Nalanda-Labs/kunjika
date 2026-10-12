@@ -11,22 +11,34 @@
 	import getCookie from '../../lib/cookie.js';
 	import '../../editor.css';
 	import onImageUpload from '../../lib/imageUpload';
+	import { firstDuplicateTag } from '../../lib/utils/tags.js';
 
 	let title = '';
 	let tagList = [];
 	let contentValue = '',
 		markup = '';
-	let showContentValueToast = false;
+	let formError = '';
 
 	async function onSubmit() {
 		if ($page.data.user) {
 			if (contentValue.length < 20 || contentValue.length > 100000) {
-				showContentValueToast = true;
-			}
-			if (tagList.length < 1) {
-				alert('At least one tag should be supplied.');
+				formError = 'Question length should be 20 to 1000000 Characters!';
 				return;
 			}
+			if (tagList.length < 1) {
+				formError = 'At least one tag should be supplied.';
+				return;
+			}
+			if (tagList.length > 5) {
+				formError = 'Too many tags.';
+				return;
+			}
+			const duplicate = firstDuplicateTag(tagList);
+			if (duplicate) {
+				formError = `Duplicate tag: ${duplicate}`;
+				return;
+			}
+			formError = '';
 
 			if (browser) {
 				let xsrf_token = getCookie('xsrf_token');
@@ -43,8 +55,12 @@
 					let id = j.data.id;
 					let slug = j.data.slug;
 					await goto(`/questions/${id}/${slug}`);
-				} else if (response.code === 400) {
-					M.toast({ html: j.message });
+				} else {
+					// Was `response.code === 400`, which is always undefined on a
+					// Response - so backend errors were silently swallowed. And
+					// `M.toast` is not defined anywhere in the app, so it threw
+					// a ReferenceError instead of showing anything.
+					formError = j.message || 'Something went wrong, try again!';
 				}
 			}
 		} else {
@@ -79,8 +95,8 @@
 
 <div class="row justify-content-center align-items-center" style="margin-top:20px">
 	<div class="col-12">
-		{#if showContentValueToast}
-			<Toast>Question length should be 20 to 1000000 Characters!</Toast>
+		{#if formError}
+			<div class="alert alert-danger" role="alert" id="askError">{formError}</div>
 		{/if}
 		<h4>Post your question for discussion</h4>
 		<hr />

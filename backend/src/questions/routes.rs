@@ -8,9 +8,7 @@ use crate::users::user::UserCookie;
 use crate::utils::slug::create_slug;
 
 use futures::{StreamExt, TryStreamExt};
-use lettre::{
-    AsyncTransport, Message
-};
+use lettre::{AsyncTransport, Message};
 use ntex::{
     http::HttpMessage,
     web::{self, get, post, HttpRequest, HttpResponse, Responder},
@@ -19,6 +17,25 @@ use ntex_multipart::Multipart;
 use serde_json::json;
 use time::format_description::well_known::Rfc3339;
 use uuid::Uuid;
+// `EditRequest` derives `Validate`; the derive macro is already in scope via
+// `#[macro_use] extern crate validator` in main.rs, but the trait itself has to
+// be imported for `er.validate()` to resolve.
+use validator::Validate;
+
+/// The first tag that repeats in `tags`, compared case-insensitively.
+///
+/// `tags.name` is `citext`, so "Rust" and "rust" name the SAME tag - a
+/// case-sensitive check would let `["rust", "Rust"]` through and it would then
+/// be rejected downstream as "All tags were not found".
+fn duplicate_tag(tags: &[String]) -> Option<String> {
+    let mut seen = std::collections::HashSet::new();
+    for t in tags {
+        if !seen.insert(t.trim().to_lowercase()) {
+            return Some(t.clone());
+        }
+    }
+    None
+}
 
 #[post("/create-question")]
 async fn insert_question(
@@ -35,6 +52,15 @@ async fn insert_question(
     if r.tag_list.len() > 5 {
         return HttpResponse::UnprocessableEntity()
             .json(&json!({"status": "fail", "message": "Too many tags."}));
+    }
+
+    // Reject repeated tags up front. Without this, a duplicate reached
+    // `insert_question`, whose `tag_ids.len() != tag_list.len()` guard fired
+    // and reported the misleading "All tags were not found" even though every
+    // tag existed.
+    if let Some(dup) = duplicate_tag(&r.tag_list) {
+        return HttpResponse::UnprocessableEntity()
+            .json(&json!({"status": "fail", "message": format!("Duplicate tag: {dup}")}));
     }
 
     let slug = create_slug(&r.title).await;
@@ -246,12 +272,25 @@ async fn answer(
         Ok(answer_res) => {
             let p = state
                 .get_ref()
-                .find_participants(answer.id.parse::<i64>().unwrap(), auth.user.id)
+                .find_participants(answer.id, auth.user.id)
                 .await;
 
             match p {
                 Ok(h1) => {
-                    let FindParticipants(h, slug) = h1; 
+                    let FindParticipants(h, slug) = h1;
+
+                    // Nothing to notify. Answering your OWN question is the
+                    // common case where `h` is empty (the only participant is
+                    // you). Building a lettre Message with neither To nor Bcc
+                    // made `.body(...)` fail with `MissingTo`, and the
+                    // `.unwrap()` panicked the worker and aborted the
+                    // connection without a status line. Skip the mail instead
+                    // of crashing - the answer itself is already committed.
+                    if h.is_empty() {
+                        debug!("no participants to notify for answer {}", answer_res);
+                        return HttpResponse::Ok().json(&json!({"data": answer_res.to_string()}));
+                    }
+
                     let from =
                         state.config.from_name.clone() + "<" + &state.config.from_email + ">";
                     let subject = "A new answer has been poted for a question you ineteracted with";
@@ -266,14 +305,44 @@ Team Kunjika",
                         state.config.host, answer.id, slug
                     );
 
-                    let mut builder = Message::builder()
-                        .from(from.parse().unwrap())
-                        .subject(subject);
+                    let from_addr: lettre::message::Mailbox = match from.parse() {
+                        Ok(a) => a,
+                        Err(e) => {
+                            error!("invalid from address {:?}: {:?}", from, e);
+                            return HttpResponse::InternalServerError().json(
+                            &json!({"status": "fail", "message": "Something went wrong, try again!"}),
+                        );
+                        }
+                    };
 
+                    let mut builder = Message::builder().from(from_addr).subject(subject);
+                    // A single malformed participant address must not take the
+                    // whole request down, so skip it instead of unwrapping.
+                    let mut recipients = 0usize;
                     for e in h {
-                        builder = builder.bcc(e.parse().unwrap());
+                        match e.parse::<lettre::message::Mailbox>() {
+                            Ok(addr) => {
+                                builder = builder.bcc(addr);
+                                recipients += 1;
+                            }
+                            Err(err) => info!("skipping unparsable participant {:?}: {:?}", e, err),
+                        }
                     }
-                    let email = builder.body(body).unwrap();
+
+                    if recipients == 0 {
+                        debug!("no usable participant addresses - skipping notification");
+                        return HttpResponse::Ok().json(&json!({"data": answer_res.to_string()}));
+                    }
+
+                    let email = match builder.body(body) {
+                        Ok(e) => e,
+                        Err(e) => {
+                            error!("could not build notification email: {:?}", e);
+                            return HttpResponse::InternalServerError().json(
+                            &json!({"status": "fail", "message": "Something went wrong, try again!"}),
+                        );
+                        }
+                    };
 
                     debug!("Sending email");
                     match &state.mailer.send(email).await {
@@ -289,7 +358,7 @@ Team Kunjika",
                         }
                     }
                 }
-                Err(e) => HttpResponse::InternalServerError().json(
+                Err(_e) => HttpResponse::InternalServerError().json(
                     &json!({"status": "fail", "message": "Could not send email to participants."}),
                 ),
             }
@@ -320,11 +389,48 @@ async fn get_edit_post(
 async fn update_post(
     params: ntex::web::types::Path<i64>,
     form: ntex::web::types::Json<EditRequest>,
-    _auth: AuthorizationService,
+    auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
     let pid = params.into_inner();
     let er = form.into_inner();
+
+    // Only the author may edit their own post (question or answer). This
+    // handler used to extract the session as `_auth` and never use it, so any
+    // logged-in user could rewrite anyone's title, body and tags.
+    match state.get_ref().post_owner(pid).await {
+        Ok(owner) if owner == auth.user.id => {}
+        Ok(_owner) => {
+            return HttpResponse::Forbidden()
+                .json(&json!({"status": "fail", "message": "You can only edit your own post."}))
+        }
+        Err(sqlx::Error::RowNotFound) => {
+            return HttpResponse::NotFound()
+                .json(&json!({"status": "fail", "message": "No such post."}))
+        }
+        Err(e) => {
+            error!("post_owner lookup failed for {}: {:?}", pid, e);
+            return HttpResponse::InternalServerError()
+                .json(&json!({"status": "fail", "message": "Something went wrong, try again!"}));
+        }
+    }
+
+    // `EditRequest` declares length limits but nothing ever called
+    // `validate()`, so a 1-character title and a 2-character body were accepted.
+    if let Err(e) = er.validate() {
+        return HttpResponse::BadRequest()
+            .json(&json!({"status": "fail", "message": e.to_string()}));
+    }
+
+    // Same rule as /create-question: a repeated tag is rejected rather than
+    // silently collapsed by `insert_question`/`update_post`.
+    if let Some(tags) = er.tag_list.as_ref() {
+        if let Some(dup) = duplicate_tag(tags) {
+            return HttpResponse::UnprocessableEntity()
+                .json(&json!({"status": "fail", "message": format!("Duplicate tag: {dup}")}));
+        }
+    }
+
     let title = match er.title {
         Some(t) => t,
         None => "".to_owned(),

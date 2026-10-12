@@ -1,6 +1,12 @@
 use crate::state::*;
 use crate::state::{redis::Client, KvPool, RedisConnectionManager};
-use lettre::{transport::smtp::authentication::Credentials, AsyncSmtpTransport, Tokio1Executor};
+use lettre::{
+    transport::smtp::{
+        authentication::Credentials,
+        client::{Certificate, Tls, TlsParameters},
+    },
+    AsyncSmtpTransport, Tokio1Executor,
+};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -8,10 +14,23 @@ use std::sync::Arc;
 pub struct Config {
     pub sql: String,
     pub redis: String,
+    /// Address:port the HTTP server binds to, e.g. `127.0.0.1:8000`.
+    /// Under compose this is overridden to `0.0.0.0:8000` so the port
+    /// mapping works; see `KUNJIKA_LISTEN` handling in `into_state`.
     pub listen: String,
     pub jwt_priv: String,
     pub mail_host: String,
     pub mail_port: u16,
+    /// Upgrade the SMTP session to TLS via STARTTLS before sending mail.
+    /// `false` keeps the old plaintext behaviour (e.g. a trusted local relay).
+    #[serde(default)]
+    pub mail_starttls: bool,
+    /// Optional PEM file with extra CA/root certificates to trust for the
+    /// STARTTLS handshake (e.g. a self-signed test cert). Relative paths
+    /// resolve against the config file's directory; empty = system trust
+    /// store only. Ignored when `mail_starttls` is false.
+    #[serde(default)]
+    pub mail_tls_ca: String,
     pub mail_username: String,
     pub mail_password: String,
     pub from_email: String,
@@ -44,7 +63,58 @@ impl Config {
 
         info!("confp: {}", file.display());
         let confstr = read_to_string(file).expect("confile read");
-        json5::from_str(&confstr).expect("confile deser")
+        let mut cfg: Self = json5::from_str(&confstr).expect("confile read");
+        // Compose/dev overrides: `podman-compose.yaml` sets these so the same
+        // image works against container hostnames without editing the file.
+        // Each is optional; unset means "keep the file value".
+        if let Ok(v) = std::env::var("KUNJIKA_SQL_URL") {
+            if !v.trim().is_empty() {
+                cfg.sql = v;
+            }
+        }
+        if let Ok(v) = std::env::var("KUNJIKA_REDIS_URL") {
+            if !v.trim().is_empty() {
+                cfg.redis = v;
+            }
+        }
+        if let Ok(v) = std::env::var("KUNJIKA_LISTEN") {
+            if !v.trim().is_empty() {
+                cfg.listen = v;
+            }
+        }
+        if let Ok(v) = std::env::var("KUNJIKA_MAIL_HOST") {
+            if !v.trim().is_empty() {
+                cfg.mail_host = v;
+            }
+        }
+        if let Ok(v) = std::env::var("KUNJIKA_MAIL_PORT") {
+            if let Ok(p) = v.trim().parse::<u16>() {
+                cfg.mail_port = p;
+            }
+        }
+        if let Ok(v) = std::env::var("KUNJIKA_HOST") {
+            if !v.trim().is_empty() {
+                cfg.host = v;
+            }
+        }
+        if let Ok(v) = std::env::var("KUNJIKA_BACKEND_URL") {
+            if !v.trim().is_empty() {
+                cfg.backend_url = v;
+            }
+        }
+        if let Ok(v) = std::env::var("KUNJIKA_UPLOAD_FOLDER") {
+            if !v.trim().is_empty() {
+                cfg.upload_folder = v;
+            }
+        }
+        // A relative `mail_tls_ca` is resolved against the config file's own
+        // directory so it doesn't depend on the process cwd.
+        if !cfg.mail_tls_ca.is_empty() && !PathBuf::from(&cfg.mail_tls_ca).is_absolute() {
+            if let Some(dir) = file.parent() {
+                cfg.mail_tls_ca = dir.join(&cfg.mail_tls_ca).to_string_lossy().into_owned();
+            }
+        }
+        cfg
     }
     pub async fn into_state(self) -> AppStateRaw {
         info!("config: {:?}", self);
@@ -63,16 +133,37 @@ impl Config {
             None => panic!("Could not connect to db!"),
         }
 
-        // TODO: This code is correct but I am lazy to configure TLS auth with postfix(which I use as mail server).
-        // Fix it by configuring postfiix properly. Till then the Postfix must run on the same node as the server
-        // so that unauthenticated email can be sent by system users.
-        // let _smtp_credentials =
-        //     Credentials::new(self.mail_username.clone(), self.mail_password.clone());
-        // let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&self.mail_host)
-        let mailer = AsyncSmtpTransport::<Tokio1Executor>::unencrypted_localhost();
-        // .unwrap()
-        // .credentials(smtp_credentials)
-        // .build();
+        // Mail transport. `mail_host`/`mail_port` may live on another
+        // host/container (e.g. `mailpit:1025` under compose). When
+        // `mail_starttls` is set, upgrade to TLS via STARTTLS (required, no
+        // plaintext fallback); otherwise keep the plaintext behaviour.
+        let mut mailer_builder = AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(
+            &self.mail_host,
+        )
+        .port(self.mail_port);
+        if self.mail_starttls {
+            // Optional extra CA/root certs (e.g. a self-signed test cert);
+            // without them only the system trust store is used.
+            let mut tls = TlsParameters::builder(self.mail_host.clone());
+            if !self.mail_tls_ca.is_empty() {
+                let pem = std::fs::read(&self.mail_tls_ca)
+                    .unwrap_or_else(|e| panic!("mail_tls_ca read {}: {:?}", self.mail_tls_ca, e));
+                let cert = Certificate::from_pem(&pem)
+                    .unwrap_or_else(|e| panic!("mail_tls_ca parse {}: {:?}", self.mail_tls_ca, e));
+                tls = tls.add_root_certificate(cert);
+            }
+            let tls = tls
+                .build()
+                .unwrap_or_else(|e| panic!("mail TLS parameters: {:?}", e));
+            mailer_builder = mailer_builder.tls(Tls::Required(tls));
+        }
+        if !self.mail_username.is_empty() {
+            mailer_builder = mailer_builder.credentials(Credentials::new(
+                self.mail_username.clone(),
+                self.mail_password.clone(),
+            ));
+        }
+        let mailer = mailer_builder.build();
         match mailer.test_connection().await {
             Ok(_t) => info!("Connection successful!"),
             Err(e) => panic!("Error connecting to mail server! {:?}", e),

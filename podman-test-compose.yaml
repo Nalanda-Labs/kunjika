@@ -1,0 +1,248 @@
+# Kunjika full-stack compose file (podman-compose / docker compose).
+# Single file: no Dockerfiles, no helper scripts. Every service uses a
+# public image; the backend/frontend are compiled from bind-mounted sources.
+#
+# Services:
+#   yugabytedb  YSQL (required: migrations use USING lsm + citext)
+#   redis       session / KV store
+#   mailpit     plaintext SMTP relay :2525 + web UI/API :8025 (control only)
+#   mailpit-tls STARTTLS-only SMTP :1026 + web UI/API :8026 -- the path
+#               the backend uses (backend/template.compose.json,
+#               mail_starttls: true, mail_tls_ca: test-harness certs)
+#   migrate     one-shot: waits for YSQL, creates `kunjika_test` if missing,
+#               then runs backend/migrations/run_migrations.py
+#   backend     Rust/ntex API compiled from ./backend, serves :8000
+#   frontend    SvelteKit node build from ./frontend, serves :3000 and
+#               shares the backend netns so SSR fetch(localhost:8000) works
+#
+# Usage:
+#   podman-compose -f podman-test-compose.yaml up --build      # foreground
+#   podman-compose -f podman-test-compose.yaml up --build -d   # detached
+#   podman-compose -f podman-test-compose.yaml down            # stop + remove
+#   podman-compose -f podman-test-compose.yaml down -v         # also drop DB data
+#
+# First boot is slow: YugabyteDB takes ~30-60s before YSQL answers, the
+# migrate step waits for it, and the backend image compiles the workspace.
+#
+# Host ports match TESTING.md sections 1/1b, so the host-side test suites
+# run unchanged against this stack:
+#   cd backend/test-harness
+#   KUNJIKA_TEST_SMTP_PORT=1026 KUNJIKA_TEST_MAILPIT_URL=http://127.0.0.1:8026 \
+#     cargo test -- --test-threads=1            # 32 tests
+#   cd frontend && npx playwright test -c playwright.e2e.config.ts  # 13
+#
+# URLs once up:
+#   frontend  http://localhost:3000
+#   backend   http://localhost:8000/api/v1/
+#   mailpit   http://localhost:8026  (STARTTLS SMTP relay on localhost:1026)
+
+name: kunjika
+
+services:
+  yugabytedb:
+    image: docker.io/yugabytedb/yugabyte:latest
+    # The image sets no CMD, so tini needs the full command spelled out.
+    command:
+      - bin/yugabyted
+      - start
+      - --daemon=false
+      - --background=false
+    ports:
+      - "5433:5433"
+      - "7000:7000"
+      - "9000:9000"
+    volumes:
+      - yb-data:/home/yugabyte/yb_data
+    healthcheck:
+      # yugabyted binds the container IP, not loopback -- 127.0.0.1 always
+      # gets "connection refused" and the health check never passes.
+      test: ["CMD-SHELL", "bin/ysqlsh -h $(hostname -i) -U yugabyte -d yugabyte -c 'select 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  redis:
+    image: docker.io/library/redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # Plaintext control instance (TESTING.md section 1): SMTP on the host's
+  # 2525 so nothing ever pretends port 25 is usable, API on 8025.
+  mailpit:
+    image: docker.io/axllent/mailpit:latest
+    command: ["--smtp", "0.0.0.0:1025", "--listen", "0.0.0.0:8025"]
+    ports:
+      - "2525:1025"
+      - "8025:8025"
+
+  # STARTTLS-only SMTP -- the path the backend actually uses. The cert must
+  # carry a SAN for the in-network hostname `mailpit-tls`; regenerate with:
+  #   openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
+  #     -keyout backend/test-harness/certs/mailpit-key.pem \
+  #     -out    backend/test-harness/certs/mailpit-cert.pem \
+  #     -subj "/CN=mailpit-tls" \
+  #     -addext "subjectAltName=IP:127.0.0.1,DNS:localhost,DNS:mailpit-tls"
+  mailpit-tls:
+    image: docker.io/axllent/mailpit:latest
+    command:
+      - --smtp
+      - 0.0.0.0:1025
+      - --listen
+      - 0.0.0.0:8025
+      - --smtp-tls-cert
+      - /tmp/smtp-cert.pem
+      - --smtp-tls-key
+      - /tmp/smtp-key.pem
+      - --smtp-require-starttls
+    ports:
+      - "1026:1025"
+      - "8026:8025"
+    volumes:
+      - ./backend/test-harness/certs/mailpit-cert.pem:/tmp/smtp-cert.pem:ro,Z
+      - ./backend/test-harness/certs/mailpit-key.pem:/tmp/smtp-key.pem:ro,Z
+
+  # One-shot gate: the compose equivalent of
+  # `cd backend/migrations && python3 run_migrations.py` (TESTING.md section 5).
+  migrate:
+    image: docker.io/library/python:3.12-alpine
+    depends_on:
+      yugabytedb:
+        condition: service_healthy
+    environment:
+      DB_URL: "postgres://yugabyte:yugabyte@yugabytedb:5433/kunjika_test"
+    volumes:
+      - ./backend/migrations:/migrations:ro,Z
+    # Wait loop + CREATE DATABASE are inline python (psycopg); the migrator
+    # script itself shells out to `psql -f` for the SQL files, so install
+    # postgresql-client in this container.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        apk add --no-cache postgresql-client >/dev/null
+        pip install --quiet "psycopg[binary]"
+        python3 - <<'PYEOF'
+        import os, time
+        import psycopg
+        url = os.environ["DB_URL"]
+        admin = url.rsplit("/", 1)[0] + "/yugabyte"
+        name = url.rsplit("/", 1)[1].split("?", 1)[0]
+        for _ in range(60):
+            try:
+                psycopg.connect(admin, connect_timeout=5).close()
+                break
+            except Exception:
+                time.sleep(5)
+        else:
+            raise SystemExit("YSQL never became ready")
+        conn = psycopg.connect(admin)
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (name,))
+            if cur.fetchone() is None:
+                cur.execute('CREATE DATABASE "%s"' % name.replace('"', '""'))
+                print(f"created database {name}")
+        conn.close()
+        PYEOF
+        export DATABASE_URL="$$DB_URL"
+        cd /migrations
+        python3 /migrations/run_migrations.py
+
+  backend:
+    image: docker.io/library/rust:1.99-slim-bookworm
+    depends_on:
+      # Wait for YSQL directly rather than the one-shot migrate service:
+      # `service_completed_successfully` on migrate makes every backend
+      # restart depend on a finished container, which podman-compose 1.0.6
+      # cannot resolve. The command below waits for the migrated schema
+      # instead, and migrations stay idempotent, so running twice is safe.
+      yugabytedb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mailpit-tls:
+        condition: service_started
+    working_dir: /app
+    ports:
+      - "8000:8000"
+      - "3000:3000"
+    environment:
+      KUNJIKA_ALLOW_ROOT: "1"
+      # sqlx compile-time macros read DATABASE_URL during `cargo build`.
+      DATABASE_URL: "postgres://yugabyte:yugabyte@yugabytedb:5433/kunjika_test"
+      KUNJIKA_SQL_URL: "postgres://yugabyte:yugabyte@yugabytedb:5433/kunjika_test"
+      KUNJIKA_REDIS_URL: "redis://redis:6379"
+      KUNJIKA_MAIL_HOST: "mailpit-tls"
+      KUNJIKA_MAIL_PORT: "1025"
+      KUNJIKA_LISTEN: "0.0.0.0:8000"
+      KUNJIKA_HOST: "localhost:3000"
+      KUNJIKA_BACKEND_URL: "http://localhost:8000/api/v1/"
+      KUNJIKA_UPLOAD_FOLDER: "/app/uploads"
+    volumes:
+      - ./backend:/app:rw,Z
+      - backend-uploads:/app/uploads
+      - backend-target:/app/target
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        apt-get update >/dev/null && apt-get install -y --no-install-recommends pkg-config libssl-dev postgresql-client >/dev/null
+        # sqlx needs the migrated schema at compile time; the `migrate`
+        # service owns migrations, so wait for them (they take seconds once
+        # YSQL is healthy; the compile below takes minutes anyway).
+        echo "waiting for migrated schema on $$DATABASE_URL ..."
+        ok=""
+        for i in $$(seq 1 120); do
+          if psql "$$DATABASE_URL" -tAc "SELECT 1 FROM users LIMIT 1" >/dev/null 2>&1; then ok=1; break; fi
+          sleep 5
+        done
+        if [ -z "$$ok" ]; then echo "schema never appeared; did the migrate service succeed?" >&2; exit 1; fi
+        cargo build --manifest-path /app/Cargo.toml
+        exec /app/target/debug/kunjika -c /app/template.compose.json -v 1
+
+  frontend:
+    image: docker.io/library/node:22-bookworm-slim
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    network_mode: "service:backend"
+    environment:
+      PORT: "3000"
+      HOST: "0.0.0.0"
+    volumes:
+      - ./frontend:/app:rw,Z
+    working_dir: /app
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        corepack enable 2>/dev/null || true
+        # Install against the bind-mounted tree (skipped when the host
+        # already ran npm i, since plain `podman run -v` shares node_modules).
+        if [ ! -d /app/node_modules ]; then pnpm install || npm install; fi
+        npm run build
+        # Serve from a container-local copy: the host bind-mounts ./frontend
+        # over /app, and a host-side `npm run build` (e.g. the Playwright e2e
+        # run) rewrites build/ underneath us. adapter-node keeps the old
+        # hashed manifest, then dies on the unhandled ReadStream ENOENT when
+        # a request hits a file the rebuild replaced.
+        rm -rf /tmp/frontend-build
+        cp -R build /tmp/frontend-build
+        cd /tmp/frontend-build
+        exec node ./index.js
+
+volumes:
+  yb-data:
+  redis-data:
+  backend-uploads:
+  backend-target:

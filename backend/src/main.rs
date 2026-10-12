@@ -40,9 +40,13 @@ const LISTEN: &'static str = "127.0.0.1:8000";
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
     // we do not allow the app to run as root simply because
-    // it is dangerous
-    if Uid::effective().is_root() {
+    // it is dangerous. Containers run as root by default, so allow an
+    // explicit opt-out for compose/dev via KUNJIKA_ALLOW_ROOT=1.
+    if Uid::effective().is_root()
+        && std::env::var("KUNJIKA_ALLOW_ROOT").unwrap_or_default() != "1"
+    {
         eprintln!("Error: Do not run     this program as root.");
+        eprintln!("Hint: set KUNJIKA_ALLOW_ROOT=1 to override inside a container.");
         std::process::exit(1);
     }
     // Config::show();
@@ -55,6 +59,16 @@ async fn main() -> std::io::Result<()> {
             .await
     })
     .await;
+
+    // Bind address comes from the config file's `listen` field so compose
+    // can set it to `0.0.0.0:8000` (the old hardcoded 127.0.0.1:8000 is not
+    // reachable from outside a container). Fall back to the previous default
+    // when the config leaves it empty.
+    let listen = if state.config.listen.trim().is_empty() {
+        LISTEN.to_string()
+    } else {
+        state.config.listen.clone()
+    };
 
     HttpServer::new(async || {
         App::new()
@@ -84,7 +98,7 @@ async fn main() -> std::io::Result<()> {
                 .configure(uploads::routes::init),))
     })
     .workers(num_cpus::get())   
-    .bind(LISTEN)?
+    .bind(&listen)?
     .run()
     .await
 }

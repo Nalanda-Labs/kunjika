@@ -80,6 +80,19 @@ pub struct QuestionsReq {
     pub direction: Option<String>,
 }
 
+/// Full-text search over questions.
+///
+/// `search` is fed to `plainto_tsquery('english', …)` so a plain phrase such as
+/// "rust borrow checker" is tokenised into an AND of its words. Only rows that
+/// are questions (`title IS NOT NULL AND title <> ''`) are matched, which is
+/// exactly the predicate backing the `posts_search_idx` GIN index created in
+/// `20261009120000_posts_search_idx.sql`.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SearchReq {
+    pub search: String,
+    pub questions_per_page: i64,
+}
+
 #[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct QR {
     pub id: String,

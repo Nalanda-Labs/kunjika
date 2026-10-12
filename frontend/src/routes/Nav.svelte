@@ -1,5 +1,23 @@
 <script>
     import { page } from '$app/stores';
+    import { goto } from '$app/navigation';
+
+    let search = '';
+
+    function submitSearch(event) {
+        // Prevent a full-page navigation so SvelteKit can handle the route.
+        event.preventDefault();
+        const q = search.trim();
+        if (q === '') {
+            return;
+        }
+        goto(`/search?q=${encodeURIComponent(q)}`);
+        // Collapse the navbar on mobile after searching.
+        const el = document.getElementById('navbarSupportedContent');
+        if (el) {
+            el.classList.remove('show');
+        }
+    }
 </script>
 
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
@@ -17,6 +35,22 @@
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <form
+                class="d-flex me-auto"
+                role="search"
+                method="GET"
+                action="/search"
+                on:submit={submitSearch}
+            >
+                <input
+                    class="form-control search-input"
+                    type="search"
+                    name="q"
+                    placeholder="Search questions"
+                    aria-label="Search questions"
+                    bind:value={search}
+                />
+            </form>
             <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                 {#if $page.data.user}
                     <li class="nav-item">
@@ -63,6 +97,10 @@
 
     .container {
         max-width: 900px !important;
+    }
+
+    .search-input {
+        max-width: 260px;
     }
 
     @media (max-width: 767.98px) {

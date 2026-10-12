@@ -37,6 +37,13 @@ fn duplicate_tag(tags: &[String]) -> Option<String> {
     None
 }
 
+/// Hard ceiling on the number of questions a single `/search-questions/`
+/// response may contain. Search results are relevance-ranked
+/// (`ts_rank_cd` desc), so clamping the requested page size to this keeps the
+/// most relevant matches (the "top 50") and bounds the payload regardless of
+/// what the client asks for.
+const SEARCH_RESULTS_LIMIT: i64 = 50;
+
 #[post("/create-question")]
 async fn insert_question(
     form: ntex::web::types::Json<QuestionRequest>,
@@ -737,6 +744,35 @@ async fn get_unanswered_questions_count(state: AppState) -> impl Responder {
     }
 }
 
+/// Full-text search over questions, backed by the `posts_search_idx` GIN index
+/// (see `20261009120000_posts_search_idx.sql`). `search` is tokenised with
+/// `plainto_tsquery('english', …)` and results are ranked with `ts_rank_cd`.
+#[post("/search-questions/")]
+async fn search_questions(
+    form: ntex::web::types::Json<SearchReq>,
+    state: AppState,
+) -> impl Responder {
+    let form = form.into_inner();
+
+    // Cap the response at the top `SEARCH_RESULTS_LIMIT` (50) most relevant
+    // questions, whatever the client requested. Clamping (rather than
+    // rejecting) keeps the client's requested page size working while bounding
+    // the payload; results stay ordered by relevance.
+    let limit = form.questions_per_page.clamp(1, SEARCH_RESULTS_LIMIT);
+
+    match state
+        .get_ref()
+        .search_questions(&form.search, limit)
+        .await
+    {
+        Ok(db_questions) => {
+            HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count}))
+        }
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": false, "message": e.to_string()})),
+    }
+}
+
 pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(insert_question);
     cfg.service(get_question);
@@ -757,4 +793,5 @@ pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(get_questions_count);
     cfg.service(get_unanswered_questions_count);
     cfg.service(get_questions_by_score);
+    cfg.service(search_questions);
 }

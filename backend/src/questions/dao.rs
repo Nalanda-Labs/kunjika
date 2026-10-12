@@ -38,6 +38,11 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         tag: &String,
         direction: &Option<String>,
     ) -> sqlx::Result<QuestionsResponse>;
+    async fn search_questions(
+        &self,
+        search: &String,
+        limit: i64,
+    ) -> sqlx::Result<QuestionsResponse>;
     async fn get_post(&self, pid: i64) -> sqlx::Result<PostResponse>;
     /// Owner of the post, used to authorise `/edit-post/{id}`.
     /// Returns `sqlx::Error::RowNotFound` when the post does not exist.
@@ -570,6 +575,87 @@ impl IQuestion for &AppStateRaw {
         let mut qrs = QuestionsResponse {
             questions: Vec::new(),
             count: c,
+        };
+
+        for q in questions {
+            let image_url = q.image_url;
+            let tags = match q.tags {
+                Some(t) => t.join(","),
+                None => "".to_owned(),
+            };
+            let tid = match q.tag_id {
+                Some(t) => t.iter().map(|&e| e.to_string() + ",").collect(),
+                None => "".to_owned(),
+            };
+            let slug = match q.slug {
+                Some(s) => s,
+                None => "".to_owned(),
+            };
+            let title = match q.title {
+                Some(t) => t,
+                None => "".to_owned(),
+            };
+            let qr = QR {
+                id: q.id.to_string(),
+                title,
+                visible: q.visible,
+                votes: q.votes,
+                views: q.views,
+                slug,
+                posted_by_id: q.posted_by_id.to_string(),
+                created_at: q.created_at,
+                updated_at: q.updated_at,
+                username: q.username,
+                image_url,
+                tags,
+                uid: q.uid.to_string(),
+                tid,
+                answers: q.answer_count,
+                uat: q.updated_at.unix_timestamp(),
+                cat: q.created_at.unix_timestamp(),
+                answer_accepted: q.answer_accepted,
+            };
+            qrs.questions.push(qr);
+        }
+        Ok(qrs)
+    }
+
+    async fn search_questions(
+        &self,
+        search: &String,
+        limit: i64,
+    ) -> sqlx::Result<QuestionsResponse> {
+        // The `@@ to_tsvector(...) @@ plainto_tsquery(...)` predicate and the
+        // `ts_rank_cd(...)` ordering mirror the exact expression indexed by
+        // `posts_search_idx` (see `20261009120000_posts_search_idx.sql`), so the
+        // planner uses the GIN index (`Index Scan using posts_search_idx`).
+        // The `title IS NOT NULL AND title <> ''` guard matches the index's
+        // partial predicate, keeping the search scoped to questions only.
+        let questions = sqlx::query_as!(
+            QR1,
+            r#"
+            select t.id, t.visible, t.title, t.created_at, t.posted_by_id, t.updated_at, t.votes,
+            t.views, t.slug, t.answer_accepted, users.image_url,
+            users.username as username, users.id as uid, array_agg(post_tags.tag_id) as tag_id,
+            array_agg(tags.name) as tags, t.answer_count from posts t left
+            join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
+            tags on post_tags.tag_id = tags.id where t.title is not null and t.title <> '' and
+            to_tsvector('english', coalesce(t.title, '') || ' ' || t.description) @@ plainto_tsquery('english', $1)
+            group by t.id, users.id order by
+            ts_rank_cd(to_tsvector('english', coalesce(t.title, '') || ' ' || t.description), plainto_tsquery('english', $1)) desc,
+            t.updated_at desc limit $2
+            "#,
+            search,
+            limit
+        )
+        .fetch_all(&self.sql)
+        .await?;
+
+        let count = questions.len() as i64;
+
+        let mut qrs = QuestionsResponse {
+            questions: Vec::new(),
+            count,
         };
 
         for q in questions {

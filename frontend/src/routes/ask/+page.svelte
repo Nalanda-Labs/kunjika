@@ -3,6 +3,7 @@
     import * as api from '$lib/api.js';
     import { page } from '$app/stores';
     import { browser } from '$app/environment';
+    import { onDestroy } from 'svelte';
     import Tags from 'svelte-tags-input';
     import '../highlight.css';
     import { redirect } from '@sveltejs/kit';
@@ -18,6 +19,76 @@
     let contentValue = '',
         markup = '';
     let formError = '';
+
+    // --- "Similar questions" live search -------------------------------
+    // While the user types the title we query the existing (GIN-index backed)
+    // `/search-questions/` endpoint and surface matching questions as links so
+    // they can find an already-asked question before posting a duplicate.
+    let similar = []; // matched questions
+    let similarOpen = false; // dropdown visibility
+    let similarLoading = false; // in-flight request
+    let similarRequestId = 0; // guards against out-of-order responses
+    let debounceTimer = null; // setTimeout handle for debouncing
+    const SIMILAR_MIN_LEN = 3; // only search from 3 chars
+    const SIMILAR_LIMIT = 10; // show a few links
+    const SIMILAR_DEBOUNCE_MS = 300; // typing debounce
+
+    async function searchSimilar() {
+        // Read the current value directly from the input so a rapid paste
+        // (which can fire `input` before Svelte flushes `bind:value`) is not
+        // searched with a stale string.
+        const el = document.getElementById('title');
+        const q = (el ? el.value : title || '').trim();
+
+        // Require a minimum length; otherwise hide the panel entirely.
+        if (!browser || q.length < SIMILAR_MIN_LEN) {
+            similar = [];
+            similarOpen = false;
+            return;
+        }
+
+        const requestId = ++similarRequestId;
+        similarLoading = true;
+        try {
+            const response = await api.post('search-questions/', {
+                search: q,
+                questions_per_page: SIMILAR_LIMIT
+            });
+            // Ignore a stale response if the user kept typing meanwhile.
+            if (requestId !== similarRequestId) return;
+
+            const j = JSON.parse(await response.text());
+            similar = (response.ok && j.data && j.data.questions) || [];
+            similarOpen = similar.length > 0;
+        } catch (e) {
+            if (requestId === similarRequestId) {
+                similar = [];
+                similarOpen = false;
+            }
+        } finally {
+            if (requestId === similarRequestId) {
+                similarLoading = false;
+            }
+        }
+    }
+
+    // Debounced wrapper attached to the title input's `input` event.
+    function onTitleInput() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(searchSimilar, SIMILAR_DEBOUNCE_MS);
+    }
+
+    // Hide the dropdown when focus leaves the panel (links + input), with a
+    // short delay so clicking a result registers first.
+    function closeSimilar() {
+        setTimeout(() => {
+            similarOpen = false;
+        }, 150);
+    }
+
+    onDestroy(() => {
+        clearTimeout(debounceTimer);
+    });
 
     async function onSubmit() {
         if ($page.data.user) {
@@ -112,7 +183,35 @@
                     minlength="6"
                     maxlength="256"
                     style="min-width:100%"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={similarOpen}
+                    aria-controls="similarQuestions"
+                    autocomplete="off"
+                    on:input={onTitleInput}
+                    on:blur={closeSimilar}
                 />
+                <div
+                    id="similarQuestions"
+                    role="listbox"
+                    class="list-group"
+                    hidden={!similarOpen}
+                >
+                    {#if similarLoading}
+                        <div class="list-group-item text-muted">Searching…</div>
+                    {:else}
+                        {#each similar as q}
+                            <a
+                                class="list-group-item list-group-item-action"
+                                role="option"
+                                aria-selected="false"
+                                href="/questions/{q.id}/{q.slug}"
+                            >
+                                {q.title}
+                            </a>
+                        {/each}
+                    {/if}
+                </div>
             </div>
             <Editor bind:markup bind:contentValue minlength={20} maxlength={100000} />
             <div style="margin:20px"></div>
@@ -180,3 +279,36 @@
         </div>
     </div>
 </div>
+
+<style>
+    /* Similar-questions dropdown: cyan links */
+    #similarQuestions {
+        max-height: 260px;
+        overflow-y: auto;
+        border: 1px solid rgba(66, 133, 244, 0.4);
+        border-radius: 0 0 0.375rem 0.375rem;
+        margin-top: -1px;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+
+    /* Bootstrap's `.list-group-item-action` sets its own link colour, so target
+       the anchors explicitly to use the app's standard link blue (`.anchor`). */
+    #similarQuestions a.list-group-item,
+    #similarQuestions a.list-group-item:link,
+    #similarQuestions a.list-group-item:visited {
+        color: #4285f4;
+        text-decoration: none;
+        background-color: transparent;
+        cursor: pointer;
+    }
+
+    #similarQuestions a.list-group-item:hover,
+    #similarQuestions a.list-group-item:focus {
+        color: #2f6ad9;
+        background-color: rgba(66, 133, 244, 0.12);
+    }
+
+    #similarQuestions a.list-group-item:active {
+        color: #1f4fae;
+    }
+</style>

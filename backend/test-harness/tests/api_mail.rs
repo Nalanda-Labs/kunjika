@@ -102,11 +102,16 @@ fn register_sends_confirmation_email_with_token_link() {
 
     assert!(!token.is_empty());
 
-    // ... and the mail actually arrived in Mailpit.
-    std::thread::sleep(std::time::Duration::from_secs(2));
-    let messages = mailpit_messages(&ctx);
-    let msg = mailpit_latest_for(&messages, &email)
-        .unwrap_or_else(|| panic!("no mailpit message for {email}; have {}", messages.len()));
+    // ... and the mail actually arrived in Mailpit. Poll rather than a fixed
+    // sleep: when the harness tests run in parallel, several `register` calls
+    // fire SMTP sends at once and the confirmation mail can land a moment after
+    // a 2s window, which made this test flaky.
+    let msg = (0..30)
+        .find_map(|_| {
+            let messages = mailpit_messages(&ctx);
+            mailpit_latest_for(&messages, &email)
+        })
+        .unwrap_or_else(|| panic!("no mailpit message for {email} after polling"));
     let id = msg.get("ID").and_then(|v| v.as_str()).unwrap_or("");
     let body = mailpit_body(&ctx, id);
 
@@ -179,15 +184,10 @@ fn submit_email_sends_otp_and_login_consumes_it() {
         &[&email],
     );
 
-    // Clear Mailpit so the OTP mail is unambiguous.
-    let _ = ctx
-        .client
-        .delete(format!(
-            "{}/api/v1/messages",
-            ctx.mailpit_url.trim_end_matches('/')
-        ))
-        .send();
-
+    // NOTE: do not DELETE /api/v1/messages here. The harness tests share one
+    // Mailpit inbox and run in parallel, so a global wipe destroys messages
+    // other tests are polling for. The OTP is read from YSQL below (unique per
+    // email), so we don't need a clean inbox to assert single-use semantics.
     let sub = ctx
         .client
         .post(ctx.url("/submit-email"))
@@ -208,10 +208,18 @@ fn submit_email_sends_otp_and_login_consumes_it() {
     );
     assert_eq!(otp.len(), 10, "login_code_length=10, got {otp:?}");
 
-    std::thread::sleep(std::time::Duration::from_secs(2));
-    let messages = mailpit_messages(&ctx);
-
-    assert!(!messages.is_empty(), "expected OTP mail in mailpit");
+    // Poll for THIS test's OTP mail (parallel tests share the inbox, so match
+    // the exact recipient rather than checking the whole mailbox).
+    let messages = (0..30)
+        .find_map(|_| {
+            let m = mailpit_messages(&ctx);
+            if mailpit_latest_for(&m, &email).is_some() {
+                Some(m)
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| panic!("expected OTP mail for {email} in mailpit after polling"));
 
     // OTP is single-use: first login 200, replay must fail.
     let good = ctx

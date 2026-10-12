@@ -1,3 +1,9 @@
+overrides:
+  # @sveltejs/kit 2.x pins cookie ^0.6.0, which is affected by GHSA-7q27-v28c-4w7p
+  # (out-of-bounds characters accepted in cookie name/path/domain). The fix
+  # is only reachable in kit 3.x (cookie ^2), so pin the patched 0.7 line
+  # until a kit major upgrade happens.
+  cookie: ^0.7.2
 minimumReleaseAgeExclude:
   - '@typescript-eslint/eslint-plugin@8.60.1'
   - '@typescript-eslint/parser@8.60.1'

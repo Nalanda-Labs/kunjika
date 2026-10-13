@@ -44,6 +44,73 @@ fn duplicate_tag(tags: &[String]) -> Option<String> {
 /// what the client asks for.
 const SEARCH_RESULTS_LIMIT: i64 = 50;
 
+/// True for moderators and superusers - the only roles allowed to list and
+/// review post reports.
+fn is_reviewer(auth: &AuthorizationService) -> bool {
+    auth.user.is_moderator.unwrap_or(false) || auth.user.is_superuser.unwrap_or(false)
+}
+
+/// File a report against a post (question or answer).
+///
+/// Rules: the post must exist, you cannot report your own post, you cannot
+/// have a second OPEN report on the same post, and you are limited to
+/// `REPORTS_PER_DAY_LIMIT` (5) reports per rolling 24 hours.
+#[post("/report-post/")]
+async fn report_post(
+    form: ntex::web::types::Json<ReportReq>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let form = form.into_inner();
+
+    let reason = form.reason.trim().to_lowercase();
+    if !REPORT_REASONS.contains(&reason.as_str()) {
+        return HttpResponse::BadRequest().json(&json!({
+            "status": "fail",
+            "message": format!("Invalid reason. Must be one of: {}", REPORT_REASONS.join(", ")),
+        }));
+    }
+    let details = form.details.unwrap_or_default();
+    let details = details.trim();
+    if details.len() > 2000 {
+        return HttpResponse::BadRequest().json(&json!({
+            "status": "fail",
+            "message": "Details must be at most 2000 characters.",
+        }));
+    }
+
+    match state
+        .get_ref()
+        .report_post(form.post_id, &reason, details, auth.user.id)
+        .await
+    {
+        Ok(ReportOutcome::Created) => HttpResponse::Ok().json(&json!({"success": true})),
+        Ok(ReportOutcome::PostNotFound) => HttpResponse::NotFound().json(&json!({
+            "status": "fail", "message": "Post not found.",
+        })),
+        Ok(ReportOutcome::OwnPost) => HttpResponse::BadRequest().json(&json!({
+            "status": "fail", "message": "You cannot report your own post.",
+        })),
+        Ok(ReportOutcome::AlreadyReported) => HttpResponse::Ok().json(&json!({
+            "success": false, "data": "You have already reported this post.",
+        })),
+        Ok(ReportOutcome::RateLimited) => HttpResponse::TooManyRequests().json(&json!({
+            "status": "fail",
+            "message": format!(
+                "Report limit reached: at most {} reports per day.",
+                REPORTS_PER_DAY_LIMIT
+            ),
+        })),
+        Ok(_) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": "Unexpected report outcome."})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
+    }
+}
+
+const REPORT_STATUSES: [&str; 4] = ["open", "reviewed", "dismissed", "actioned"];
+
+
 #[post("/create-question")]
 async fn insert_question(
     form: ntex::web::types::Json<QuestionRequest>,
@@ -773,6 +840,108 @@ async fn search_questions(
     }
 }
 
+/// Moderation queue: list reports by status, newest first. Moderators and
+/// superusers only.
+#[post("/reports/")]
+async fn get_reports(
+    form: ntex::web::types::Json<ReportsReq>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    if !is_reviewer(&auth) {
+        return HttpResponse::Forbidden().json(&json!({
+            "status": "fail", "message": "Only moderators can view reports.",
+        }));
+    }
+
+    let status = form.status.clone().unwrap_or_else(|| "open".to_string());
+    let status = status.trim().to_lowercase();
+    if !REPORT_STATUSES.contains(&status.as_str()) {
+        return HttpResponse::BadRequest().json(&json!({
+            "status": "fail",
+            "message": format!("Invalid status. Must be one of: {}", REPORT_STATUSES.join(", ")),
+        }));
+    }
+    let page = form.page.unwrap_or(0).max(0);
+    let per_page = form.per_page.unwrap_or(20).clamp(1, 100);
+    let offset = page * per_page;
+
+    match state.get_ref().get_reports(&status, per_page, offset).await {
+        Ok((reports, count)) => {
+            HttpResponse::Ok().json(&json!({"data": reports, "count": count}))
+        }
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
+    }
+}
+
+/// Number of OPEN reports, for the sidebar badge. Moderators and superusers
+/// only - the count would otherwise leak moderation activity.
+#[post("/reports/open-count/")]
+async fn get_open_reports_count(auth: AuthorizationService, state: AppState) -> impl Responder {
+    if !is_reviewer(&auth) {
+        return HttpResponse::Forbidden().json(&json!({
+            "status": "fail", "message": "Only moderators can view reports.",
+        }));
+    }
+
+    match state.get_ref().get_open_reports_count().await {
+        Ok(count) => HttpResponse::Ok().json(&json!({"count": count})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
+    }
+}
+
+/// Review a report: `reviewed`, `dismissed`, or `actioned`.
+/// `actioned` deletes the reported post. Moderators and superusers only.
+#[post("/reports/{id}/review/")]
+async fn review_report(
+    params: ntex::web::types::Path<String>,
+    form: ntex::web::types::Json<ReviewReportReq>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    if !is_reviewer(&auth) {
+        return HttpResponse::Forbidden().json(&json!({
+            "status": "fail", "message": "Only moderators can review reports.",
+        }));
+    }
+
+    let report_id = match params.parse::<i64>() {
+        Ok(id) => id,
+        Err(_) => {
+            return HttpResponse::BadRequest().json(&json!({
+                "status": "fail", "message": "Invalid report id.",
+            }))
+        }
+    };
+    let status = form.status.trim().to_lowercase();
+    if !["reviewed", "dismissed", "actioned"].contains(&status.as_str()) {
+        return HttpResponse::BadRequest().json(&json!({
+            "status": "fail",
+            "message": "Invalid status. Must be one of: reviewed, dismissed, actioned.",
+        }));
+    }
+
+    match state
+        .get_ref()
+        .review_report(report_id, &status, auth.user.id)
+        .await
+    {
+        Ok(ReportOutcome::Reviewed) => HttpResponse::Ok().json(&json!({"success": true})),
+        Ok(ReportOutcome::ReportNotFound) => HttpResponse::NotFound().json(&json!({
+            "status": "fail", "message": "Report not found.",
+        })),
+        Ok(ReportOutcome::AlreadyReviewed) => HttpResponse::Ok().json(&json!({
+            "success": false, "data": "This report has already been reviewed.",
+        })),
+        Ok(_) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": "Unexpected review outcome."})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
+    }
+}
+
 pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(insert_question);
     cfg.service(get_question);
@@ -794,4 +963,8 @@ pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(get_unanswered_questions_count);
     cfg.service(get_questions_by_score);
     cfg.service(search_questions);
+    cfg.service(report_post);
+    cfg.service(get_reports);
+    cfg.service(get_open_reports_count);
+    cfg.service(review_report);
 }

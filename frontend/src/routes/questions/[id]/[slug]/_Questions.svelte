@@ -8,6 +8,7 @@
     import Preview from '../../../../components/Editor/Preview.svelte';
     import getCookie from '../../../../lib/cookie';
     import { browser } from '$app/environment';
+    import ReportDialog from '../../../../lib/ReportDialog.svelte';
 
     export let id;
     export let slug;
@@ -32,6 +33,7 @@
     let errors = '';
     let asked_ts = '';
     let vote_by_current_user = 0;
+    let reportDialog;
     $: vote_class1 = 'anchor';
     $: vote_class2 = 'anchor';
 
@@ -386,6 +388,7 @@
                     >
                     <a
                         href="/report/{id}"
+                        on:click|preventDefault={() => reportDialog.open(id, title)}
                         class="anchor danger"
                         title="Report abusive or inappropriate content"
                         style="margin-right:5px"
@@ -519,6 +522,7 @@
                         >
                         <a
                             href="/report/{question_id}"
+                            on:click|preventDefault={() => reportDialog.open(question_id, '')}
                             class="anchor danger"
                             title="Report abusive or inappropriate content"
                             style="margin-right:5px"
@@ -559,6 +563,8 @@
         <div style="clear:both"></div>
     {/each}
 </div>
+
+<ReportDialog bind:this={reportDialog} />
 
 <style>
     [data-letters]:before {

@@ -71,6 +71,26 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
     ) -> sqlx::Result<(AnswersResponse1, i64)>;
     async fn bookmark(&self, qid: i64, aid: i64, uid: i64) -> sqlx::Result<bool>;
     async fn pin(&self, qid: i64, uid: i64) -> sqlx::Result<bool>;
+    async fn report_post(
+        &self,
+        post_id: i64,
+        reason: &str,
+        details: &str,
+        uid: i64,
+    ) -> sqlx::Result<ReportOutcome>;
+    async fn get_reports(
+        &self,
+        status: &str,
+        limit: i64,
+        offset: i64,
+    ) -> sqlx::Result<(ReportsResponse, i64)>;
+    async fn get_open_reports_count(&self) -> sqlx::Result<i64>;
+    async fn review_report(
+        &self,
+        report_id: i64,
+        status: &str,
+        reviewer_id: i64,
+    ) -> sqlx::Result<ReportOutcome>;
     async fn get_bookmarks_by_user(
         &self,
         uid: i64,
@@ -1617,6 +1637,262 @@ impl IQuestion for &AppStateRaw {
         };
 
         Ok(c)
+    }
+
+    async fn report_post(
+        &self,
+        post_id: i64,
+        reason: &str,
+        details: &str,
+        uid: i64,
+    ) -> sqlx::Result<ReportOutcome> {
+        let mut tx = self.sql.begin().await?;
+
+        // The post must exist.
+        let post = sqlx::query!(
+            r#"select id, posted_by_id from posts where id = $1"#,
+            post_id
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+        let post = match post {
+            Some(p) => p,
+            None => return Ok(ReportOutcome::PostNotFound),
+        };
+
+        // No self-reporting.
+        if post.posted_by_id == uid {
+            return Ok(ReportOutcome::OwnPost);
+        }
+
+        // One open report per user per post.
+        let existing = sqlx::query!(
+            r#"select id from post_reports
+            where post_id = $1 and reported_by_id = $2 and status = 'open'"#,
+            post_id,
+            uid
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+        if existing.is_some() {
+            return Ok(ReportOutcome::AlreadyReported);
+        }
+
+        // 5 reports per rolling 24 hours.
+        let day_count = sqlx::query!(
+            r#"select count(*) as count from post_reports
+            where reported_by_id = $1
+              and created_at > now() - interval '24 hours'"#,
+            uid
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        let used = day_count.count.unwrap_or(0);
+        if used >= REPORTS_PER_DAY_LIMIT {
+            return Ok(ReportOutcome::RateLimited);
+        }
+
+        sqlx::query!(
+            r#"insert into post_reports (post_id, reported_by_id, reason, details)
+            values ($1, $2, $3, $4)"#,
+            post_id,
+            uid,
+            reason,
+            details
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(ReportOutcome::Created)
+    }
+
+    async fn get_reports(
+        &self,
+        status: &str,
+        limit: i64,
+        offset: i64,
+    ) -> sqlx::Result<(ReportsResponse, i64)> {
+        let rows = sqlx::query_as!(
+            ReportRow,
+            r#"select r.id, r.post_id, r.reason, r.details, r.status, r.created_at,
+                r.reviewed_by_id, r.reviewed_at, r.reported_by_id,
+                ru.username as reporter,
+                p.posted_by_id as author_id,
+                au.username as author,
+                p.title as post_title,
+                left(p.description, 200) as post_excerpt,
+                (p.op_id = 0) as is_question,
+                (select count(*) from post_reports r2
+                 where r2.post_id = r.post_id and r2.status = 'open') as open_count
+            from post_reports r
+            join users ru on ru.id = r.reported_by_id
+            left join posts p on p.id = r.post_id
+            left join users au on au.id = p.posted_by_id
+            where r.status = $1
+            order by r.created_at desc
+            limit $2 offset $3"#,
+            status,
+            limit,
+            offset
+        )
+        .fetch_all(&self.sql)
+        .await?;
+
+        let total = sqlx::query!(
+            r#"select count(*) as count from post_reports where status = $1"#,
+            status
+        )
+        .fetch_one(&self.sql)
+        .await?;
+
+        let count = total.count.unwrap_or(0);
+        Ok((ReportsResponse { reports: rows, count }, count))
+    }
+
+    async fn get_open_reports_count(&self) -> sqlx::Result<i64> {
+        let row = sqlx::query!(
+            r#"select count(*) as count from post_reports where status = 'open'"#
+        )
+        .fetch_one(&self.sql)
+        .await?;
+        Ok(row.count.unwrap_or(0))
+    }
+
+    async fn review_report(
+        &self,
+        report_id: i64,
+        status: &str,
+        reviewer_id: i64,
+    ) -> sqlx::Result<ReportOutcome> {
+        let mut tx = self.sql.begin().await?;
+
+        let report = sqlx::query!(
+            r#"select id, post_id, status from post_reports where id = $1"#,
+            report_id
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+        let report = match report {
+            Some(r) => r,
+            None => return Ok(ReportOutcome::ReportNotFound),
+        };
+        if report.status != "open" {
+            return Ok(ReportOutcome::AlreadyReviewed);
+        }
+
+        if status == "actioned" {
+            // Delete the reported post. A deleted question takes its whole
+            // thread (answers) with it: answers to an abusive/spam question
+            // are not worth keeping, and detaching them would orphan rows
+            // that list queries expect to have titles. Capture tag names
+            // BEFORE deleting post_tags so counters can be decremented.
+            let target = sqlx::query!(
+                r#"select id, op_id from posts where id = $1"#,
+                report.post_id
+            )
+            .fetch_optional(&mut *tx)
+            .await?;
+            if let Some(t) = target {
+                // Collect every post id going away: the target plus, for a
+                // question, all of its answers.
+                let mut doomed: Vec<i64> = vec![t.id];
+                let mut tag_names: Vec<String> = Vec::new();
+                if t.op_id.unwrap_or(0) == 0 {
+                    let answers = sqlx::query!(
+                        r#"select id from posts where op_id = $1"#,
+                        t.id
+                    )
+                    .fetch_all(&mut *tx)
+                    .await?;
+                    for a in &answers {
+                        doomed.push(a.id);
+                    }
+                    let tags = sqlx::query!(
+                        r#"select tg.name from tags tg
+                        join post_tags pt on pt.tag_id = tg.id
+                        where pt.post_id = $1"#,
+                        t.id
+                    )
+                    .fetch_all(&mut *tx)
+                    .await?;
+                    for tag in &tags {
+                        tag_names.push(tag.name.clone());
+                    }
+                } else {
+                    // An answer: decrement its question's answer_count.
+                    sqlx::query!(
+                        r#"update posts set answer_count = greatest(answer_count - 1, 0)
+                        where id = $1"#,
+                        t.op_id.unwrap_or(0)
+                    )
+                    .execute(&mut *tx)
+                    .await?;
+                }
+                for pid in &doomed {
+                    sqlx::query!(r#"delete from post_tags where post_id = $1"#, pid)
+                        .execute(&mut *tx)
+                        .await?;
+                    sqlx::query!(
+                        r#"delete from bookmarks where qid = $1 or aid = $1"#,
+                        pid
+                    )
+                    .execute(&mut *tx)
+                    .await?;
+                    sqlx::query!(r#"delete from votes where topic_id = $1"#, pid)
+                        .execute(&mut *tx)
+                        .await?;
+                    sqlx::query!(r#"delete from posts where id = $1"#, pid)
+                        .execute(&mut *tx)
+                        .await?;
+                }
+                for name in &tag_names {
+                    sqlx::query!(
+                        r#"update tags set post_count = greatest(post_count - 1, 0)
+                        where name = $1"#,
+                        name
+                    )
+                    .execute(&mut *tx)
+                    .await?;
+                }
+                // Any other OPEN reports on the now-deleted post(s) are
+                // actioned as well - there is nothing left to review.
+                sqlx::query!(
+                    r#"update post_reports set status = 'actioned',
+                        reviewed_by_id = $1, reviewed_at = now()
+                    where post_id = any($2) and status = 'open'"#,
+                    reviewer_id,
+                    &doomed
+                )
+                .execute(&mut *tx)
+                .await?;
+            } else {
+                // Post already gone: just close this report as reviewed.
+                sqlx::query!(
+                    r#"update post_reports set status = 'reviewed',
+                        reviewed_by_id = $1, reviewed_at = now()
+                    where id = $2"#,
+                    reviewer_id,
+                    report_id
+                )
+                .execute(&mut *tx)
+                .await?;
+            }
+        } else {
+            sqlx::query!(
+                r#"update post_reports set status = $1,
+                    reviewed_by_id = $2, reviewed_at = now()
+                where id = $3"#,
+                status,
+                reviewer_id,
+                report_id
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(ReportOutcome::Reviewed)
     }
 
     async fn find_participants(&self, id: i64, user_id: i64) -> sqlx::Result<FindParticipants> {

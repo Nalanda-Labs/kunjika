@@ -126,7 +126,7 @@ impl<Err> FromRequest<Err> for AuthorizationService {
             User,
             "SELECT id, username, email, created_date, modified_date,
                 status, email_verified, image_url, designation, location, git,
-                website, is_superuser FROM users WHERE id = $1 and deleted=false",
+                website, is_superuser, is_moderator FROM users WHERE id = $1 and deleted=false",
             user_id.parse::<i64>().unwrap()
         )
         .fetch_optional(&state.sql)

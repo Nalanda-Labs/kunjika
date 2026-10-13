@@ -152,7 +152,7 @@ async fn submit_email_for_login(form: web::types::Json<Login>, state: AppState) 
         Ok(true) => {
             let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
             let to = form.email.clone();
-            let subject = "Sign in code for Roji";
+            let subject = "Sign in code for Kunjika";
 
             let login_otp = sign_in_code(&state.config.login_code_length);
             match state
@@ -404,7 +404,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
     let query_result = sqlx::query_as!(
         User,
         "SELECT id, username, email, created_date, image_url, email_verified,
-        modified_date, status, designation, git, location, website, is_superuser FROM users
+        modified_date, status, designation, git, location, website, is_superuser, is_moderator FROM users
         WHERE id = $1",
         user_id
     )

@@ -79,7 +79,7 @@
 </script>
 
 <svelte:head>
-    <title>Register ❤ Roji</title>
+    <title>Register ❤ Kunjika</title>
 </svelte:head>
 <div class="row justify-content-center align-items-center" style="height:80vh">
     <div class="col-4">

@@ -13,7 +13,9 @@ export function load({ locals }) {
             location: locals.user.location,
             designation: locals.user.designation,
             git: locals.user.git,
-            website: locals.user.website
+            website: locals.user.website,
+            is_superuser: locals.user.is_superuser,
+            is_moderator: locals.user.is_moderator
         },
         locals
     };

@@ -313,5 +313,79 @@ pub struct BookmarkIDs {
     pub aid: i64,
 }
 
+/// Reasons a post can be reported. Kept in sync with the
+/// `post_reports_reason_check` constraint in
+/// `20261014120000_post_reports.sql`.
+pub const REPORT_REASONS: [&str; 6] = [
+    "spam",
+    "abusive",
+    "off-topic",
+    "low-quality",
+    "duplicate",
+    "other",
+];
+
+/// Maximum reports one user may file per rolling 24 hours.
+pub const REPORTS_PER_DAY_LIMIT: i64 = 5;
+
+/// Outcome of a report or review operation. Returned instead of a bare bool
+/// so routes can map each case to the right status code and message.
+#[derive(PartialEq, Debug)]
+pub enum ReportOutcome {
+    Created,
+    PostNotFound,
+    OwnPost,
+    AlreadyReported,
+    RateLimited,
+    Reviewed,
+    ReportNotFound,
+    AlreadyReviewed,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ReportReq {
+    pub post_id: i64,
+    pub reason: String,
+    pub details: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ReportsReq {
+    pub status: Option<String>,
+    pub page: Option<i64>,
+    pub per_page: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ReviewReportReq {
+    pub status: String,
+}
+
+#[derive(FromRow, Serialize, Deserialize, Debug)]
+pub struct ReportRow {
+    pub id: i64,
+    pub post_id: i64,
+    pub reason: String,
+    pub details: String,
+    pub status: String,
+    pub created_at: SqlDateTime,
+    pub reviewed_by_id: Option<i64>,
+    pub reviewed_at: Option<SqlDateTime>,
+    pub reported_by_id: i64,
+    pub reporter: String,
+    pub author_id: Option<i64>,
+    pub author: Option<String>,
+    pub post_title: Option<String>,
+    pub post_excerpt: Option<String>,
+    pub is_question: Option<bool>,
+    pub open_count: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ReportsResponse {
+    pub reports: Vec<ReportRow>,
+    pub count: i64,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FindParticipants(pub HashSet<String>, pub String);

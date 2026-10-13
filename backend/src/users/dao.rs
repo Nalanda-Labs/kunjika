@@ -34,7 +34,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
 
         let mut builder = sqlx::QueryBuilder::new(
             "SELECT id, username, email, status, email_verified, image_url, created_date, modified_date,
-            designation, location, git, website, is_superuser
+            designation, location, git, website, is_superuser, is_moderator
             FROM users
             where ");
 

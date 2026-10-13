@@ -1,5 +1,32 @@
 <script>
     import { page } from '$app/stores';
+    import * as api from '$lib/api.js';
+    import { browser } from '$app/environment';
+
+    $: isReviewer =
+        $page.data.user &&
+        ($page.data.user.is_moderator || $page.data.user.is_superuser);
+
+    let openCount = 0;
+
+    async function loadOpenCount() {
+        if (!browser || !isReviewer) {
+            return;
+        }
+        try {
+            const response = await api.post('reports/open-count/', {});
+            if (response.status === 200) {
+                const j = JSON.parse(await response.text());
+                openCount = j.count || 0;
+            }
+        } catch (e) {
+            // badge is best-effort; the queue page is the source of truth
+        }
+    }
+
+    $: if (browser && isReviewer) {
+        loadOpenCount();
+    }
 </script>
 
 <aside class="sidebar">
@@ -35,6 +62,21 @@
                     <span>Users</span>
                 </a>
             </li>
+            {#if isReviewer}
+                <li>
+                    <a
+                        rel="prefetch"
+                        href="/reports"
+                        class:active={$page.url.pathname.startsWith('/reports')}
+                    >
+                        <i class="fa-solid fa-flag" aria-hidden="true"></i>
+                        <span>Reports</span>
+                        {#if openCount > 0}
+                            <span class="report-badge">{openCount}</span>
+                        {/if}
+                    </a>
+                </li>
+            {/if}
             <li class="sidebar-divider" role="separator"></li>
             <li>
                 <a
@@ -115,6 +157,17 @@
         height: 1px;
         background: #eceff1;
         margin: 0.6rem 0.5rem;
+    }
+
+    .report-badge {
+        margin-left: auto;
+        background: #d32f2f;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 999px;
+        padding: 0 0.5rem;
+        line-height: 1.4rem;
     }
 
     @media (max-width: 767.98px) {

@@ -100,7 +100,8 @@
     }
 
     .search-input {
-        max-width: 260px;
+        min-width: 600px;
+        border-radius: 25px;
     }
 
     @media (max-width: 767.98px) {

@@ -2,6 +2,7 @@
     import { page } from '$app/stores';
     import * as api from '$lib/api.js';
     import { browser } from '$app/environment';
+    import getCookie from '../lib/cookie.js';
 
     $: isReviewer =
         $page.data.user &&
@@ -14,7 +15,8 @@
             return;
         }
         try {
-            const response = await api.post('reports/open-count/', {});
+            const xsrf_token = getCookie('xsrf_token');
+            const response = await api.post('reports/open-count/', {}, xsrf_token);
             if (response.status === 200) {
                 const j = JSON.parse(await response.text());
                 openCount = j.count || 0;

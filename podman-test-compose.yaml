@@ -41,6 +41,11 @@ name: kunjika
 services:
   yugabytedb:
     image: docker.io/yugabytedb/yugabyte:latest
+    # Run as root: the image's lower layers carry /home/yugabyte owned by
+    # root, so the yugabyte user (uid 10001) cannot create /home/yugabyte/var
+    # or write openssl-config under rootless podman. yugabyted drops to the
+    # yugabyte user for its daemons itself; only the wrapper needs root.
+    user: root
     # The image sets no CMD, so tini needs the full command spelled out.
     command:
       - bin/yugabyted

@@ -25,7 +25,8 @@
         loading = true;
         error = '';
         try {
-            const response = await api.post('reports/', { status, per_page: 50 });
+            const xsrf_token = browser ? getCookie('xsrf_token') : '';
+            const response = await api.post('reports/', { status, per_page: 50 }, xsrf_token);
             const j = JSON.parse(await response.text());
             if (response.status === 200) {
                 reports = j.data.reports;

@@ -277,6 +277,11 @@ pub struct PostResponse {
     pub title: String,
     pub description: String,
     pub tags: Vec<String>,
+    pub created_at: SqlDateTime,
+    pub votes: i64,
+    pub posted_by_id: SqlID,
+    pub username: String,
+    pub image_url: Option<String>,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug, Validate)]
@@ -286,6 +291,12 @@ pub struct EditRequest {
     #[validate(length(min = 20, max = 100000))]
     pub description: String,
     pub tag_list: Option<Vec<String>>,
+}
+
+#[derive(FromRow, Serialize, Deserialize, Debug, Validate)]
+pub struct EditAnswer {
+    #[validate(length(min = 20, max = 100000))]
+    pub description: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

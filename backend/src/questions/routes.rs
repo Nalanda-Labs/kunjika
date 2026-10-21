@@ -454,8 +454,15 @@ async fn get_edit_post(
 
     match state.get_ref().get_post(pid).await {
         Ok(post) => HttpResponse::Ok().json(&json!({"data": post})),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": "fail", "message": e.to_string()})),
+        // A missing post is a 404, not a 500: the edit page checks for 404 and
+        // redirects to the not-found route.
+        Err(sqlx::Error::RowNotFound) => HttpResponse::NotFound()
+            .json(&json!({"status": "fail", "message": "No such post."})),
+        Err(e) => {
+            error!("get_post failed for {}: {:?}", pid, e);
+            HttpResponse::InternalServerError()
+                .json(&json!({"status": "fail", "message": "Something went wrong, try again!"}))
+        }
     }
 }
 
@@ -942,6 +949,55 @@ async fn review_report(
     }
 }
 
+
+#[post("/edit/answer/{id}")]
+async fn edit_answer(
+    params: ntex::web::types::Path<i64>,
+    form: ntex::web::types::Json<EditAnswer>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    let pid = params.into_inner();
+    let er = form.into_inner();
+
+    // Only the author may edit their own post (question or answer). This
+    // handler used to extract the session as `_auth` and never use it, so any
+    // logged-in user could rewrite anyone's title, body and tags.
+    match state.get_ref().post_owner(pid).await {
+        Ok(owner) if owner == auth.user.id => {}
+        Ok(_owner) => {
+            return HttpResponse::Forbidden()
+                .json(&json!({"status": "fail", "message": "You can only edit your own post."}))
+        }
+        Err(sqlx::Error::RowNotFound) => {
+            return HttpResponse::NotFound()
+                .json(&json!({"status": "fail", "message": "No such post."}))
+        }
+        Err(e) => {
+            error!("post_owner lookup failed for {}: {:?}", pid, e);
+            return HttpResponse::InternalServerError()
+                .json(&json!({"status": "fail", "message": "Something went wrong, try again!"}));
+        }
+    }
+
+    // `EditRequest` declares length limits but nothing ever called
+    // `validate()`, so a 1-character title and a 2-character body were accepted.
+    if let Err(e) = er.validate() {
+        return HttpResponse::BadRequest()
+            .json(&json!({"status": "fail", "message": e.to_string()}));
+    }
+
+    match state
+        .get_ref()
+        .edit_answer(pid, &er.description)
+        .await
+    {
+        Ok(()) => HttpResponse::Ok().json(&json!({"data": {}})),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(&json!({"status": "fail", "message": e.to_string()})),
+    }
+}
+
 pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(insert_question);
     cfg.service(get_question);
@@ -967,4 +1023,5 @@ pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(get_reports);
     cfg.service(get_open_reports_count);
     cfg.service(review_report);
+    cfg.service(edit_answer);
 }

@@ -101,6 +101,11 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
     async fn get_questions_count(&self) -> sqlx::Result<i64>;
     async fn get_unanswered_questions_count(&self) -> sqlx::Result<i64>;
     async fn find_participants(&self, id: i64, user_id: i64) -> sqlx::Result<FindParticipants>;
+    async fn edit_answer(
+        &self,
+        pid: i64,
+        description: &String,
+    ) -> sqlx::Result<()>;
 }
 
 #[cfg(any(feature = "postgres"))]
@@ -724,7 +729,7 @@ impl IQuestion for &AppStateRaw {
     async fn get_post(&self, pid: i64) -> sqlx::Result<PostResponse> {
         let r = sqlx::query!(
             r#"
-            select t.title, t.description from posts t where t.id=$1
+            select t.title, t.description, t.created_at, t.votes, t.posted_by_id from posts t where t.id=$1
             "#,
             pid
         )
@@ -754,10 +759,27 @@ impl IQuestion for &AppStateRaw {
             _tags1 = tags.iter().map(|e| e.to_string() + ",").collect();
         }
 
+        // The edit form needs the author (ownership check), and the header
+        // shows the author's name/avatar. `posted_by_id` may dangle when the
+        // account was deleted, so fall back to empty rather than 500-ing.
+        let author = sqlx::query!(
+            r#"
+            select username, image_url from users where id=$1
+            "#,
+            r.posted_by_id
+        )
+        .fetch_optional(&self.sql)
+        .await?;
+
         let pr = PostResponse {
             title,
             description: r.description,
             tags,
+            created_at: r.created_at,
+            votes: r.votes,
+            posted_by_id: r.posted_by_id,
+            username: author.as_ref().map(|a| a.username.clone()).unwrap_or_default(),
+            image_url: author.as_ref().map(|a| a.image_url.clone()),
         };
 
         Ok(pr)
@@ -1936,5 +1958,26 @@ impl IQuestion for &AppStateRaw {
         }
 
         Ok(FindParticipants(h, slug))
+    }
+
+    async fn edit_answer(
+        &self,
+        pid: i64,
+        description: &String,
+    ) -> sqlx::Result<()> {
+        let mut tx = self.sql.begin().await?;
+
+        sqlx::query!(
+            r#"
+            update posts set description=$1, updated_at=now() where id=$2
+            "#,
+            description,
+            pid
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(())
     }
 }

@@ -165,7 +165,7 @@ impl Config {
         }
         let mailer = mailer_builder.build();
         match mailer.test_connection().await {
-            Ok(_t) => info!("Connection successful!"),
+            Ok(_t) => info!("Test connection to mail server successful!"),
             Err(e) => panic!("Error connecting to mail server! {:?}", e),
         }
 

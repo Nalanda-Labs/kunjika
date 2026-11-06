@@ -1,0 +1,149 @@
+/** The user snapshot stored in the `logged_in` cookie. Display only: never used for authorization. */
+export interface SessionUser {
+    id: number;
+    username: string;
+    email: string;
+    image_url: string;
+    created_date?: string;
+    location?: string | null;
+    designation?: string | null;
+    git?: string | null;
+    website?: string | null;
+    is_superuser?: boolean | null;
+    is_moderator?: boolean | null;
+}
+
+export function isReviewer(user: SessionUser | null | undefined): boolean {
+    return !!user && !!(user.is_moderator || user.is_superuser);
+}
+
+/** A question row in the lists (`QR` in the backend). Tags arrive comma-joined. */
+export interface QuestionRow {
+    id: string;
+    title: string;
+    slug: string;
+    votes: number;
+    views: number;
+    answers: number;
+    answer_accepted: boolean;
+    username: string;
+    uid: string;
+    image_url: string;
+    tags: string;
+    tid: string;
+    cat: number;
+    uat: number;
+}
+
+export interface QuestionsPayload {
+    questions: QuestionRow[];
+    count: number;
+}
+
+/** A question as returned by `GET questions/{id}/{slug}`. */
+export interface QuestionDetail {
+    id: string;
+    title: string;
+    description: string;
+    votes: number;
+    views: number;
+    posted_by_id: string;
+    username: string;
+    image_url: string | null;
+    tags: string[];
+    vote_by_current_user: number;
+    cat: number;
+    uat: number;
+}
+
+/** An answer on a question page (`AR` in the backend). */
+export interface AnswerRow {
+    question_id: string;
+    description: string;
+    votes: number;
+    posted_by_id: string;
+    username: string;
+    image_url: string;
+    answer_accepted: boolean;
+    reply_to_id: number | null;
+    rusername: string | null;
+    rimage_url: string | null;
+    vote_by_current_user: number;
+    created_at: string;
+    cat: number;
+}
+
+/** An answer or bookmark in a user's profile tabs (`AR2` in the backend). */
+export interface UserPostRow {
+    question_id: number;
+    answer_id: number;
+    title: string;
+    slug: string;
+    votes: number;
+    answer_accepted: boolean;
+    tags: string;
+    tid: string;
+    uat: number;
+}
+
+/** A post as returned by `GET edit/question/{id}` (question or answer). */
+export interface EditablePost {
+    title: string;
+    description: string;
+    tags: string[];
+    created_at: string;
+    votes: number;
+    posted_by_id: number;
+    username: string;
+    image_url: string | null;
+}
+
+export interface Tag {
+    id: number;
+    name: string;
+    info: string | null;
+    post_count: number | null;
+    daily_count: number | null;
+    weekly_count: number | null;
+}
+
+export interface UserCard {
+    id: number;
+    username: string;
+    displayname: string;
+    name: string;
+    location: string;
+    image_url: string;
+    karma: number;
+}
+
+export interface Profile {
+    id: number;
+    username: string;
+    displayname: string;
+    designation: string;
+    location: string;
+    image_url: string;
+    git: string;
+    website: string;
+    karma: number;
+    created_date: string;
+    cat: number;
+}
+
+export interface Report {
+    id: number;
+    post_id: number;
+    reason: string;
+    details: string;
+    status: string;
+    created_at: string;
+    reported_by_id: number;
+    reporter: string;
+    author_id: number | null;
+    author: string | null;
+    post_title: string | null;
+    post_excerpt: string | null;
+    is_question: boolean | null;
+    open_count: number | null;
+}

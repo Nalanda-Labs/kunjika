@@ -60,15 +60,24 @@ fn pinning_is_for_moderators_and_limited_to_five_questions() {
     let user = login_capture(&ctx, "pinusr");
     let modr = moderator(&ctx, "pinmod");
 
-    // Start from a known state: nothing pinned. Restored at the end.
+    // Start from a known state: nothing pinned. The pins that existed before
+    // are restored when `_restore` drops, even if an assertion fails. This
+    // test's own questions (tagged `pintag`) are never treated as existing
+    // pins, so leftovers from an interrupted run are cleaned up, not kept.
     let previously: Vec<i64> = ctx
         .db()
-        .query("SELECT id FROM posts WHERE pinned = true", &[])
+        .query(
+            "SELECT id FROM posts WHERE pinned = true AND id NOT IN \
+             (SELECT pt.post_id FROM post_tags pt JOIN tags t ON t.id = pt.tag_id \
+              WHERE t.name = 'pintag')",
+            &[],
+        )
         .unwrap()
         .iter()
         .map(|r| r.get(0))
         .collect();
     ctx.exec0("UPDATE posts SET pinned = false WHERE pinned = true");
+    let _restore = RestorePins { ctx: &ctx, previously };
 
     let q = create_question(&user, &ctx, "pintag", "A question to pin to the top?");
 
@@ -122,11 +131,20 @@ fn pinning_is_for_moderators_and_limited_to_five_questions() {
         .map(|p| p["id"].as_str().unwrap().to_string())
         .collect();
     assert!(pinned_ids.contains(&ids[5].to_string()), "front page pinned list: {front}");
+}
 
-    // Restore.
-    ctx.exec0("UPDATE posts SET pinned = false WHERE pinned = true");
-    for id in previously {
-        ctx.exec("UPDATE posts SET pinned = true WHERE id = $1", &[&id]);
+/// Puts the pre-test pins back when dropped (including during a panic).
+struct RestorePins<'a> {
+    ctx: &'a TestCtx,
+    previously: Vec<i64>,
+}
+
+impl Drop for RestorePins<'_> {
+    fn drop(&mut self) {
+        self.ctx.exec0("UPDATE posts SET pinned = false WHERE pinned = true");
+        for id in &self.previously {
+            self.ctx.exec("UPDATE posts SET pinned = true WHERE id = $1", &[id]);
+        }
     }
 }
 

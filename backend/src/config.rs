@@ -117,7 +117,18 @@ impl Config {
         cfg
     }
     pub async fn into_state(self) -> AppStateRaw {
-        info!("config: {:?}", self);
+        // Never log the whole config: it holds the JWT private keys, the
+        // signing secret, the mail password and the DB/Redis credentials.
+        info!(
+            "config: listen={} host={} backend_url={} mail={}:{} starttls={} upload_folder={}",
+            self.listen,
+            self.host,
+            self.backend_url,
+            self.mail_host,
+            self.mail_port,
+            self.mail_starttls,
+            self.upload_folder
+        );
         let pool_options = PoolOptions::new();
 
         let sql = pool_options.connect(&self.sql).await.expect("sql open");

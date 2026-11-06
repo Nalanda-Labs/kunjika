@@ -31,9 +31,11 @@
     <h5>Tag Info</h5>
     <hr />
     <Preview markup={info} />
-    <button
-        class="btn btn-primary"
-        on:click={() => goto(`/tags/edit/${encodeURIComponent($page.params.tag)}`)}
-        >Update Info</button
-    >
+    {#if $page.data.user && ($page.data.user.is_moderator || $page.data.user.is_superuser)}
+        <button
+            class="btn btn-primary"
+            on:click={() => goto(`/tags/edit/${encodeURIComponent($page.params.tag)}`)}
+            >Update Info</button
+        >
+    {/if}
 </div>

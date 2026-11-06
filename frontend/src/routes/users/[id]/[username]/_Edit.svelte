@@ -27,7 +27,7 @@
             if (response.status === 200 && j.success) {
                 alert('Profile data saved');
             } else {
-                alert(j.messages);
+                alert(j.message || 'Something went wrong, try again!');
             }
         } else {
             throw redirect(307, '/questions');

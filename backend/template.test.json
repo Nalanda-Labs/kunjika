@@ -4,7 +4,7 @@
   "listen": "127.0.0.1:8000",
   "jwt_priv": "test",
   "mail_host": "127.0.0.1",
-  "mail_port": 1026,
+  "mail_port": 1025,
   "mail_starttls": true,
   "mail_tls_ca": "test-harness/certs/mailpit-cert.pem",
   "mail_username": "",

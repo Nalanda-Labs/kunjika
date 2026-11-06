@@ -1,19 +1,4 @@
-// PBKDF2 < bcrypt < scrypt < argon2
-// use argon2::{self, Config};
-// use ring::digest;
 use time;
-
-// pub fn passhash(pass: &str) -> String {
-//     let config = Config::default();
-//     const CREDENTIAL_LEN: usize = digest::SHA512_OUTPUT_LEN;
-//     let salt = [0u8; CREDENTIAL_LEN];
-//     let hash = argon2::hash_encoded(pass.as_bytes(), &salt, &config).unwrap();
-//     // info!("{}{}: {}", name, pass, hash);
-//     hash
-// }
-// fn passhash_verify(pass: &str, hash: &str) -> bool {
-//     argon2::verify_encoded(&hash, pass.as_bytes()).unwrap()
-// }
 
 #[cfg(any(feature = "postgres"))]
 type SqlID = i64;
@@ -166,12 +151,19 @@ pub struct ProfileResponse {
     pub cat: i64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// Limits mirror registration for `username` and the column widths for the
+/// rest, so bad input is a 400 instead of a database error.
+#[derive(Serialize, Deserialize, Debug, Validate)]
 pub struct ProfileReq {
+    #[validate(length(min = 3, max = 33), custom(function = "validate_username"))]
     pub username: String,
+    #[validate(length(max = 64))]
     pub designation: String,
+    #[validate(length(max = 128))]
     pub location: String,
+    #[validate(length(max = 256))]
     pub git: String,
+    #[validate(length(max = 256))]
     pub website: String,
 }
 
@@ -193,20 +185,6 @@ pub struct SummaryResponse {
     pub answers_count: Option<i64>,
     pub questions_count: Option<i64>,
     pub karma: i64,
-}
-
-#[derive(Serialize, Deserialize, Debug, Validate)]
-pub struct ForgotPasswordReq {
-    #[validate(email)]
-    pub email: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Validate)]
-pub struct ResetPasswordReq {
-    #[validate(length(min = 16, max = 64))]
-    pub password: String,
-    #[validate(length(min = 16, max = 64))]
-    pub confirm_password: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Validate)]

@@ -207,25 +207,21 @@
             let xsrf_token = getCookie('xsrf_token');
             const response = await api.post(`accept-answer/${id}/${elementID}/`, {}, xsrf_token);
 
+            const text = await response.text();
+            const j = text ? JSON.parse(text) : {};
+
             if (response.status === 200) {
+                // The API says whether the clicked answer is now accepted (it
+                // toggles); every other answer is no longer accepted.
                 for (var i = 0; i < questions.length; i++) {
-                    let answerElement = document.getElementById(`a-${elementID}`);
-                    if (questions[i].question_id == elementID) {
-                        if (questions[i].answer_accepted == false) {
-                            questions[i].answer_accepted = true;
-                            answerElement.classList.add('answer');
-                        } else {
-                            questions[i].answer_accepted = false;
-                            answerElement.classList.remove('answer');
-                        }
-                    } else {
-                        questions[i].answer_accepted = false;
-                        answerElement.classList.remove('answer');
-                    }
+                    const accepted = questions[i].question_id == elementID && j.accepted !== false;
+                    questions[i].answer_accepted = accepted;
+                    const el = document.getElementById(`a-${questions[i].question_id}`);
+                    if (el) el.classList.toggle('answer', accepted);
                 }
                 questions = questions;
             } else {
-                alert(response.message);
+                alert(j.message || 'Something went wrong, try again!');
             }
         }
     }
@@ -252,16 +248,11 @@
         if (browser) {
             let xsrf_token = getCookie('xsrf_token');
             const response = await api.post(`bookmark/${qid}`, {}, xsrf_token);
+            const text = await response.text();
+            const j = text ? JSON.parse(text) : {};
 
-            if (response.status === 200) {
-                alert('The post has been pinned/unpinned.');
-            } else {
-                const r = JSON.parse(await response.text());
-                alert(
-                    r.message +
-                        '. Please send this message to support if this is not already pinned.'
-                );
-            }
+            // The server says what happened (pinned, unpinned, or why not).
+            alert(j.message || 'Something went wrong, try again!');
         }
     }
 
@@ -370,15 +361,17 @@
             <TagList {taglist} />
             {#if $page.data.user}
                 <div style="float:right">
-                    <a
-                        href="/questions/pin/{id}"
-                        class="anchor"
-                        title="Pin this post"
-                        style="margin-right:5px;display:inline"
-                        on:click|preventDefault={() => pin(id)}
-                        ><span class="material-icons" style="vertical-align:bottom">push_pin</span
-                        >Pin</a
-                    >
+                    {#if $page.data.user.is_moderator || $page.data.user.is_superuser}
+                        <a
+                            href="/questions/pin/{id}"
+                            class="anchor"
+                            title="Pin this post"
+                            style="margin-right:5px;display:inline"
+                            on:click|preventDefault={() => pin(id)}
+                            ><span class="material-icons" style="vertical-align:bottom">push_pin</span
+                            >Pin</a
+                        >
+                    {/if}
                     <a
                         href="/questions/edit/{id}"
                         class="anchor"

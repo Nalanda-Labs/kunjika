@@ -35,8 +35,9 @@ async fn vote(
             }
         }
         Err(e) => {
-            debug!("{:?}", e.to_string());
-            HttpResponse::InternalServerError().json(&json!({"data": e.to_string()}))
+            error!("vote failed: {:?}", e);
+            HttpResponse::InternalServerError()
+                .json(&json!({"data": crate::utils::request::GENERIC_ERROR}))
         }
     }
 }

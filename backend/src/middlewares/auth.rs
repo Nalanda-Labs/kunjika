@@ -1,6 +1,5 @@
 use core::fmt;
 use mobc_redis::redis::AsyncCommands;
-use nonblock_logger::info;
 use ntex::http::HttpMessage;
 use ntex::web::{DefaultError, FromRequest, HttpRequest};
 use serde::{Serialize};
@@ -25,6 +24,13 @@ impl fmt::Display for ErrorResponse {
 pub struct AuthorizationService {
     pub user: User,
     pub xsrf_token: String,
+}
+
+impl AuthorizationService {
+    /// True for moderators and superusers.
+    pub fn is_moderator(&self) -> bool {
+        self.user.is_moderator.unwrap_or(false) || self.user.is_superuser.unwrap_or(false)
+    }
 }
 
 impl<Err> FromRequest<Err> for AuthorizationService {
@@ -55,7 +61,6 @@ impl<Err> FromRequest<Err> for AuthorizationService {
         let mut access_token = match req.cookie("access_token") {
             Some(c) => c.to_string(),
             None => {
-                info!("semi step 2");
                 return Err(ntex::web::error::ErrorBadRequest(ErrorResponse {
                     status: "fail".to_string(),
                     message: format!("Wrong XSRF token."),
@@ -73,7 +78,6 @@ impl<Err> FromRequest<Err> for AuthorizationService {
             }
         };
 
-        info!("{:?}", access_token);
         let access_token_details = match token::verify_jwt_token(
             state.config.access_token_public_key.to_owned(),
             &access_token,
@@ -87,7 +91,6 @@ impl<Err> FromRequest<Err> for AuthorizationService {
             }
         };
 
-        info!("step 3");
         let access_token_uuid =
             uuid::Uuid::parse_str(&access_token_details.token_uuid.to_string()).unwrap();
 
@@ -98,7 +101,6 @@ impl<Err> FromRequest<Err> for AuthorizationService {
             }));
         }
 
-        info!("step 4");
         // let user_id_redis_result = async move {
         let mut redis_client = match state.kv.get().await {
             Ok(redis_client) => redis_client,
@@ -116,9 +118,19 @@ impl<Err> FromRequest<Err> for AuthorizationService {
         {
             Ok(value) => value,
             Err(e) => {
+                debug!("session lookup failed: {:?}", e);
                 return Err(ntex::web::error::ErrorUnauthorized(ErrorResponse {
                     status: "fail".to_string(),
-                    message: format!("Token is invalid or session has expired: {:?}", e),
+                    message: "Token is invalid or session has expired.".to_string(),
+                }));
+            }
+        };
+        let user_id = match user_id.parse::<i64>() {
+            Ok(id) => id,
+            Err(_) => {
+                return Err(ntex::web::error::ErrorUnauthorized(ErrorResponse {
+                    status: "fail".to_string(),
+                    message: "Token is invalid or session has expired.".to_string(),
                 }));
             }
         };
@@ -127,7 +139,7 @@ impl<Err> FromRequest<Err> for AuthorizationService {
             "SELECT id, username, email, created_date, modified_date,
                 status, email_verified, image_url, designation, location, git,
                 website, is_superuser, is_moderator FROM users WHERE id = $1 and deleted=false",
-            user_id.parse::<i64>().unwrap()
+            user_id
         )
         .fetch_optional(&state.sql)
         .await;
@@ -145,9 +157,10 @@ impl<Err> FromRequest<Err> for AuthorizationService {
                 Err(ntex::web::error::ErrorUnauthorized(json_error))
             }
             Err(e) => {
+                error!("auth: user lookup failed: {:?}", e);
                 let json_error = ErrorResponse {
                     status: "error".to_string(),
-                    message: format!("Faled to check user existence: {:?}", e),
+                    message: "Something went wrong, try again!".to_string(),
                 };
                 Err(ntex::web::error::ErrorInternalServerError(json_error))
             }

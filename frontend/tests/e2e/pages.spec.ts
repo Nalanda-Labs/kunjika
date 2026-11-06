@@ -19,7 +19,8 @@ test('questions page loads from the live backend', async ({ page }) => {
     await page.goto('/questions');
     await expect(page.getByRole('heading', { name: /questions/i }).first()).toBeVisible();
     // The list is fetched client-side, so the backend must actually answer.
-    expect(responses.length).toBeGreaterThan(0);
+    // The list is fetched client-side after the page renders, so wait for it.
+    await expect.poll(() => responses.length).toBeGreaterThan(0);
     expect(responses.every((s) => s < 500)).toBe(true);
 });
 
@@ -32,7 +33,8 @@ test('tags page loads', async ({ page }) => {
 
     await page.goto('/tags');
     await expect(page.getByRole('heading', { name: /tags/i }).first()).toBeVisible();
-    expect(responses.length).toBeGreaterThan(0);
+    // The list is fetched client-side after the page renders, so wait for it.
+    await expect.poll(() => responses.length).toBeGreaterThan(0);
     expect(responses.every((s) => s < 500)).toBe(true);
 });
 
@@ -46,6 +48,7 @@ test('users page loads', async ({ page }) => {
     await page.goto('/users');
     await expect(page.getByRole('heading', { name: /users/i }).first()).toBeVisible();
 
-    expect(responses.length).toBeGreaterThan(0);
+    // The list is fetched client-side after the page renders, so wait for it.
+    await expect.poll(() => responses.length).toBeGreaterThan(0);
     expect(responses.every((s) => s < 500)).toBe(true);
 });

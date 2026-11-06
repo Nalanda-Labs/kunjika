@@ -1,22 +1,15 @@
-use std::{fs, io::Write};
-
 use super::dao::IQuestion;
 use super::question::*;
 use crate::middlewares::auth::AuthorizationService;
-use crate::state::AppState;
-use crate::users::user::UserCookie;
+use crate::state::{AppState, AppStateRaw};
+use crate::uploads::save::save_upload;
+use crate::utils::request::{db_error, optional_user_id, parse_cursor, parse_id};
 use crate::utils::slug::create_slug;
 
-use futures::{StreamExt, TryStreamExt};
 use lettre::{AsyncTransport, Message};
-use ntex::{
-    http::HttpMessage,
-    web::{self, get, post, HttpRequest, HttpResponse, Responder},
-};
+use ntex::web::{get, post, HttpRequest, HttpResponse, Responder};
 use ntex_multipart::Multipart;
 use serde_json::json;
-use time::format_description::well_known::Rfc3339;
-use uuid::Uuid;
 // `EditRequest` derives `Validate`; the derive macro is already in scope via
 // `#[macro_use] extern crate validator` in main.rs, but the trait itself has to
 // be imported for `er.validate()` to resolve.
@@ -47,7 +40,7 @@ const SEARCH_RESULTS_LIMIT: i64 = 50;
 /// True for moderators and superusers - the only roles allowed to list and
 /// review post reports.
 fn is_reviewer(auth: &AuthorizationService) -> bool {
-    auth.user.is_moderator.unwrap_or(false) || auth.user.is_superuser.unwrap_or(false)
+    auth.is_moderator()
 }
 
 /// File a report against a post (question or answer).
@@ -103,8 +96,7 @@ async fn report_post(
         })),
         Ok(_) => HttpResponse::InternalServerError()
             .json(&json!({"status": "fail", "message": "Unexpected report outcome."})),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": "fail", "message": e.to_string()})),
+        Err(e) => db_error(&e, json!("fail")),
     }
 }
 
@@ -137,6 +129,14 @@ async fn insert_question(
             .json(&json!({"status": "fail", "message": format!("Duplicate tag: {dup}")}));
     }
 
+    // `QuestionRequest` declares title and body lengths but nothing called
+    // `validate()`, so a 2-character title was accepted. Checked after the
+    // tag rules so their 422 responses are unchanged.
+    if let Err(e) = r.validate() {
+        return HttpResponse::BadRequest()
+            .json(&json!({"status": "fail", "message": e.to_string()}));
+    }
+
     let slug = create_slug(&r.title).await;
 
     let q = DbQuestion {
@@ -163,8 +163,7 @@ async fn insert_question(
         }
         Err(e) => {
             error!("insert question error: {:?}", e);
-            HttpResponse::InternalServerError()
-                .json(&json!({"status": "fail", "message": e.to_string()}))
+            db_error(&e, json!("fail"))
         }
     }
 }
@@ -187,29 +186,16 @@ async fn get_question(
         ipaddr = parts[0];
     }
 
-    let logged_in = match req.cookie("logged_in") {
-        Some(s) => s.to_string(),
-        None => "".to_owned(),
+    let uid = optional_user_id(&req, state.get_ref()).await;
+
+    let qid = match parse_id(&params.0) {
+        Ok(id) => id,
+        Err(r) => return r,
     };
-
-    debug!("{:?}", logged_in);
-    let cookie_str: Vec<&str> = logged_in.split("=").collect();
-    let u: UserCookie;
-    let mut uid = 0;
-
-    if cookie_str.len() != 2 {
-        // the user is not logged in
-    } else {
-        u = serde_json::from_str(cookie_str[1]).unwrap();
-        uid = u.user.id;
-    }
-
-    let qid: i64 = (params.0).parse().unwrap();
     debug!("Question id is {}", qid);
     match state.get_ref().get_question(qid, uid, ipaddr).await {
         Ok(db_question) => HttpResponse::Ok().json(&json!({"data": db_question})),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": "fail", "message": e.to_string()})),
+        Err(e) => db_error(&e, json!("fail")),
     }
 }
 
@@ -219,15 +205,10 @@ async fn get_questions(
     state: AppState,
 ) -> impl Responder {
     let form = form.into_inner();
-    let uat;
-
-    debug!("{:?}", &form.uat);
-    if form.uat == "" {
-        uat = time::OffsetDateTime::now_utc();
-        debug!("{:?}", uat);
-    } else {
-        uat = time::OffsetDateTime::parse(&form.uat, &Rfc3339).unwrap();
-    }
+    let uat = match parse_cursor(&form.uat) {
+        Ok(t) => t,
+        Err(r) => return r,
+    };
 
     if form.questions_per_page > state.config.questions_per_page as i64 {
         return HttpResponse::BadRequest().json(
@@ -242,8 +223,7 @@ async fn get_questions(
     {
         Ok((questions, pinned)) => HttpResponse::Ok()
             .json(&json!({"data": questions, "pinned": pinned, "count": questions.count})),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": false, "message": e.to_string()})),
+        Err(e) => db_error(&e, json!(false)),
     }
 }
 
@@ -255,15 +235,10 @@ async fn get_questions_by_tag(
 ) -> impl Responder {
     let tag = params.into_inner();
     let form = form.into_inner();
-    let uat;
-
-    debug!("{:?}", &form.uat);
-    if form.uat == "" {
-        uat = time::OffsetDateTime::now_utc();
-        debug!("{:?}", uat);
-    } else {
-        uat = time::OffsetDateTime::parse(&form.uat, &Rfc3339).unwrap();
-    }
+    let uat = match parse_cursor(&form.uat) {
+        Ok(t) => t,
+        Err(r) => return r,
+    };
 
     if form.questions_per_page > state.config.questions_per_page as i64 {
         return HttpResponse::BadRequest().json(
@@ -279,8 +254,7 @@ async fn get_questions_by_tag(
         Ok(db_questions) => {
             HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count}))
         }
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": false, "message": e.to_string()})),
+        Err(e) => db_error(&e, json!(false)),
     }
 }
 
@@ -292,40 +266,84 @@ async fn get_answers(
     req: HttpRequest,
     state: AppState,
 ) -> impl Responder {
-    let logged_in = match req.cookie("logged_in") {
-        Some(s) => s.to_string(),
-        None => "".to_owned(),
-    };
-
-    debug!("{:?}", logged_in);
-    let cookie_str: Vec<&str> = logged_in.split("=").collect();
-    let u: UserCookie;
-    let mut uid = 0;
-
-    if cookie_str.len() != 2 {
-        // the user is not logged in
-    } else {
-        u = serde_json::from_str(cookie_str[1]).unwrap();
-        uid = u.user.id;
-    }
+    let uid = optional_user_id(&req, state.get_ref()).await;
 
     let created_at = cat.into_inner();
-    let time;
-    debug!("{:?}", &created_at.cat);
-    if created_at.cat == "" {
-        time = time::OffsetDateTime::now_utc();
-        debug!("{:?}", time);
-    } else {
-        time = time::OffsetDateTime::parse(&created_at.cat, &Rfc3339).unwrap();
-    }
+    let time = match parse_cursor(&created_at.cat) {
+        Ok(t) => t,
+        Err(r) => return r,
+    };
 
     let qid = params.into_inner();
     debug!("{:?}, {:?}, {:?}", &qid, &time, q.limit);
 
     match state.get_ref().get_answers(qid, &time, q.limit, uid).await {
         Ok(db_answers) => HttpResponse::Ok().json(&json!({"data": db_answers})),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": "fail", "message": e.to_string()})),
+        Err(e) => db_error(&e, json!("fail")),
+    }
+}
+
+/// Email everyone who took part in question `qid` (except `author`) that a
+/// new answer was posted. Runs in the background after the answer is
+/// committed: a mail problem is logged, never reported as a failed answer
+/// (which made users retry and post duplicates).
+async fn notify_participants(state: AppStateRaw, qid: i64, author: i64) {
+    let FindParticipants(participants, slug) =
+        match (&state).find_participants(qid, author).await {
+            Ok(p) => p,
+            Err(e) => {
+                error!("answer notification: participants for {}: {:?}", qid, e);
+                return;
+            }
+        };
+    if participants.is_empty() {
+        return;
+    }
+
+    let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
+    let from_addr: lettre::message::Mailbox = match from.parse() {
+        Ok(a) => a,
+        Err(e) => {
+            error!("answer notification: invalid from address {:?}: {:?}", from, e);
+            return;
+        }
+    };
+
+    let body = format!(
+        "Hi,
+
+A new answer has been posted for the question you interacted with.
+You can read it at https://{}/questions/{}/{}
+Thanks,
+Team Kunjika",
+        state.config.host, qid, slug
+    );
+
+    let mut builder = Message::builder()
+        .from(from_addr)
+        .subject("A new answer has been posted for a question you interacted with");
+    // A single malformed participant address must not stop the others.
+    let mut recipients = 0usize;
+    for e in participants {
+        match e.parse::<lettre::message::Mailbox>() {
+            Ok(addr) => {
+                builder = builder.bcc(addr);
+                recipients += 1;
+            }
+            Err(err) => info!("skipping unparsable participant {:?}: {:?}", e, err),
+        }
+    }
+    if recipients == 0 {
+        return;
+    }
+
+    match builder.body(body) {
+        Ok(email) => {
+            if let Err(e) = state.mailer.send(email).await {
+                error!("answer notification: send failed: {:?}", e);
+            }
+        }
+        Err(e) => error!("answer notification: build failed: {:?}", e),
     }
 }
 
@@ -337,108 +355,23 @@ async fn answer(
 ) -> impl Responder {
     let answer = params.into_inner();
 
-    debug!(
-        "answer request is {:?}, {:?}, {:?}",
-        &answer.id, &answer.value, &answer.reply_to
-    );
+    // `AnswerReq` declares a 20..=100000 length but nothing called
+    // `validate()`, so a one-character answer was accepted.
+    if let Err(e) = answer.validate() {
+        return HttpResponse::BadRequest()
+            .json(&json!({"status": "fail", "message": e.to_string()}));
+    }
 
     match state.get_ref().insert_answer(&answer, &auth.user.id).await {
         Ok(answer_res) => {
-            let p = state
-                .get_ref()
-                .find_participants(answer.id, auth.user.id)
-                .await;
-
-            match p {
-                Ok(h1) => {
-                    let FindParticipants(h, slug) = h1;
-
-                    // Nothing to notify. Answering your OWN question is the
-                    // common case where `h` is empty (the only participant is
-                    // you). Building a lettre Message with neither To nor Bcc
-                    // made `.body(...)` fail with `MissingTo`, and the
-                    // `.unwrap()` panicked the worker and aborted the
-                    // connection without a status line. Skip the mail instead
-                    // of crashing - the answer itself is already committed.
-                    if h.is_empty() {
-                        debug!("no participants to notify for answer {}", answer_res);
-                        return HttpResponse::Ok().json(&json!({"data": answer_res.to_string()}));
-                    }
-
-                    let from =
-                        state.config.from_name.clone() + "<" + &state.config.from_email + ">";
-                    let subject = "A new answer has been poted for a question you ineteracted with";
-
-                    let body = format!(
-                        "Hi,
-
-A new answer has been posted for the question you interacted with.
-You can read it at https://{}/questions/{}/{}
-Thanks,
-Team Kunjika",
-                        state.config.host, answer.id, slug
-                    );
-
-                    let from_addr: lettre::message::Mailbox = match from.parse() {
-                        Ok(a) => a,
-                        Err(e) => {
-                            error!("invalid from address {:?}: {:?}", from, e);
-                            return HttpResponse::InternalServerError().json(
-                            &json!({"status": "fail", "message": "Something went wrong, try again!"}),
-                        );
-                        }
-                    };
-
-                    let mut builder = Message::builder().from(from_addr).subject(subject);
-                    // A single malformed participant address must not take the
-                    // whole request down, so skip it instead of unwrapping.
-                    let mut recipients = 0usize;
-                    for e in h {
-                        match e.parse::<lettre::message::Mailbox>() {
-                            Ok(addr) => {
-                                builder = builder.bcc(addr);
-                                recipients += 1;
-                            }
-                            Err(err) => info!("skipping unparsable participant {:?}: {:?}", e, err),
-                        }
-                    }
-
-                    if recipients == 0 {
-                        debug!("no usable participant addresses - skipping notification");
-                        return HttpResponse::Ok().json(&json!({"data": answer_res.to_string()}));
-                    }
-
-                    let email = match builder.body(body) {
-                        Ok(e) => e,
-                        Err(e) => {
-                            error!("could not build notification email: {:?}", e);
-                            return HttpResponse::InternalServerError().json(
-                            &json!({"status": "fail", "message": "Something went wrong, try again!"}),
-                        );
-                        }
-                    };
-
-                    debug!("Sending email");
-                    match &state.mailer.send(email).await {
-                        Ok(r) => {
-                            debug!("{:?}", r);
-                            HttpResponse::Ok().json(&json!({"data": answer_res.to_string()}))
-                        }
-                        Err(e) => {
-                            info!("{:?}", e);
-                            HttpResponse::InternalServerError().json(
-                            &json!({"status": "fail", "message": "Something went wrong, try again!"}),
-                        )
-                        }
-                    }
-                }
-                Err(_e) => HttpResponse::InternalServerError().json(
-                    &json!({"status": "fail", "message": "Could not send email to participants."}),
-                ),
-            }
+            ntex::rt::spawn(notify_participants(
+                state.get_ref().clone(),
+                answer.id,
+                auth.user.id,
+            ));
+            HttpResponse::Ok().json(&json!({"data": answer_res.to_string()}))
         }
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": "fail", "message": e.to_string()})),
+        Err(e) => db_error(&e, json!("fail")),
     }
 }
 
@@ -524,57 +457,21 @@ async fn update_post(
         .await
     {
         Ok((post, slug)) => HttpResponse::Ok().json(&json!({"data": { "id": post, "slug": slug}})),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": "fail", "message": e.to_string()})),
+        Err(e) => db_error(&e, json!("fail")),
     }
 }
 
 #[post("/image-upload")]
-async fn image_upload(mut payload: Multipart, state: AppState) -> impl Responder {
-    // This will panic in case of error, which is a good thing because it means it is broken.
-    // It must not panic in general for the app to be usable.
-    // we do not check for image size. This should be set at web server level
-    // by limiting client max body size.
-    let current_date = time::OffsetDateTime::now_utc();
-    let year = current_date.year();
-    let month = current_date.month();
-    let day = current_date.day();
-    // relative path from root
-    let path = format!("{}/{}/{}/{}", state.config.upload_folder, year, month, day);
-    fs::create_dir_all(&path).unwrap();
-    let filename = Uuid::new_v4().to_string();
-    let filepath = format!("{}/{}", &path, filename);
-
-    // iterate over multipart stream
-    while let Ok(Some(mut field)) = payload.try_next().await {
-        let mut len = 0;
-        let filepath1 = format!("{}/{}", &path, filename);
-        let mut f = web::block(|| std::fs::File::create(filepath1))
-            .await
-            .unwrap();
-        // Field in turn is stream of *Bytes* object
-        while let Some(chunk) = field.next().await {
-            let filepath2 = format!("{}/{}", &path, filename);
-            let data = chunk.unwrap();
-            len += data.len();
-            // file size is more than 2 MB so delete the file and return response
-            if len > state.config.image_max_size {
-                web::block(|| std::fs::remove_file(filepath2))
-                    .await
-                    .unwrap();
-
-                return HttpResponse::BadRequest().json(&json!({"success": false}));
-            }
-            // filesystem operations are blocking, we have to use threadpool
-            f = web::block(move || f.write_all(&data).map(|_| f))
-                .await
-                .unwrap();
-        }
+async fn image_upload(
+    payload: Multipart,
+    _auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    // Uploading requires a session; the extractor rejects anonymous requests.
+    match save_upload(payload, state.get_ref()).await {
+        Ok(url) => HttpResponse::Ok().json(&json!({"success": true, "url": url})),
+        Err(r) => r,
     }
-
-    let url = state.config.backend_url.clone() + &filepath;
-
-    return HttpResponse::Ok().json(&json!({"success": true, "url": url}));
 }
 
 #[post("accept-answer/{qid}/{aid}/")]
@@ -586,9 +483,19 @@ async fn accept_answer(
     let (qid, aid) = params.into_inner();
 
     match state.get_ref().accept_answer(qid, aid, &auth.user.id).await {
-        Ok(_t) => HttpResponse::Ok().json(&json!({"success": true})),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": "fail", "message": e.to_string()})),
+        Ok(AcceptOutcome::Accepted) => {
+            HttpResponse::Ok().json(&json!({"success": true, "accepted": true}))
+        }
+        Ok(AcceptOutcome::Unaccepted) => {
+            HttpResponse::Ok().json(&json!({"success": true, "accepted": false}))
+        }
+        Ok(AcceptOutcome::NotOwner) => HttpResponse::Forbidden().json(&json!({
+            "status": "fail", "message": "Only the question's author can accept an answer.",
+        })),
+        Ok(AcceptOutcome::NotFound) => HttpResponse::NotFound().json(&json!({
+            "status": "fail", "message": "No such answer on this question.",
+        })),
+        Err(e) => db_error(&e, json!("fail")),
     }
 }
 
@@ -601,15 +508,10 @@ async fn get_questions_by_user(
     let uid = params.into_inner();
     let form = form.into_inner();
 
-    let time;
-    debug!("{:?}", &form.uat);
-
-    if form.uat == "" {
-        time = time::OffsetDateTime::now_utc();
-        debug!("{:?}", time);
-    } else {
-        time = time::OffsetDateTime::parse(&form.uat, &Rfc3339).unwrap();
-    }
+    let time = match parse_cursor(&form.uat) {
+        Ok(t) => t,
+        Err(r) => return r,
+    };
 
     match state
         .get_ref()
@@ -619,8 +521,7 @@ async fn get_questions_by_user(
         Ok((user_questions, count)) => {
             HttpResponse::Ok().json(&json!({"data": user_questions.questions, "count": count}))
         }
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": "fail", "message": e.to_string()})),
+        Err(e) => db_error(&e, json!("fail")),
     }
 }
 
@@ -633,15 +534,10 @@ async fn get_answers_by_user(
     let uid = params.into_inner();
     let form = form.into_inner();
 
-    let time;
-    debug!("{:?}", &form.uat);
-
-    if form.uat == "" {
-        time = time::OffsetDateTime::now_utc();
-        debug!("{:?}", time);
-    } else {
-        time = time::OffsetDateTime::parse(&form.uat, &Rfc3339).unwrap();
-    }
+    let time = match parse_cursor(&form.uat) {
+        Ok(t) => t,
+        Err(r) => return r,
+    };
 
     match state
         .get_ref()
@@ -651,8 +547,7 @@ async fn get_answers_by_user(
         Ok((user_answers, count)) => {
             HttpResponse::Ok().json(&json!({"data": user_answers.questions, "count": count}))
         }
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": "fail", "message": e.to_string()})),
+        Err(e) => db_error(&e, json!("fail")),
     }
 }
 
@@ -672,15 +567,10 @@ async fn get_bookmarks_by_user(
             .json(&json!({"status": false, "message": "Only self can view bookmarks!"}));
     }
 
-    let time;
-    debug!("{:?}", &form.uat);
-
-    if form.uat == "" {
-        time = time::OffsetDateTime::now_utc();
-        debug!("{:?}", time);
-    } else {
-        time = time::OffsetDateTime::parse(&form.uat, &Rfc3339).unwrap();
-    }
+    let time = match parse_cursor(&form.uat) {
+        Ok(t) => t,
+        Err(r) => return r,
+    };
 
     match state
         .get_ref()
@@ -690,8 +580,7 @@ async fn get_bookmarks_by_user(
         Ok((user_bookmarks, count)) => {
             HttpResponse::Ok().json(&json!({"data": user_bookmarks.questions, "count": count}))
         }
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": false, "message": e.to_string()})),
+        Err(e) => db_error(&e, json!(false)),
     }
 }
 
@@ -701,14 +590,15 @@ async fn bookmark(
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
-    let qid = params.0.parse::<i64>().unwrap();
-    let aid = params.1.parse::<i64>().unwrap();
+    let (qid, aid) = match (parse_id(&params.0), parse_id(&params.1)) {
+        (Ok(q), Ok(a)) => (q, a),
+        (Err(r), _) | (_, Err(r)) => return r,
+    };
     let uid = auth.user.id;
 
     match state.get_ref().bookmark(qid, aid, uid).await {
         Ok(_t) => HttpResponse::Ok().json(&json!({})),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": "fail", "message": e.to_string()})),
+        Err(e) => db_error(&e, json!("fail")),
     }
 }
 
@@ -718,15 +608,32 @@ async fn pin(
     auth: AuthorizationService,
     state: AppState,
 ) -> impl Responder {
-    let qid = params.parse::<i64>().unwrap();
-    let uid = auth.user.id;
+    // Pinning puts a question at the top of everyone's front page, so it is
+    // a moderation action, like reviewing reports and editing tag info.
+    if !auth.is_moderator() {
+        return HttpResponse::Forbidden().json(&json!({
+            "status": "fail", "message": "Only moderators can pin questions.",
+        }));
+    }
 
-    match state.get_ref().pin(qid, uid).await {
-        Ok(_t) => {
-            HttpResponse::Ok().json(&json!({"messaage": "The post has been pinned/unpinned."}))
+    let qid = match parse_id(&params) {
+        Ok(id) => id,
+        Err(r) => return r,
+    };
+
+    match state.get_ref().pin(qid).await {
+        Ok(PinOutcome::Pinned) => {
+            HttpResponse::Ok().json(&json!({"pinned": true, "message": "The question has been pinned."}))
         }
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": "fail", "message": e.to_string()})),
+        Ok(PinOutcome::Unpinned) => HttpResponse::Ok()
+            .json(&json!({"pinned": false, "message": "The question has been unpinned."})),
+        Ok(PinOutcome::NotFound) => HttpResponse::NotFound()
+            .json(&json!({"status": "fail", "message": "No such question."})),
+        Ok(PinOutcome::LimitReached) => HttpResponse::Conflict().json(&json!({
+            "status": "fail",
+            "message": format!("At most {MAX_PINNED} questions can be pinned. Unpin one first."),
+        })),
+        Err(e) => db_error(&e, json!("fail")),
     }
 }
 
@@ -736,15 +643,10 @@ async fn get_unanswered_questions(
     state: AppState,
 ) -> impl Responder {
     let form = form.into_inner();
-    let uat;
-
-    debug!("{:?}", &form.uat);
-    if form.uat == "" {
-        uat = time::OffsetDateTime::now_utc();
-        debug!("{:?}", uat);
-    } else {
-        uat = time::OffsetDateTime::parse(&form.uat, &Rfc3339).unwrap();
-    }
+    let uat = match parse_cursor(&form.uat) {
+        Ok(t) => t,
+        Err(r) => return r,
+    };
 
     if form.questions_per_page > state.config.questions_per_page as i64 {
         return HttpResponse::BadRequest().json(
@@ -760,43 +662,7 @@ async fn get_unanswered_questions(
         Ok(db_questions) => {
             HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count}))
         }
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": false, "message": e.to_string()})),
-    }
-}
-
-#[post("/questions-by-score/")]
-async fn get_questions_by_score(
-    form: ntex::web::types::Json<QuestionsReq>,
-    state: AppState,
-) -> impl Responder {
-    let form = form.into_inner();
-    let uat;
-
-    debug!("{:?}", &form.uat);
-    if form.uat == "" {
-        uat = time::OffsetDateTime::now_utc();
-        debug!("{:?}", uat);
-    } else {
-        uat = time::OffsetDateTime::parse(&form.uat, &Rfc3339).unwrap();
-    }
-
-    if form.questions_per_page > state.config.questions_per_page as i64 {
-        return HttpResponse::BadRequest().json(
-            &json!({"status": false, "message": "Wrong values for questions to be fetched!"}),
-        );
-    }
-
-    match state
-        .get_ref()
-        .get_unanswered_questions(&uat, form.questions_per_page, &form.direction)
-        .await
-    {
-        Ok(db_questions) => {
-            HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count}))
-        }
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": false, "message": e.to_string()})),
+        Err(e) => db_error(&e, json!(false)),
     }
 }
 
@@ -804,8 +670,7 @@ async fn get_questions_by_score(
 async fn get_questions_count(state: AppState) -> impl Responder {
     match state.get_ref().get_questions_count().await {
         Ok(count) => HttpResponse::Ok().json(&json!({"count": count})),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": false, "message": e.to_string()})),
+        Err(e) => db_error(&e, json!(false)),
     }
 }
 
@@ -813,8 +678,7 @@ async fn get_questions_count(state: AppState) -> impl Responder {
 async fn get_unanswered_questions_count(state: AppState) -> impl Responder {
     match state.get_ref().get_unanswered_questions_count().await {
         Ok(count) => HttpResponse::Ok().json(&json!({"count": count})),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": false, "message": e.to_string()})),
+        Err(e) => db_error(&e, json!(false)),
     }
 }
 
@@ -842,8 +706,7 @@ async fn search_questions(
         Ok(db_questions) => {
             HttpResponse::Ok().json(&json!({"data": db_questions, "count": db_questions.count}))
         }
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": false, "message": e.to_string()})),
+        Err(e) => db_error(&e, json!(false)),
     }
 }
 
@@ -877,8 +740,7 @@ async fn get_reports(
         Ok((reports, count)) => {
             HttpResponse::Ok().json(&json!({"data": reports, "count": count}))
         }
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": "fail", "message": e.to_string()})),
+        Err(e) => db_error(&e, json!("fail")),
     }
 }
 
@@ -894,8 +756,7 @@ async fn get_open_reports_count(auth: AuthorizationService, state: AppState) -> 
 
     match state.get_ref().get_open_reports_count().await {
         Ok(count) => HttpResponse::Ok().json(&json!({"count": count})),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": "fail", "message": e.to_string()})),
+        Err(e) => db_error(&e, json!("fail")),
     }
 }
 
@@ -944,8 +805,7 @@ async fn review_report(
         })),
         Ok(_) => HttpResponse::InternalServerError()
             .json(&json!({"status": "fail", "message": "Unexpected review outcome."})),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": "fail", "message": e.to_string()})),
+        Err(e) => db_error(&e, json!("fail")),
     }
 }
 
@@ -993,8 +853,7 @@ async fn edit_answer(
         .await
     {
         Ok(()) => HttpResponse::Ok().json(&json!({"data": {}})),
-        Err(e) => HttpResponse::InternalServerError()
-            .json(&json!({"status": "fail", "message": e.to_string()})),
+        Err(e) => db_error(&e, json!("fail")),
     }
 }
 
@@ -1017,7 +876,6 @@ pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(get_unanswered_questions);
     cfg.service(get_questions_count);
     cfg.service(get_unanswered_questions_count);
-    cfg.service(get_questions_by_score);
     cfg.service(search_questions);
     cfg.service(report_post);
     cfg.service(get_reports);

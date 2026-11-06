@@ -7,9 +7,9 @@ frontend.
 
 | Suite | Command | Result |
 | --- | --- | --- |
-| Backend REST (`cargo test`) | [section 2](#2-backend-test-harness) — STARTTLS env vars required | **32 passed** |
+| Backend REST (`cargo test`) | [section 2](#2-backend-test-harness) — STARTTLS env vars required | **41 passed** |
 | Backend unit (`cargo test --bin kunjika`) | `cd backend && cargo test --bin kunjika` | **3 passed** |
-| Frontend e2e (Playwright) | `cd frontend && npx playwright test -c playwright.e2e.config.ts` | **13 passed** |
+| Frontend e2e (Playwright) | `cd frontend && npx playwright test -c playwright.e2e.config.ts` | **67 passed** |
 
 ---
 
@@ -155,7 +155,7 @@ asserts against YSQL and Mailpit.
 cd backend/test-harness
 # STARTTLS mail path (tracked test config → SMTP :1026, API :8026):
 KUNJIKA_TEST_SMTP_PORT=1026 KUNJIKA_TEST_MAILPIT_URL=http://127.0.0.1:8026 \
-  cargo test -- --test-threads=1        # 32 tests
+  cargo test -- --test-threads=1        # 41 tests
 ```
 
 Those two env vars point the harness at the STARTTLS Mailpit instance
@@ -237,7 +237,8 @@ see [section 1b](#1b-starttls-mail-server-the-path-the-backend-uses).
 ### Regenerating the test JWT keys
 
 `template.test.json` carries base64-encoded RSA PEMs; empty values make
-`POST /auth/login` answer `502 {"message":"InvalidKeyFormat"}`.
+`POST /auth/login` answer 500, with `InvalidKeyFormat` in the backend log
+(error details are logged, not returned to clients).
 
 ```bash
 ./backend/test-harness/scripts/gen_test_keys.sh

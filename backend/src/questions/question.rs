@@ -341,6 +341,33 @@ pub const REPORTS_PER_DAY_LIMIT: i64 = 5;
 
 /// Outcome of a report or review operation. Returned instead of a bare bool
 /// so routes can map each case to the right status code and message.
+/// Outcome of toggling a question's pinned state.
+#[derive(PartialEq, Debug)]
+pub enum PinOutcome {
+    Pinned,
+    Unpinned,
+    /// No such question (answers cannot be pinned).
+    NotFound,
+    /// `MAX_PINNED` questions are already pinned; unpin one first.
+    LimitReached,
+}
+
+/// How many questions may be pinned to the front page at once.
+pub const MAX_PINNED: i64 = 5;
+
+/// Outcome of accepting (or un-accepting) an answer.
+#[derive(PartialEq, Debug)]
+pub enum AcceptOutcome {
+    /// `aid` is now the accepted answer.
+    Accepted,
+    /// `aid` was already accepted; acceptance was withdrawn.
+    Unaccepted,
+    /// No such question, or `aid` is not an answer to it.
+    NotFound,
+    /// Only the question's author can accept answers.
+    NotOwner,
+}
+
 #[derive(PartialEq, Debug)]
 pub enum ReportOutcome {
     Created,

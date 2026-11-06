@@ -1,26 +1,21 @@
-use std::{fs, io::Write};
-
 use super::dao::IUser;
 use super::user::*;
 use crate::middlewares::auth::{self, AuthorizationService};
 use crate::state::AppState;
 use crate::users::token;
-use crate::utils::security::{check_signature, extract_email, sign, sign_in_code};
+use crate::uploads::save::save_upload;
+use crate::utils::request::{db_error, internal_error, parse_id};
+use crate::utils::security::{check_signature, extract_email, sign, sign_in_code, SignatureError};
 use crate::utils::verify_user::verify_profile_user;
 
 use cookie::time::Duration;
 use cookie::Cookie;
-use futures::{StreamExt, TryStreamExt};
-use lettre::{
-    transport::smtp::authentication::Credentials, AsyncSmtpTransport, AsyncTransport, Message,
-    Tokio1Executor,
-};
+use lettre::{AsyncTransport, Message};
 use mobc_redis::redis::{self, AsyncCommands};
 use ntex::http::HttpMessage;
 use ntex::web::{self, get, post, Error, HttpRequest, HttpResponse, Responder};
 use ntex_multipart::Multipart;
 use serde_json::json;
-use uuid::Uuid;
 use validator::Validate;
 
 /// The `Domain` attribute to stamp on a session cookie.
@@ -221,24 +216,20 @@ async fn login(form: web::types::Json<LoginForm>, state: AppState) -> impl Respo
     // todo: distable login for deleted and blocked users
     match state.get_ref().user_query(&form.email).await {
         Ok(user) => {
-            info!("find user {:?} ok: {:?}", form, user);
+            info!("login attempt for user {}", user.id);
             match state
                 .get_ref()
                 .validate_login_otp(&form.email, &form.otp)
                 .await
             {
-                Ok(_t) => {
+                Ok(true) => {
                     let access_token_details = match token::generate_jwt_token(
                         user.id,
                         state.config.access_token_max_age,
                         state.config.access_token_private_key.to_owned(),
                     ) {
                         Ok(token_details) => token_details,
-                        Err(e) => {
-                            return HttpResponse::BadGateway().json(
-                                &json!({"status": "fail", "message": format_args!("{}", e)}),
-                            );
-                        }
+                        Err(e) => return internal_error(e),
                     };
 
                     info!("Access token built");
@@ -248,21 +239,12 @@ async fn login(form: web::types::Json<LoginForm>, state: AppState) -> impl Respo
                         state.config.refresh_token_private_key.to_owned(),
                     ) {
                         Ok(token_details) => token_details,
-                        Err(e) => {
-                            return HttpResponse::BadGateway().json(
-                                &json!({"status": "fail", "message": format_args!("{}", e)}),
-                            );
-                        }
+                        Err(e) => return internal_error(e),
                     };
 
                     let mut redis_client = match state.kv.get().await {
                         Ok(redis_client) => redis_client,
-                        Err(_e) => {
-                            // debug!("{}",             format_args!(e));
-                            return HttpResponse::InternalServerError().json(
-                                    &json!({"status": "fail", "message": "An internal server occurred!"}),
-                                );
-                        }
+                        Err(e) => return internal_error(e),
                     };
 
                     let access_result: redis::RedisResult<()> = redis_client
@@ -274,8 +256,7 @@ async fn login(form: web::types::Json<LoginForm>, state: AppState) -> impl Respo
                         .await;
 
                     if let Err(e) = access_result {
-                        return HttpResponse::UnprocessableEntity()
-                            .json(&json!({"status": "error", "message": format_args!("{}", e)}));
+                        return internal_error(e);
                     }
 
                     let refresh_result: redis::RedisResult<()> = redis_client
@@ -287,8 +268,7 @@ async fn login(form: web::types::Json<LoginForm>, state: AppState) -> impl Respo
                         .await;
 
                     if let Err(e) = refresh_result {
-                        return HttpResponse::UnprocessableEntity()
-                            .json(&json!({"status": "error", "message": format_args!("{}", e)}));
+                        return internal_error(e);
                     }
 
                     drop(redis_client);
@@ -346,14 +326,18 @@ async fn login(form: web::types::Json<LoginForm>, state: AppState) -> impl Respo
                     };
                     resp
                 }
+                Ok(false) => {
+                    info!("login: wrong or expired code for {}", form.email);
+                    HttpResponse::Unauthorized().finish()
+                }
                 Err(e) => {
-                    info!("find user {:?} error: {:?}", form, e);
+                    error!("login: code check failed for {}: {:?}", form.email, e);
                     HttpResponse::Unauthorized().finish()
                 }
             }
         }
         Err(e) => {
-            info!("find user {:?} error: {:?}", form, e);
+            info!("login: no user {}: {:?}", form.email, e);
             HttpResponse::Unauthorized().finish()
         }
     }
@@ -400,7 +384,10 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         }
     };
 
-    let user_id = user_id.parse::<i64>().unwrap();
+    let user_id = match user_id.parse::<i64>() {
+        Ok(id) => id,
+        Err(_e) => return delete_cookie(),
+    };
     let query_result = sqlx::query_as!(
         User,
         "SELECT id, username, email, created_date, image_url, email_verified,
@@ -409,14 +396,17 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         user_id
     )
     .fetch_optional(&state.sql)
-    .await
-    .unwrap();
+    .await;
 
-    if query_result.is_none() {
-        return delete_cookie();
-    }
-
-    let user = query_result.unwrap();
+    let user = match query_result {
+        Ok(Some(user)) => user,
+        Ok(None) => return delete_cookie(),
+        Err(e) => {
+            error!("refresh: user lookup failed: {:?}", e);
+            return HttpResponse::InternalServerError()
+                .json(&json!({"status": "fail", "message": "Something went wrong, try again!"}));
+        }
+    };
 
     let access_token_details = match token::generate_jwt_token(
         user.id,
@@ -429,7 +419,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         }
     };
 
-    let refresh_token_details = match token::generate_jwt_token(
+    let new_refresh_token_details = match token::generate_jwt_token(
         user.id,
         state.config.refresh_token_max_age,
         state.config.refresh_token_private_key.to_owned(),
@@ -442,9 +432,9 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
 
     let redis_result: redis::RedisResult<()> = redis_client
         .set_ex(
-            refresh_token_details.token_uuid.to_string(),
+            new_refresh_token_details.token_uuid.to_string(),
             user.id.to_string(),
-            (state.config.access_token_max_age * 60) as u64,
+            (state.config.refresh_token_max_age * 60) as u64,
         )
         .await;
 
@@ -464,6 +454,27 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
         return delete_cookie();
     }
 
+    // Rotate: retire the refresh token that was just spent, and the access
+    // token it replaces, so a stolen copy of either stops working shortly
+    // instead of living out its full TTL alongside the new pair. They expire
+    // after a short grace period rather than at once: a page load refreshes
+    // the session while other requests (or other tabs) may still be in
+    // flight with the old cookies, and those must not fail with 401.
+    let mut retired = vec![refresh_token_details.token_uuid.to_string()];
+    if let Some(c) = req.cookie("access_token") {
+        if let Ok(old) =
+            token::verify_jwt_token(state.config.access_token_public_key.to_owned(), c.value())
+        {
+            retired.push(old.token_uuid.to_string());
+        }
+    }
+    for key in &retired {
+        let r: redis::RedisResult<bool> = redis_client.expire(key, ROTATION_GRACE_SECS).await;
+        if let Err(e) = r {
+            error!("refresh: could not retire old token: {:?}", e);
+        }
+    }
+
     drop(redis_client);
 
     let access_cookie =
@@ -475,7 +486,7 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
             .http_only(true)
             .same_site(cookie::SameSite::None);
 
-    let refresh_cookie = Cookie::build(("refresh_token", refresh_token_details.token.unwrap()))
+    let refresh_cookie = Cookie::build(("refresh_token", new_refresh_token_details.token.unwrap()))
         .domain(cookie_domain(&state.config.host))
         .path("/")
         .secure(true)
@@ -520,6 +531,9 @@ async fn refresh_access_token_handler(req: HttpRequest, state: AppState) -> impl
     };
     resp
 }
+
+/// How long a rotated-out token keeps working after a refresh (seconds).
+const ROTATION_GRACE_SECS: i64 = 10;
 
 fn delete_cookie() -> HttpResponse {
     // in case of an error we simply delete cookie because it is not possible
@@ -576,7 +590,13 @@ async fn logout_handler(
         Err(_e) => return delete_cookie(),
     };
 
-    let mut redis_client = state.kv.get().await.unwrap();
+    let mut redis_client = match state.kv.get().await {
+        Ok(c) => c,
+        Err(e) => {
+            error!("logout: redis unavailable: {:?}", e);
+            return delete_cookie();
+        }
+    };
     let _redis_result: redis::RedisResult<usize> = redis_client
         .del(&[
             access_token_details.token_uuid.to_string(),
@@ -609,14 +629,19 @@ async fn check_username_availability(
 #[get("/confirm-email/{token}")]
 async fn confirm_email(form: web::types::Path<String>, state: AppState) -> impl Responder {
     let token = form.into_inner();
-    let email = check_signature(&token, &state).await;
-    if &email == "Signature was expired" {
-        HttpResponse::BadRequest()
+    let email = match check_signature(&token, &state).await {
+        Ok(email) => email,
+        Err(SignatureError::Expired) => {
+            return HttpResponse::BadRequest()
             .json(&json!({"status": "fail", "message": "Signature has expired!
             You can get another token by clicking the resend email button."}))
-    } else if &email == "Invalid signature" {
-        HttpResponse::BadRequest().json(&json!({"status": "fail", "message": "Invalid signature!"}))
-    } else {
+        }
+        Err(SignatureError::Invalid) => {
+            return HttpResponse::BadRequest()
+                .json(&json!({"status": "fail", "message": "Invalid signature!"}))
+        }
+    };
+    {
         match state.get_ref().verify_email(&email, &token).await {
             Ok(t) => {
                 if t {
@@ -643,13 +668,15 @@ async fn resend_confirmation_email(
     state: AppState,
 ) -> impl Responder {
     let token = form.into_inner();
-    let email = extract_email(&token, &state).await;
-    if &email == "Invalid signature" {
-        HttpResponse::BadRequest()
-            .json(&json!({"status": "fail", "message": "Bad signature. Use link from your email."}))
-    } else if &email == "Invalid signature" {
-        HttpResponse::BadRequest().json(&json!({"status": "fail", "message": "Invalid signature!"}))
-    } else {
+    let email = match extract_email(&token, &state).await {
+        Ok(email) => email,
+        Err(_) => {
+            return HttpResponse::BadRequest().json(
+                &json!({"status": "fail", "message": "Bad signature. Use link from your email."}),
+            )
+        }
+    };
+    {
         let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
         let to = email.clone();
         let subject = "Registration at Kunjika";
@@ -689,162 +716,16 @@ Team Kunjika",
                         HttpResponse::Ok()
                             .json(&json!({"success": true, "message": "Confirmation email sent!"}))
                     }
-                    Err(_e) => {
-                        info!("{:?}", _e);
-                        HttpResponse::InternalServerError()
-                            .json(&json!({"status": false, "message": _e.to_string()}))
-                    }
+                    Err(e) => internal_error(e),
                 }
             }
             Err(_e) => {
                 info!("{:?}", _e);
-                HttpResponse::InternalServerError()
-                    .json(&json!({"status": false, "message": _e.to_string()}))
+                db_error(&_e, json!(false))
             }
         }
     }
 }
-
-#[post("/forgot-password/")]
-async fn forgot_password(
-    form: web::types::Json<ForgotPasswordReq>,
-    state: AppState,
-) -> impl Responder {
-    let email = form.into_inner().email;
-
-    match state.get_ref().user_query(&email).await {
-        Ok(r) => {
-            let username = r.username;
-            let smtp_credentials = Credentials::new(
-                state.config.mail_username.clone(),
-                state.config.mail_password.clone(),
-            );
-
-            let mailer =
-                AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&state.config.mail_host)
-                    .unwrap()
-                    .credentials(smtp_credentials)
-                    .build();
-
-            let from = state.config.from_name.clone() + "<" + &state.config.from_email + ">";
-            let to = email.clone();
-            let subject = "Password reset at Kunjika";
-
-            // Sign an arbitrary string.
-            let token = sign(&email, &state).await;
-            match state
-                .get_ref()
-                .save_confirmation_token(&email, &token)
-                .await
-            {
-                Ok(_t) => {
-                    // TODO: Get username from db to add to the email
-                    let body = format!(
-                        "Hi {},
-
-Your link for resetting password is https://{}/reset-password/{}.
-This link will expire in one day.
-
-Thanks,
-Team kunjika",
-                        &username, state.config.host, token
-                    );
-                    debug!("{:?}, {:?}", from, to);
-                    let email = Message::builder()
-                        .from(from.parse().unwrap())
-                        .to(to.parse().unwrap())
-                        .subject(subject)
-                        .body(body.to_string())
-                        .unwrap();
-
-                    debug!("Sending email");
-                    match mailer.send(email).await {
-                        Ok(_r) => {
-                            debug!("{:?}", _r);
-                            HttpResponse::Ok().json(
-                                &json!({"success": true, "message": "If email is found a password reset email is sent."}),
-                            )
-                        }
-                        Err(_e) => {
-                            info!("{:?}", _e);
-                            HttpResponse::InternalServerError().json(
-                            &json!({"status": false, "message": "Something went wrong. Please contact support."}),
-                        )
-                        }
-                    }
-                }
-                Err(_e) => {
-                    info!("{:?}", _e);
-                    HttpResponse::InternalServerError()
-                        .json(&json!({"status": false, "message": "Something went wrong. Please contact support."}))
-                }
-            }
-        }
-        Err(e) => {
-            info!("{:?}", e.to_string());
-            if e.to_string()
-                == "no rows returned by a query that expected to return at least one row"
-            {
-                return HttpResponse::InternalServerError().json(&json!({"success": false, "message": "If email is found a password reset email is sent."}));
-            }
-            HttpResponse::InternalServerError().json(&json!({"success": false, "message": "Something went wrong. Please contact support."}))
-        }
-    }
-}
-
-#[get("/reset-password/{token}")]
-async fn check_reset_password_token(
-    form: web::types::Path<String>,
-    state: AppState,
-) -> impl Responder {
-    let token = form.into_inner();
-    let email = extract_email(&token, &state).await;
-    if &email == "Signature was not valid" {
-        HttpResponse::BadRequest()
-            .json(&json!({"status": false, "message": "Signature is not valid!
-            Use link from email or use forgot password link on login page."}))
-    } else {
-        HttpResponse::Ok().json(&json!({"success": true}))
-    }
-}
-
-// #[post("/reset-password/{token}")]
-// async fn reset_password(
-//     form1: web::types::Path<String>,
-//     form2: web::types::Json<ResetPasswordReq>,
-//     state: AppState,
-// ) -> impl Responder {
-//     let token = form1.into_inner();
-//     let form2 = form2.into_inner();
-//     let password = &form2.password;
-//     let confirm_password = &form2.confirm_password;
-
-//     if password != confirm_password || password.len() < 16 || confirm_password.len() < 16 {
-//         return HttpResponse::BadRequest()
-//             .json(&json!({"status": false, "message": "Bad passwords!"}));
-//     }
-
-//     let email = check_signature(&token, &state).await;
-
-//     if &email == "Signature was expired" {
-//         HttpResponse::BadRequest().json(&json!({"status": false, "message": "Signature has expired!
-//             You can get another token using reset password link on login page."}))
-//     } else {
-//         match state
-//             .get_ref()
-//             .reset_password(&email, &password, &token)
-//             .await
-//         {
-//             Ok(_t) => HttpResponse::Ok().json(&json!({"success": true})),
-//             Err(e) => {
-//                 info!("{:?}", e.to_string());
-//                 HttpResponse::InternalServerError().json(
-//                     &json!({"success": false, "message": "Something went wrong. Contact support!"}),
-//                 )
-//             }
-//         }
-//     }
-// }
 
 #[post("/users")]
 async fn get_users(form: web::types::Json<UsersReq>, state: AppState) -> impl Responder {
@@ -855,8 +736,7 @@ async fn get_users(form: web::types::Json<UsersReq>, state: AppState) -> impl Re
         }
         Err(e) => {
             debug!("{:?}", e.to_string());
-            HttpResponse::InternalServerError()
-                .json(&json!({"status": "fail", "message": e.to_string()}))
+            db_error(&e, json!("fail"))
         }
     }
 }
@@ -866,14 +746,16 @@ async fn get_profile(
     params: web::types::Path<(String, String)>,
     state: AppState,
 ) -> impl Responder {
-    let uid = &params.0.parse::<i64>().unwrap();
+    let uid = &match parse_id(&params.0) {
+        Ok(id) => id,
+        Err(r) => return r,
+    };
     debug!("{}", uid);
     match state.get_ref().get_profile(&uid).await {
         Ok(profile) => HttpResponse::Ok().json(&json!({"message": "", "data": profile})),
         Err(e) => {
             debug!("{:?}", e.to_string());
-            HttpResponse::InternalServerError()
-                .json(&json!({"status": "fail", "message": e.to_string()}))
+            db_error(&e, json!("fail"))
         }
     }
 }
@@ -885,7 +767,10 @@ async fn update_profile(
     state: AppState,
     auth: auth::AuthorizationService,
 ) -> impl Responder {
-    let uid = params.parse::<i64>().unwrap();
+    let uid = match parse_id(&params) {
+        Ok(id) => id,
+        Err(r) => return r,
+    };
     let f = form.into_inner();
     debug!("{}", uid);
     let self_user = verify_profile_user(uid, &auth).await;
@@ -895,12 +780,18 @@ async fn update_profile(
             .json(&json!({"success": false, "message": "Only self can update the profile!"}));
     }
 
+    if let Err(e) = f.validate() {
+        return HttpResponse::BadRequest()
+            .json(&json!({"success": false, "message": e.to_string()}));
+    }
+
     match state.get_ref().update_profile(&uid, &f).await {
         Ok(_profile) => HttpResponse::Ok().json(&json!({"success": true})),
+        Err(e) if is_unique_violation(&e) => HttpResponse::Conflict()
+            .json(&json!({"success": false, "message": "That username is taken."})),
         Err(e) => {
             debug!("{:?}", e.to_string());
-            HttpResponse::InternalServerError()
-                .json(&json!({"status": false, "message": e.to_string()}))
+            db_error(&e, json!(false))
         }
     }
 }
@@ -911,7 +802,10 @@ async fn get_user(
     auth_guard: auth::AuthorizationService,
     state: AppState,
 ) -> impl Responder {
-    let uid = params.parse::<i64>().unwrap();
+    let uid = match parse_id(&params) {
+        Ok(id) => id,
+        Err(r) => return r,
+    };
 
     if auth_guard.user.id != uid {
         return HttpResponse::Forbidden()
@@ -923,8 +817,7 @@ async fn get_user(
         Ok(profile) => HttpResponse::Ok().json(&json!({"message": "", "data": profile})),
         Err(e) => {
             debug!("{:?}", e.to_string());
-            HttpResponse::InternalServerError()
-                .json(&json!({"status": "fail", "message": e.to_string()}))
+            db_error(&e, json!("fail"))
         }
     }
 }
@@ -1093,11 +986,14 @@ async fn get_user(
 #[post("/{id}/profile-image-upload")]
 async fn image_upload(
     params: web::types::Path<String>,
-    mut payload: Multipart,
+    payload: Multipart,
     state: AppState,
     auth: AuthorizationService,
 ) -> impl Responder {
-    let uid = params.parse::<i64>().unwrap();
+    let uid = match parse_id(&params) {
+        Ok(id) => id,
+        Err(r) => return r,
+    };
     let self_user = verify_profile_user(uid, &auth).await;
 
     if !self_user {
@@ -1106,65 +1002,32 @@ async fn image_upload(
         );
     }
 
-    let current_date = time::OffsetDateTime::now_utc();
-    let year = current_date.year();
-    let month = current_date.month();
-    let day = current_date.day();
-    // relative path from root
-    let path = format!("{}/{}/{}/{}", state.config.upload_folder, year, month, day);
-    fs::create_dir_all(&path).unwrap();
-    let filename = Uuid::new_v4().to_string();
-    let filepath = format!("{}/{}", &path, filename);
-
-    // iterate over multipart stream
-    while let Ok(Some(mut field)) = payload.try_next().await {
-        let mut len = 0;
-        let filepath1 = format!("{}/{}", &path, filename);
-        let mut f = web::block(|| std::fs::File::create(filepath1))
-            .await
-            .unwrap();
-        // Field in turn is stream of *Bytes* object
-        while let Some(chunk) = field.next().await {
-            let filepath2 = format!("{}/{}", &path, filename);
-            let data = chunk.unwrap();
-            len += data.len();
-            // file size is more than 2 MB so delete the file and return response
-            if len > state.config.image_max_size {
-                web::block(|| std::fs::remove_file(filepath2))
-                    .await
-                    .unwrap();
-
-                return HttpResponse::BadRequest().json(&json!({"success": false}));
-            }
-            // filesystem operations are blocking, we have to use threadpool
-            f = web::block(move || f.write_all(&data).map(|_| f))
-                .await
-                .unwrap();
-        }
-    }
-
-    let url = state.config.backend_url.clone() + &filepath;
+    let url = match save_upload(payload, state.get_ref()).await {
+        Ok(url) => url,
+        Err(r) => return r,
+    };
 
     match state.get_ref().update_profile_image(uid, &url).await {
         Ok(_r) => HttpResponse::Ok().json(&json!({"success": true, "url": url})),
         Err(e) => {
             debug!("{:?}", e.to_string());
-            HttpResponse::InternalServerError()
-                .json(&json!({"status": false, "message": e.to_string()}))
+            db_error(&e, json!(false))
         }
     }
 }
 
 #[get("/{id}/summary")]
 async fn user_summary(params: web::types::Path<String>, state: AppState) -> impl Responder {
-    let uid = params.parse::<i64>().unwrap();
+    let uid = match parse_id(&params) {
+        Ok(id) => id,
+        Err(r) => return r,
+    };
 
     match state.get_ref().get_summary(uid).await {
         Ok(r) => HttpResponse::Ok().json(&json!({"success": true, "data": r})),
         Err(e) => {
             debug!("{:?}", e.to_string());
-            HttpResponse::InternalServerError()
-                .json(&json!({"status": false, "message": e.to_string()}))
+            db_error(&e, json!(false))
         }
     }
 }
@@ -1175,16 +1038,20 @@ async fn search_users(
     state: AppState,
 ) -> impl Responder {
     let user_req = form.into_inner();
+    // The page size comes from the client: keep it within the configured
+    // page size (a negative LIMIT is a database error, a huge one a dump).
+    let per_page = user_req
+        .users_per_page
+        .clamp(1, (state.config.users_per_page as i64).max(1));
     match state
         .get_ref()
-        .search_users(&user_req.username, user_req.users_per_page)
+        .search_users(&user_req.username, per_page)
         .await
     {
         Ok(u) => HttpResponse::Ok().json(&json!({"data": u})),
         Err(e) => {
             debug!("update tag info: {:?}", e);
-            HttpResponse::InternalServerError()
-                .json(&json!({"status": "fail", "message": e.to_string()}))
+            db_error(&e, json!("fail"))
         }
     }
 }
@@ -1195,7 +1062,10 @@ async fn delete_profile(
     auth: auth::AuthorizationService,
     state: AppState,
 ) -> impl Responder {
-    let uid = params.parse::<i64>().unwrap();
+    let uid = match parse_id(&params) {
+        Ok(id) => id,
+        Err(r) => return r,
+    };
 
     info!("{} {}", uid, auth.user.id);
 
@@ -1208,8 +1078,7 @@ async fn delete_profile(
         Ok(_u) => HttpResponse::Ok().json(&json!({"success": true})),
         Err(e) => {
             debug!("update tag info: {:?}", e);
-            HttpResponse::InternalServerError()
-                .json(&json!({"status": "fail", "message": e.to_string()}))
+            db_error(&e, json!("fail"))
         }
     }
 }
@@ -1235,9 +1104,6 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(update_profile);
     cfg.service(user_summary);
     cfg.service(resend_confirmation_email);
-    cfg.service(forgot_password);
-    cfg.service(check_reset_password_token);
-    // cfg.service(reset_password);
     cfg.service(search_users);
     cfg.service(delete_profile);
     cfg.service(submit_email_for_login);

@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use super::question::*;
 use crate::state::AppStateRaw;
-use sqlx::error::Error;
 
 #[async_trait]
 pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
@@ -56,7 +55,7 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         title: &String,
         slug: &String,
     ) -> sqlx::Result<(u64, String)>;
-    async fn accept_answer(&self, qid: i64, aid: i64, uid: &i64) -> sqlx::Result<bool, Error>;
+    async fn accept_answer(&self, qid: i64, aid: i64, uid: &i64) -> sqlx::Result<AcceptOutcome>;
     async fn get_questions_by_user(
         &self,
         uid: i64,
@@ -70,7 +69,7 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         direction: &Option<String>,
     ) -> sqlx::Result<(AnswersResponse1, i64)>;
     async fn bookmark(&self, qid: i64, aid: i64, uid: i64) -> sqlx::Result<bool>;
-    async fn pin(&self, qid: i64, uid: i64) -> sqlx::Result<bool>;
+    async fn pin(&self, qid: i64) -> sqlx::Result<PinOutcome>;
     async fn report_post(
         &self,
         post_id: i64,
@@ -979,113 +978,84 @@ impl IQuestion for &AppStateRaw {
         Ok((id as u64, slug))
     }
 
-    async fn accept_answer(&self, qid: i64, aid: i64, uid: &i64) -> sqlx::Result<bool, Error> {
+    /// Accept answer `aid` on question `qid`, or withdraw acceptance when it
+    /// is already the accepted one. Karma moves with acceptance: the answer's
+    /// author gains `karma_gain_per_answer`, and loses it again (floored at 1)
+    /// when acceptance is withdrawn or moved to another answer. Self-answers
+    /// earn nothing either way.
+    async fn accept_answer(&self, qid: i64, aid: i64, uid: &i64) -> sqlx::Result<AcceptOutcome> {
         let mut tx = self.sql.begin().await?;
 
-        let posted_by_id = sqlx::query!(
-            r#"
-            select posted_by_id from posts where id=$1
-            "#,
+        let question = sqlx::query!(
+            r#"select posted_by_id from posts where id=$1 and op_id=0"#,
             qid,
         )
-        .fetch_one(&mut *tx)
+        .fetch_optional(&mut *tx)
         .await?;
-
-        if posted_by_id.posted_by_id != *uid {
-            // we have to construct an sqlx error due to signature of the function
-            return Err(Error::ColumnNotFound("posted_by_id".to_owned()));
+        let Some(question) = question else {
+            return Ok(AcceptOutcome::NotFound);
+        };
+        if question.posted_by_id != *uid {
+            return Ok(AcceptOutcome::NotOwner);
         }
 
-        let current_answer = sqlx::query!(
-            r#"
-            select id, posted_by_id from posts where op_id=$1 and answer_accepted=true
-            "#,
+        // The answer must belong to this question. Without this check the
+        // question's author could "accept" any post on the site and award
+        // its author karma.
+        let answer = sqlx::query!(
+            r#"select posted_by_id from posts where id=$1 and op_id=$2"#,
+            aid,
+            qid
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+        let Some(answer) = answer else {
+            return Ok(AcceptOutcome::NotFound);
+        };
+
+        let current = sqlx::query!(
+            r#"select id, posted_by_id from posts where op_id=$1 and answer_accepted=true"#,
             qid
         )
         .fetch_optional(&mut *tx)
         .await?;
 
-        match current_answer {
-            Some(s) => {
+        // Withdraw the current acceptance, if any, and the karma it gave.
+        if let Some(cur) = &current {
+            sqlx::query!(
+                r#"update posts set answer_accepted=false where id=$1 or id=$2"#,
+                cur.id,
+                qid
+            )
+            .execute(&mut *tx)
+            .await?;
+            if cur.posted_by_id != *uid {
                 sqlx::query!(
-                    r#"
-                    update users set karma=karma - $2 where id=$1
-                    "#,
-                    s.posted_by_id,
+                    r#"update users set karma=greatest(karma - $2, 1) where id=$1"#,
+                    cur.posted_by_id,
                     self.config.karma_gain_per_answer
                 )
                 .execute(&mut *tx)
                 .await?;
-
-                sqlx::query!(
-                    r#"
-                    update users set karma=1 where karma < 1 and id=$1
-                    "#,
-                    s.posted_by_id
-                )
-                .execute(&mut *tx)
-                .await?;
-                if s.id == aid {
-                    info!("{}, {}", s.id, s.posted_by_id);
-                    sqlx::query!(
-                        r#"
-                        update posts set answer_accepted=false where id=$1 or id=$2
-                        "#,
-                        aid,
-                        qid
-                    )
-                    .execute(&mut *tx)
-                    .await?;
-                }
-
-                tx.commit().await?;
-                return Ok(true);
             }
-            None => {}
+            // Clicking the accepted answer again un-accepts it.
+            if cur.id == aid {
+                tx.commit().await?;
+                return Ok(AcceptOutcome::Unaccepted);
+            }
         }
 
         sqlx::query!(
-            r#"
-            update posts set answer_accepted=true where id=$1
-            "#,
+            r#"update posts set answer_accepted=true where id=$1 or id=$2"#,
+            aid,
             qid
         )
         .execute(&mut *tx)
         .await?;
-
-        sqlx::query!(
-            r#"
-            update posts set answer_accepted=false where op_id=$1
-            "#,
-            qid
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        sqlx::query!(
-            r#"
-            update posts set answer_accepted=true where id=$1
-            "#,
-            aid
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        let user_receiving_acceptance = sqlx::query!(
-            r#"
-            select posted_by_id from posts where id=$1
-            "#,
-            aid
-        )
-        .fetch_one(&mut *tx)
-        .await?;
-
-        if user_receiving_acceptance.posted_by_id != *uid {
+        if answer.posted_by_id != *uid {
             sqlx::query!(
-                r#"
-                update users set karma=karma + $2 where id in (select posted_by_id as id from posts where id=$1)
-                "#,
-                aid,
+                r#"update users set karma=karma + $2 where id=$1"#,
+                answer.posted_by_id,
                 self.config.karma_gain_per_answer
             )
             .execute(&mut *tx)
@@ -1093,8 +1063,7 @@ impl IQuestion for &AppStateRaw {
         }
 
         tx.commit().await?;
-
-        Ok(true)
+        Ok(AcceptOutcome::Accepted)
     }
 
     // This function does a translation from QR1 to QR which are very similar.
@@ -1356,71 +1325,42 @@ impl IQuestion for &AppStateRaw {
         }
     }
 
-    async fn pin(&self, qid: i64, _uid: i64) -> sqlx::Result<bool> {
+    /// Toggle `qid`'s pinned state. Only questions can be pinned, and at most
+    /// `MAX_PINNED` at once; unpinning is always allowed, including when the
+    /// limit has been reached.
+    async fn pin(&self, qid: i64) -> sqlx::Result<PinOutcome> {
         let mut tx = self.sql.begin().await?;
 
-        let pinned_count = sqlx::query!(
-            r#"
-            select count from pinned_count
-            "#
-        )
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let pcount = match pinned_count.count {
-            Some(c) => c,
-            None => 0,
-        };
-
-        if pcount == 5 {
-            return Ok(false);
-        }
-
-        info!("step1");
-
-        let r = sqlx::query!(
-            r#"
-            select pinned from posts where id=$1
-            "#,
+        let post = sqlx::query!(
+            r#"select pinned from posts where id=$1 and op_id=0"#,
             qid
         )
-        .fetch_optional(&self.sql)
+        .fetch_optional(&mut *tx)
         .await?;
+        let Some(post) = post else {
+            return Ok(PinOutcome::NotFound);
+        };
 
-        if let Some(x) = r.unwrap().pinned {
-            if !x {
-                sqlx::query!(
-                    r#"
-                    update posts set pinned=true where id=$1
-                    "#,
-                    qid
-                )
+        if post.pinned.unwrap_or(false) {
+            sqlx::query!(r#"update posts set pinned=false where id=$1"#, qid)
                 .execute(&mut *tx)
                 .await?;
-                info!("step 2");
-            } else {
-                sqlx::query!(
-                    r#"
-                    update posts set pinned=false where id=$1
-                    "#,
-                    qid
-                )
-                .execute(&mut *tx)
-                .await?;
-            }
-        } else {
-            sqlx::query!(
-                r#"
-                update posts set pinned=true where id=$1
-                "#,
-                qid
-            )
-            .execute(&mut *tx)
-            .await?;
+            tx.commit().await?;
+            return Ok(PinOutcome::Unpinned);
         }
 
+        let pinned = sqlx::query!(r#"select count(1) as "count!" from posts where pinned=true"#)
+            .fetch_one(&mut *tx)
+            .await?;
+        if pinned.count >= MAX_PINNED {
+            return Ok(PinOutcome::LimitReached);
+        }
+
+        sqlx::query!(r#"update posts set pinned=true where id=$1"#, qid)
+            .execute(&mut *tx)
+            .await?;
         tx.commit().await?;
-        Ok(true)
+        Ok(PinOutcome::Pinned)
     }
 
     async fn get_bookmarks_by_user(

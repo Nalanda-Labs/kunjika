@@ -20,31 +20,38 @@ pub async fn sign(text: &str, state: &AppState) -> String {
     signer.sign(text)
 }
 
-pub async fn check_signature(text: &str, state: &AppState) -> String {
+/// Why a signed token was rejected.
+#[derive(Debug, PartialEq, Eq)]
+pub enum SignatureError {
+    /// Not produced by us, or tampered with.
+    Invalid,
+    /// Genuine but older than `email_verification_expiry_time`.
+    Expired,
+}
+
+/// The signed value (an email) if the token is genuine and unexpired.
+pub async fn check_signature(text: &str, state: &AppState) -> Result<String, SignatureError> {
     let signer = default_builder(state.config.secret_key.clone())
         .build()
         .into_timestamp_signer();
 
-    let unsigned = match signer.unsign(&text) {
-        Ok(u) => u,
-        Err(_e) => return String::from("Invalid signature"),
-    };
+    let unsigned = signer.unsign(text).map_err(|_| SignatureError::Invalid)?;
     unsigned
         .value_if_not_expired(Duration::from_secs(
             state.config.email_verification_expiry_time,
         ))
-        .expect("Signature was expired")
-        .to_string()
+        .map(|v| v.to_string())
+        .map_err(|_| SignatureError::Expired)
 }
 
-pub async fn extract_email(text: &str, state: &AppState) -> String {
+/// The signed value (an email) if the token is genuine, ignoring its age.
+pub async fn extract_email(text: &str, state: &AppState) -> Result<String, SignatureError> {
     let signer = default_builder(state.config.secret_key.clone())
         .build()
         .into_timestamp_signer();
 
-    let unsigned = match signer.unsign(&text) {
-        Ok(u) => u,
-        Err(_e) => return String::from("Invalid signature"),
-    };
-    unsigned.value().to_string()
+    signer
+        .unsign(text)
+        .map(|u| u.value().to_string())
+        .map_err(|_| SignatureError::Invalid)
 }

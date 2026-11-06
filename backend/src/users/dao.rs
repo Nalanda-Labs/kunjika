@@ -19,12 +19,6 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn update_profile(&self, uid: &i64, data: &ProfileReq) -> sqlx::Result<bool>;
     async fn get_summary(&self, uid: i64) -> sqlx::Result<SummaryResponse>;
     async fn save_confirmation_token(&self, email: &String, token: &String) -> sqlx::Result<bool>;
-    // async fn reset_password(
-    //     &self,
-    //     email: &String,
-    //     password: &String,
-    //     token: &String,
-    // ) -> sqlx::Result<bool>;
     async fn search_users(&self, username: &String, users_per_page: i64) -> sqlx::Result<Vec<UR>>;
     async fn delete_profile(&self, uid: i64) -> sqlx::Result<bool>;
     async fn get_email_for_login(&self, email: &str) -> sqlx::Result<bool>;
@@ -45,16 +39,6 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
         let query = builder.build_query_as::<User>();
 
         query.fetch_one(&self.sql).await
-    }
-
-    async fn user_delete(&self, who: &str) -> sqlx::Result<User> {
-        let column = column_placeholder(who);
-
-        sqlx::query_as("update users set status='deleted' where ?=? RETURNING *;")
-            .bind(column)
-            .bind(who)
-            .fetch_one(&self.sql)
-            .await
     }
 }
 
@@ -441,39 +425,6 @@ impl IUser for &AppStateRaw {
         Ok(true)
     }
 
-    // async fn reset_password(
-    //     &self,
-    //     email: &String,
-    //     password: &String,
-    //     token: &String,
-    // ) -> sqlx::Result<bool> {
-    //     let password_hash = passhash(password);
-    //     let mut tx = self.sql.begin().await?;
-
-    //     sqlx::query!(
-    //         r#"
-    //         update users set password_hash=$1 where email=$2
-    //         "#,
-    //         password_hash,
-    //         email
-    //     )
-    //     .execute(&mut *tx)
-    //     .await?;
-
-    //     sqlx::query!(
-    //         r#"
-    //         delete from tokens where token=$1
-    //         "#,
-    //         token
-    //     )
-    //     .execute(&mut *tx)
-    //     .await?;
-
-    //     tx.commit().await?;
-
-    //     Ok(true)
-    // }
-
     async fn search_users(&self, username: &String, users_per_page: i64) -> sqlx::Result<Vec<UR>> {
         let users = sqlx::query_as!(
             UR, r#"
@@ -515,29 +466,24 @@ impl IUser for &AppStateRaw {
         Ok(true)
     }
 
+    /// Consume a login code. True only when an unexpired (5 minute) code for
+    /// this email existed; it is deleted in the same statement, so a code can
+    /// be used once even under concurrent requests. The expiry is checked here
+    /// because the table's purge trigger only runs when a new token is
+    /// inserted, which left codes valid indefinitely on a quiet site.
     async fn validate_login_otp(&self, email: &str, otp: &str) -> sqlx::Result<bool> {
         let r = sqlx::query!(
-            r#"select email from tokens where email = $1 and token=$2"#,
+            r#"delete from tokens
+               where email = $1 and token = $2
+                 and created_date > now() - interval '5 minutes'
+               returning email"#,
             email,
             otp
         )
-        .fetch_one(&self.sql)
+        .fetch_optional(&self.sql)
         .await?;
 
-        if r.email != None {
-            info!("{:?}", r.email);
-            sqlx::query!(
-                r#"delete from tokens where email = $1 and token=$2"#,
-                email,
-                otp
-            )
-            .execute(&self.sql)
-            .await?;
-
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        Ok(r.is_some())
     }
 }
 

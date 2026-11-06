@@ -118,9 +118,9 @@ plaintext Mailpit on 2525/8026) plus a backend built from `backend/`.
 
 | Suite | Command | Result |
 | --- | --- | --- |
-| Backend REST (`cargo test`) | `cd backend/test-harness && cargo test` | 33 passed |
+| Backend REST (`cargo test`) | `cd backend/test-harness && cargo test` | 41 passed |
 | Backend unit (`cargo test --bin kunjika`) | `cd backend && cargo test --bin kunjika` | 3 passed |
-| Frontend e2e (Playwright) | `cd frontend && npx playwright test -c playwright.e2e.config.ts` | 13 passed |
+| Frontend e2e (Playwright) | `cd frontend && npx playwright test -c playwright.e2e.config.ts` | 67 passed |
 
 Order matters: start infra, apply migrations, then run the suites.
 
@@ -142,8 +142,8 @@ cd frontend && npx playwright install chromium \
 HTTP; `KUNJIKA_TEST_NO_SPAWN=1 cargo test -- --test-threads=1` runs it
 against an already-running backend instead. `sqlx::query!` macros are
 compile-time checked, so building/testing the backend also needs a live DB
-via `backend/.env` (`DATABASE_URL=...`). If JWT login answers 502
-`InvalidKeyFormat`, regenerate the throwaway test keys with
+via `backend/.env` (`DATABASE_URL=...`). If JWT login answers 500 and the
+backend log shows `InvalidKeyFormat`, regenerate the throwaway test keys with
 `./backend/test-harness/scripts/gen_test_keys.sh`.
 
 

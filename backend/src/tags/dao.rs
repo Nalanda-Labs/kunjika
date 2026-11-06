@@ -100,17 +100,9 @@ impl ITag for &AppStateRaw {
             tag
         )
         .fetch_one(&self.sql)
-        .await;
+        .await?;
 
-        let info = match r {
-            Ok(t) => match t.info {
-                Some(i) => i,
-                None => "".to_owned(),
-            },
-            Err(e) => e.to_string(),
-        };
-
-        Ok(info)
+        Ok(r.info.unwrap_or_default())
     }
 
     async fn update_tag_info(&self, info: &str, name: &String) -> sqlx::Result<String> {
@@ -122,14 +114,9 @@ impl ITag for &AppStateRaw {
             name
         )
         .fetch_one(&self.sql)
-        .await;
+        .await?;
 
-        let tid = match id {
-            Ok(t) => t.id.to_string(),
-            Err(e) => e.to_string(),
-        };
-
-        Ok(tid)
+        Ok(id.id.to_string())
     }
 
     async fn search_tags(&self, tag: &String, tags_per_page: i64) -> sqlx::Result<Vec<Tag>> {

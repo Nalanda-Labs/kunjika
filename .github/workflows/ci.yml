@@ -1,0 +1,189 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch or pull request replaces the run in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # sqlx checks every query against a live database at compile time, so the
+  # database has to be up and migrated before anything is built.
+  DATABASE_URL: postgres://yugabyte:yugabyte@127.0.1.1:5433/kunjika_test
+  KUNJIKA_TEST_DB_URL: postgres://yugabyte:yugabyte@127.0.1.1:5433/kunjika_test
+
+jobs:
+  frontend-check:
+    name: Frontend type check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend_ts_tw
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend_ts_tw/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run check
+
+  test:
+    name: Backend and browser tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---- services -------------------------------------------------------
+      # Started with `docker run` rather than `services:` because YugabyteDB
+      # and Mailpit both need a command line, which `services:` cannot set.
+      # Ports and addresses are the ones backend/template.test.json and
+      # TESTING.md use, so the tracked test config works unchanged.
+
+      - name: Start YugabyteDB and Redis
+        run: |
+          docker run -d --name yb -p 5433:5433 docker.io/yugabytedb/yugabyte:latest \
+            bin/yugabyted start --daemon=false --background=false
+          docker run -d --name redis -p 6379:6379 docker.io/library/redis:7-alpine
+
+      - name: Start Mailpit (STARTTLS)
+        # The backend only talks STARTTLS to its mail server and verifies the
+        # certificate against backend/test-harness/certs. The tracked test
+        # certificate is short-lived, so CI makes a fresh one for each run.
+        run: |
+          certs="$PWD/backend/test-harness/certs"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 2 \
+            -keyout "$certs/mailpit-key.pem" -out "$certs/mailpit-cert.pem" \
+            -subj "/CN=127.0.0.1" \
+            -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
+          chmod 644 "$certs/mailpit-key.pem"
+          docker run -d --name mailpit -p 1025:1025 -p 8026:8025 \
+            -v "$certs:/certs:ro" docker.io/axllent/mailpit:latest \
+            --smtp 0.0.0.0:1025 --listen 0.0.0.0:8025 \
+            --smtp-tls-cert /certs/mailpit-cert.pem --smtp-tls-key /certs/mailpit-key.pem \
+            --smtp-require-starttls
+
+      - name: Wait for YSQL and create the database
+        run: |
+          ysql() { docker exec yb bash -c "bin/ysqlsh -h \$(hostname -i) -U yugabyte -d yugabyte -c \"$1\""; }
+          for i in $(seq 1 60); do
+            if ysql 'select 1' >/dev/null 2>&1; then
+              ysql 'CREATE DATABASE kunjika_test'
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "YSQL did not come up in time" >&2
+          docker logs yb | tail -50
+          exit 1
+
+      # setup-python gives a pip that may install packages; the runner's
+      # system Python refuses to (PEP 668).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Apply migrations
+        # The runner needs psql: the migration runner feeds each file to it.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          pip install --quiet "psycopg[binary]"
+          python3 backend/migrations/run_migrations.py
+
+      # ---- backend --------------------------------------------------------
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            backend
+            backend/test-harness
+
+      - name: Build backend
+        working-directory: backend
+        run: cargo build --locked
+
+      - name: Backend unit tests
+        working-directory: backend
+        run: cargo test --locked --bin kunjika
+
+      - name: Start backend
+        working-directory: backend
+        run: |
+          mkdir -p /tmp/kunjika-test-uploads
+          nohup ./target/debug/kunjika -c template.test.json -v 1 > "$RUNNER_TEMP/backend.log" 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS -o /dev/null http://127.0.0.1:8000/api/v1/get-questions-count/; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "backend did not start" >&2
+          cat "$RUNNER_TEMP/backend.log"
+          exit 1
+
+      - name: Backend integration tests
+        working-directory: backend/test-harness
+        env:
+          # Use the backend started above instead of spawning one per test binary.
+          KUNJIKA_TEST_NO_SPAWN: "1"
+          KUNJIKA_TEST_NO_SHIM: "1"
+          KUNJIKA_TEST_SMTP_PORT: "1025"
+          KUNJIKA_TEST_MAILPIT_URL: http://127.0.0.1:8026
+        run: cargo test --locked -- --test-threads=1
+
+      # ---- browser tests --------------------------------------------------
+      # Run after the integration tests on purpose: those create the tags the
+      # browser tests pick from, and a fresh database has none.
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend_ts_tw/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: frontend_ts_tw
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Browser tests
+        working-directory: frontend_ts_tw
+        env:
+          CI: "true"
+        run: pnpm exec playwright test
+
+      # ---- diagnostics ----------------------------------------------------
+
+      - name: Backend log
+        if: failure()
+        run: tail -n 300 "$RUNNER_TEMP/backend.log" || true
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: frontend_ts_tw/tests/e2e/.artifacts
+          if-no-files-found: ignore
+          retention-days: 7

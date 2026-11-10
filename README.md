@@ -1,5 +1,8 @@
 # kunjika
 
+[![CI](https://github.com/Nalanda-Labs/kunjika/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Nalanda-Labs/kunjika/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+
 ## What is kunjika?
 Kunjika is a minimal QA/forum application built using Rust, ntex, Svelte, YugabyeDB(changed
 from CockroachDB because SQLx 0.9 does not work well with Cockroachdb ),

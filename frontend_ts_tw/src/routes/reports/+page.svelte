@@ -6,34 +6,59 @@
 
     const STATUSES = ['open', 'reviewed', 'dismissed', 'actioned'] as const;
     type Status = (typeof STATUSES)[number];
+    const PER_PAGE = 20;
 
     let reviewer = $derived(isReviewer(page.data.user));
     let status = $state<Status>('open');
     let reports = $state<Report[]>([]);
     let count = $state(0);
+    // Cursor pagination: `nextCursor` comes back with each page and asks for
+    // the one after it; null means the queue has been read to the end.
+    let nextCursor = $state<string | null>(null);
     let loading = $state(false);
+    let loadingMore = $state(false);
+    let loadSeq = 0;
     let error = $state('');
     let notice = $state('');
     let reviewing = $state<number | null>(null);
 
-    async function load() {
-        loading = true;
+    /** Load the first page of the queue, or with `more` append the next one. */
+    async function load(more = false) {
+        const seq = ++loadSeq;
+        const cursor = more ? nextCursor : null;
+        if (more) loadingMore = true;
+        else loading = true;
         error = '';
         try {
-            const res = await api.post('reports/', { status, per_page: 50 });
-            const j = await api.json<{ data?: { reports: Report[] }; count?: number; message?: string }>(res);
+            const res = await api.post('reports/', { status, per_page: PER_PAGE, ...(cursor ? { cursor } : {}) });
+            const j = await api.json<{
+                data?: { reports: Report[] };
+                count?: number;
+                next_cursor?: string | null;
+                message?: string;
+            }>(res);
+            if (seq !== loadSeq) return; // the filter changed while this was loading
             if (res.status === 200) {
-                reports = j.data?.reports ?? [];
+                const rows = j.data?.reports ?? [];
+                if (more) {
+                    const seen = new Set(reports.map((r) => r.id));
+                    reports = [...reports, ...rows.filter((r) => !seen.has(r.id))];
+                } else {
+                    reports = rows;
+                }
                 count = j.count ?? 0;
+                nextCursor = j.next_cursor ?? null;
             } else if (res.status === 403) {
                 error = 'Only moderators can view reports.';
             } else {
                 error = j.message || 'Could not load reports.';
             }
         } catch {
+            if (seq !== loadSeq) return;
             error = 'Could not load reports. Please try again.';
         }
         loading = false;
+        loadingMore = false;
     }
 
     $effect(() => {
@@ -59,7 +84,11 @@
             const j = await api.json<{ success?: boolean; message?: string; data?: string }>(res);
             if (res.status === 200 && j.success) {
                 notice = `Report #${id} marked as ${next}.`;
-                await load();
+                // The report has left this queue: drop it here instead of
+                // reloading, which would throw away the pages already loaded.
+                reports = reports.filter((r) => r.id !== id);
+                count = Math.max(0, count - 1);
+                if (reports.length === 0 && nextCursor) await load(true);
             } else {
                 error = j.message || j.data || 'Could not review the report.';
             }
@@ -133,5 +162,12 @@
                 {/if}
             </div>
         {/each}
+        {#if nextCursor}
+            <div class="mt-4 flex justify-center">
+                <button type="button" class="btn-secondary" disabled={loadingMore} onclick={() => load(true)}
+                    >{loadingMore ? 'Loading…' : 'Load more reports'}</button
+                >
+            </div>
+        {/if}
     {/if}
 {/if}

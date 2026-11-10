@@ -55,6 +55,33 @@ pub fn parse_cursor(s: &str) -> Result<OffsetDateTime, HttpResponse> {
         .map_err(|_| bad_request("Invalid timestamp, expected RFC 3339."))
 }
 
+/// Encode a keyset cursor for a list ordered by `(created_at, id)`.
+///
+/// The timestamp alone is not a safe cursor: two rows can share one, and a
+/// page boundary falling between them would skip or repeat a row. The id
+/// breaks the tie. Nanoseconds keep the database's full (microsecond)
+/// precision. Clients must treat the value as opaque.
+pub fn encode_keyset_cursor(created_at: OffsetDateTime, id: i64) -> String {
+    format!("{}_{}", created_at.unix_timestamp_nanos(), id)
+}
+
+/// Parse a cursor made by [`encode_keyset_cursor`]. `None` or an empty string
+/// means "first page".
+pub fn parse_keyset_cursor(s: Option<&str>) -> Result<Option<(OffsetDateTime, i64)>, HttpResponse> {
+    let s = s.unwrap_or("").trim();
+    if s.is_empty() {
+        return Ok(None);
+    }
+    let parsed = s.split_once('_').and_then(|(nanos, id)| {
+        let at = OffsetDateTime::from_unix_timestamp_nanos(nanos.parse::<i128>().ok()?).ok()?;
+        Some((at, id.parse::<i64>().ok()?))
+    });
+    match parsed {
+        Some(c) => Ok(Some(c)),
+        None => Err(bad_request("Invalid cursor.")),
+    }
+}
+
 /// Parse a numeric id taken from the URL path.
 pub fn parse_id(s: &str) -> Result<i64, HttpResponse> {
     s.trim().parse::<i64>().map_err(|_| bad_request("Invalid id."))
@@ -83,5 +110,30 @@ pub async fn optional_user_id(req: &HttpRequest, state: &AppStateRaw) -> i64 {
     match redis.get::<_, String>(details.token_uuid.to_string()).await {
         Ok(uid) if uid.parse::<i64>().ok() == Some(details.user_id) => details.user_id,
         _ => 0,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keyset_cursor_round_trips_with_full_precision() {
+        let at = OffsetDateTime::from_unix_timestamp_nanos(1_760_000_000_123_456_000).unwrap();
+        let cursor = encode_keyset_cursor(at, 42);
+        assert_eq!(parse_keyset_cursor(Some(&cursor)).ok(), Some(Some((at, 42))));
+    }
+
+    #[test]
+    fn missing_or_empty_keyset_cursor_is_the_first_page() {
+        assert_eq!(parse_keyset_cursor(None).ok(), Some(None));
+        assert_eq!(parse_keyset_cursor(Some("  ")).ok(), Some(None));
+    }
+
+    #[test]
+    fn malformed_keyset_cursor_is_rejected() {
+        for bad in ["abc", "123", "123_", "_5", "x_5", "123_y", "999999999999999999999999999999999999_1"] {
+            assert!(parse_keyset_cursor(Some(bad)).is_err(), "{bad} should be rejected");
+        }
     }
 }

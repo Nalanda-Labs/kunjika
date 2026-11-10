@@ -141,14 +141,22 @@ pub struct QuestionsResponse {
     pub count: i64
 }
 
-#[derive(Deserialize)]
-pub struct AnswersReq {
-    pub cat: String,
-}
+/// Default and maximum page size for `get-answers`.
+pub const ANSWERS_DEFAULT_LIMIT: i64 = 50;
+pub const ANSWERS_MAX_LIMIT: i64 = 100;
 
+/// Offset/limit pagination for a question's answers
+/// (`?limit=20&offset=40`). Both are optional; out-of-range values are
+/// clamped by the handler rather than rejected.
+///
+/// `answer` replaces `offset` for deep links to one answer
+/// (`/questions/{id}/{slug}#{answer_id}`): the server returns the page that
+/// contains that answer and reports the offset it used.
 #[derive(Deserialize)]
 pub struct AnswersQuery {
-    pub limit: i64,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+    pub answer: Option<i64>,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
@@ -390,8 +398,10 @@ pub struct ReportReq {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ReportsReq {
     pub status: Option<String>,
-    pub page: Option<i64>,
     pub per_page: Option<i64>,
+    /// Opaque keyset cursor: the `next_cursor` of the previous page. Absent
+    /// or empty for the first page.
+    pub cursor: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -423,6 +433,8 @@ pub struct ReportRow {
 pub struct ReportsResponse {
     pub reports: Vec<ReportRow>,
     pub count: i64,
+    /// Cursor for the page after this one; `None` on the last page.
+    pub next_cursor: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

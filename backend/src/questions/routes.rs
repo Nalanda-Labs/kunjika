@@ -3,7 +3,9 @@ use super::question::*;
 use crate::middlewares::auth::AuthorizationService;
 use crate::state::{AppState, AppStateRaw};
 use crate::uploads::save::save_upload;
-use crate::utils::request::{db_error, optional_user_id, parse_cursor, parse_id};
+use crate::utils::request::{
+    db_error, optional_user_id, parse_cursor, parse_id, parse_keyset_cursor,
+};
 use crate::utils::slug::create_slug;
 
 use lettre::{AsyncTransport, Message};
@@ -258,9 +260,18 @@ async fn get_questions_by_tag(
     }
 }
 
+/// One page of a question's answers, oldest first, paginated with
+/// `?limit=&offset=`. `count` is the total number of answers, so the client
+/// can work out how many pages there are, and `offset` is the offset that
+/// was actually used.
+///
+/// `?answer={id}` (instead of `offset`) returns the page holding that answer,
+/// so a link to one answer still lands on it when it is not on page one.
+///
+/// Any request body is ignored: older clients sent a `cat` timestamp cursor
+/// here, which this endpoint no longer uses.
 #[post("/question/get-answers/{id}/")]
 async fn get_answers(
-    cat: ntex::web::types::Json<AnswersReq>,
     params: ntex::web::types::Path<i64>,
     q: ntex::web::types::Query<AnswersQuery>,
     req: HttpRequest,
@@ -268,17 +279,21 @@ async fn get_answers(
 ) -> impl Responder {
     let uid = optional_user_id(&req, state.get_ref()).await;
 
-    let created_at = cat.into_inner();
-    let time = match parse_cursor(&created_at.cat) {
-        Ok(t) => t,
-        Err(r) => return r,
-    };
-
     let qid = params.into_inner();
-    debug!("{:?}, {:?}, {:?}", &qid, &time, q.limit);
+    let limit = q.limit.unwrap_or(ANSWERS_DEFAULT_LIMIT).clamp(1, ANSWERS_MAX_LIMIT);
+    let offset = match q.answer {
+        // Round the answer's position down to the start of its page.
+        Some(aid) => match state.get_ref().answer_position(qid, aid).await {
+            Ok(position) => position - position % limit,
+            Err(e) => return db_error(&e, json!("fail")),
+        },
+        None => q.offset.unwrap_or(0).max(0),
+    };
+    debug!("{:?}, {:?}, {:?}", &qid, limit, offset);
 
-    match state.get_ref().get_answers(qid, &time, q.limit, uid).await {
-        Ok(db_answers) => HttpResponse::Ok().json(&json!({"data": db_answers})),
+    match state.get_ref().get_answers(qid, limit, offset, uid).await {
+        Ok((db_answers, count)) => HttpResponse::Ok()
+            .json(&json!({"data": db_answers, "count": count, "offset": offset})),
         Err(e) => db_error(&e, json!("fail")),
     }
 }
@@ -712,6 +727,11 @@ async fn search_questions(
 
 /// Moderation queue: list reports by status, newest first. Moderators and
 /// superusers only.
+///
+/// Cursor paginated: send the `next_cursor` of one page as `cursor` to get
+/// the page after it; `next_cursor` is null on the last page. Unlike an
+/// offset, the cursor stays correct while reports are filed and reviewed
+/// between requests.
 #[post("/reports/")]
 async fn get_reports(
     form: ntex::web::types::Json<ReportsReq>,
@@ -732,14 +752,18 @@ async fn get_reports(
             "message": format!("Invalid status. Must be one of: {}", REPORT_STATUSES.join(", ")),
         }));
     }
-    let page = form.page.unwrap_or(0).max(0);
     let per_page = form.per_page.unwrap_or(20).clamp(1, 100);
-    let offset = page * per_page;
+    let cursor = match parse_keyset_cursor(form.cursor.as_deref()) {
+        Ok(c) => c,
+        Err(r) => return r,
+    };
 
-    match state.get_ref().get_reports(&status, per_page, offset).await {
-        Ok((reports, count)) => {
-            HttpResponse::Ok().json(&json!({"data": reports, "count": count}))
-        }
+    match state.get_ref().get_reports(&status, per_page, cursor).await {
+        Ok(reports) => HttpResponse::Ok().json(&json!({
+            "count": reports.count,
+            "next_cursor": reports.next_cursor,
+            "data": reports,
+        })),
         Err(e) => db_error(&e, json!("fail")),
     }
 }

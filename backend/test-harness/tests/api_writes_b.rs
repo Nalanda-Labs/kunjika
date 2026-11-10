@@ -287,9 +287,9 @@ fn get_answers_returns_rows_for_plain_answers() {
         assert_eq!(status, 200, "answer 200, got {status}: {text}");
     }
 
-    // The SvelteKit client sends the question's asked_ts as `cat`; any
-    // timestamp before the answers works as the pagination cursor, so use a
-    // fixed past date and expect both rows back.
+    // Answers are paged with limit/offset (see api_pagination.rs); the old
+    // `cat` cursor body is still sent here to prove legacy clients that
+    // include it are not rejected. Expect both rows back.
     let r = author
         .auth(
             author

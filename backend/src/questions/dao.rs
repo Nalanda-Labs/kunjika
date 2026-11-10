@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use super::question::*;
 use crate::state::AppStateRaw;
+use crate::utils::request::encode_keyset_cursor;
 
 #[async_trait]
 pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
@@ -14,10 +15,11 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
     async fn get_answers(
         &self,
         qid: i64,
-        updated_at: &SqlDateTime,
         limit: i64,
+        offset: i64,
         uid: i64,
-    ) -> sqlx::Result<AnswersResponse>;
+    ) -> sqlx::Result<(AnswersResponse, i64)>;
+    async fn answer_position(&self, qid: i64, aid: i64) -> sqlx::Result<i64>;
     async fn get_questions(
         &self,
         updated_at: &SqlDateTime,
@@ -81,8 +83,8 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         &self,
         status: &str,
         limit: i64,
-        offset: i64,
-    ) -> sqlx::Result<(ReportsResponse, i64)>;
+        cursor: Option<(SqlDateTime, i64)>,
+    ) -> sqlx::Result<ReportsResponse>;
     async fn get_open_reports_count(&self) -> sqlx::Result<i64>;
     async fn review_report(
         &self,
@@ -318,13 +320,15 @@ impl IQuestion for &AppStateRaw {
     async fn get_answers(
         &self,
         qid: i64,
-        updated_at: &SqlDateTime,
         limit: i64,
+        offset: i64,
         uid: i64,
-    ) -> sqlx::Result<AnswersResponse> {
+    ) -> sqlx::Result<(AnswersResponse, i64)> {
+        // `id` breaks ties between answers created in the same instant;
+        // without a total order, offset pages could overlap or skip a row.
         let questions = sqlx::query!(
             r#"
-            select count(1) over(), t.id, t.description, t.visible, t.created_at, t.posted_by_id, t.updated_at,
+            select t.id, t.description, t.visible, t.created_at, t.posted_by_id, t.updated_at,
             t.votes, t.answer_accepted, t.reply_to_id, u.username, u.image_url,
             u1.username as "rusername: Option<String>",
             u1.image_url as "rimage_url: Option<String>",
@@ -333,10 +337,21 @@ impl IQuestion for &AppStateRaw {
             from posts t left join users as u on t.posted_by_id=u.id
             left join users as u1 on t.reply_to_id=u1.id
             left join votes as v on v.from_user_id=$4 and v.topic_id=t.id
-            where t.op_id=$1  and t.created_at > $2 order by t.created_at asc limit $3
-            "#, qid, updated_at, limit, uid
+            where t.op_id=$1 order by t.created_at asc, t.id asc limit $2 offset $3
+            "#, qid, limit, offset, uid
         ).fetch_all(&self.sql)
         .await?;
+
+        // Counted separately (not `count(*) over()`) so the total is still
+        // right when `offset` is past the last answer and no row comes back.
+        let total = sqlx::query!(
+            r#"select count(*) as count from posts where op_id = $1"#,
+            qid
+        )
+        .fetch_one(&self.sql)
+        .await?
+        .count
+        .unwrap_or(0);
 
         let mut ars: AnswersResponse = AnswersResponse {
             questions: Vec::new(),
@@ -363,7 +378,22 @@ impl IQuestion for &AppStateRaw {
             };
             ars.questions.push(qr);
         }
-        Ok(ars)
+        Ok((ars, total))
+    }
+
+    /// Zero-based position of answer `aid` among question `qid`'s answers, in
+    /// the order `get_answers` lists them. 0 when `aid` is not an answer to
+    /// `qid`, which sends an unknown answer id to the first page.
+    async fn answer_position(&self, qid: i64, aid: i64) -> sqlx::Result<i64> {
+        let row = sqlx::query!(
+            r#"select count(*) as count from posts t join posts a on a.id = $2 and a.op_id = $1
+            where t.op_id = $1 and (t.created_at, t.id) < (a.created_at, a.id)"#,
+            qid,
+            aid
+        )
+        .fetch_one(&self.sql)
+        .await?;
+        Ok(row.count.unwrap_or(0))
     }
 
     async fn get_questions(
@@ -1673,9 +1703,17 @@ impl IQuestion for &AppStateRaw {
         &self,
         status: &str,
         limit: i64,
-        offset: i64,
-    ) -> sqlx::Result<(ReportsResponse, i64)> {
-        let rows = sqlx::query_as!(
+        cursor: Option<(SqlDateTime, i64)>,
+    ) -> sqlx::Result<ReportsResponse> {
+        // Keyset pagination over (created_at desc, id desc): the cursor is
+        // the last row of the previous page and this page is everything
+        // strictly after it. One extra row is fetched to learn whether a
+        // further page exists.
+        let (after_at, after_id) = match cursor {
+            Some((at, id)) => (Some(at), Some(id)),
+            None => (None, None),
+        };
+        let mut rows = sqlx::query_as!(
             ReportRow,
             r#"select r.id, r.post_id, r.reason, r.details, r.status, r.created_at,
                 r.reviewed_by_id, r.reviewed_at, r.reported_by_id,
@@ -1692,11 +1730,14 @@ impl IQuestion for &AppStateRaw {
             left join posts p on p.id = r.post_id
             left join users au on au.id = p.posted_by_id
             where r.status = $1
-            order by r.created_at desc
-            limit $2 offset $3"#,
+              and ($3::timestamptz is null
+                   or (r.created_at, r.id) < ($3::timestamptz, $4::bigint))
+            order by r.created_at desc, r.id desc
+            limit $2"#,
             status,
-            limit,
-            offset
+            limit + 1,
+            after_at,
+            after_id
         )
         .fetch_all(&self.sql)
         .await?;
@@ -1708,8 +1749,15 @@ impl IQuestion for &AppStateRaw {
         .fetch_one(&self.sql)
         .await?;
 
+        let next_cursor = if rows.len() as i64 > limit {
+            rows.truncate(limit as usize);
+            rows.last().map(|r| encode_keyset_cursor(r.created_at, r.id))
+        } else {
+            None
+        };
+
         let count = total.count.unwrap_or(0);
-        Ok((ReportsResponse { reports: rows, count }, count))
+        Ok(ReportsResponse { reports: rows, count, next_cursor })
     }
 
     async fn get_open_reports_count(&self) -> sqlx::Result<i64> {

@@ -61,17 +61,69 @@ test('answers: posted, listed, and too-short ones rejected', async ({ page, requ
     const short = await postAnswer(page, q.id, 'too short');
     expect(short.status(), 'answer under 20 chars').toBe(400);
 
-    // `cat` is a cursor: answers created after it. The page passes the
-    // question's creation time; an early timestamp lists them all.
-    const list = await request.post(`${BACKEND}/question/get-answers/${q.id}/?limit=10`, {
-        data: { cat: '2000-01-01T00:00:00Z' }
-    });
+    // Answers are paged with limit/offset and come with the total count.
+    const list = await request.post(`${BACKEND}/question/get-answers/${q.id}/?limit=10&offset=0`);
     expect(list.status()).toBe(200);
-    expect(JSON.stringify(await list.json())).toContain(answerText);
+    const listed = await list.json();
+    expect(JSON.stringify(listed)).toContain(answerText);
+    expect(listed.count).toBe(1);
 
     // And the question page shows it.
     await page.goto(`/questions/${q.id}/${q.slug}`);
     await expect(page.getByText(answerText)).toBeVisible({ timeout: 15000 });
+});
+
+test('answers are paginated: page links, ?page= and #answer deep links', async ({ page }) => {
+    test.setTimeout(120_000);
+    await signInViaApi(page, 'pag');
+    const q = await createQuestion(page, tag);
+
+    // 21 answers: one more than a page of 20.
+    const ids: string[] = [];
+    for (let n = 1; n <= 21; n++) {
+        const res = await postAnswer(page, q.id, `Paginated answer number ${n} of twenty-one.`);
+        expect(res.status(), await res.text()).toBe(200);
+        ids.push((await res.json()).data as string);
+    }
+    const first = page.getByText('Paginated answer number 1 of twenty-one.');
+    const last = page.getByText('Paginated answer number 21 of twenty-one.');
+
+    // Page one holds the first 20; the 21st is on page two.
+    await page.goto(`/questions/${q.id}/${q.slug}`);
+    await expect(first).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Page 1 of 2')).toBeVisible();
+    await expect(last).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Next page' }).click();
+    await expect(page).toHaveURL(/\?page=2$/);
+    await expect(last).toBeVisible();
+    await expect(first).toHaveCount(0);
+    await expect(page.getByText('Page 2 of 2')).toBeVisible();
+
+    // Back in the browser history returns to page one.
+    await page.goBack();
+    await expect(first).toBeVisible();
+    await expect(page.getByText('Page 1 of 2')).toBeVisible();
+
+    // A link to one answer opens the page that answer is on, and ?page= works directly.
+    await page.goto('/');
+    await page.goto(`/questions/${q.id}/${q.slug}#${ids[20]}`);
+    await expect(last).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Page 2 of 2')).toBeVisible();
+    await page.goto('/');
+    await page.goto(`/questions/${q.id}/${q.slug}?page=2`);
+    await expect(last).toBeVisible({ timeout: 15000 });
+
+    // A new answer posted from page one belongs on page two: the page follows it.
+    await page.goto(`/questions/${q.id}/${q.slug}`);
+    await expect(first).toBeVisible({ timeout: 15000 });
+    await page.getByRole('link', { name: 'Reply' }).last().click();
+    const fresh = `A twenty-second answer ${uniqueUsername('p')} posted from the UI.`;
+    await page.locator('#editor textarea, #editor [contenteditable="true"]').first().fill(fresh);
+    await page.getByRole('button', { name: 'Reply' }).click();
+    await expect(page).toHaveURL(/\?page=2#\d+$/);
+    await expect(page.getByText(fresh)).toBeVisible();
+    await expect(last).toBeVisible();
 });
 
 test('authors can edit their answer in the UI; others cannot', async ({ browser }) => {

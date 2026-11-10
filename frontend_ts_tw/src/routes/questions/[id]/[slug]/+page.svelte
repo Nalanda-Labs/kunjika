@@ -7,13 +7,14 @@
     import Editor from '#lib/components/Editor.svelte';
     import Icon from '#lib/components/Icon.svelte';
     import Markdown from '#lib/components/Markdown.svelte';
+    import Pagination from '#lib/components/Pagination.svelte';
     import ReportDialog from '#lib/components/ReportDialog.svelte';
     import TagChips from '#lib/components/TagChips.svelte';
     import { loadMathJax, parseMarkdown } from '#lib/markdown.ts';
-    import { cursor, timeAgo } from '#lib/time.ts';
+    import { timeAgo } from '#lib/time.ts';
     import { isReviewer, type AnswerRow, type QuestionDetail } from '#lib/types.ts';
 
-    const ANSWERS_PER_LOAD = 50;
+    const ANSWERS_PER_PAGE = 20;
 
     interface Answer extends AnswerRow {
         html: string;
@@ -27,8 +28,20 @@
     let question = $state<QuestionDetail | null>(null);
     let questionHtml = $state('');
     let myVote = $state(0);
+    // Answers are paged with limit/offset. The page number lives in the URL
+    // (`?page=N`) so that back/forward and shared links land on the same page.
     let answers = $state<Answer[]>([]);
-    let moreAnswers = $state(false);
+    let answerCount = $state(0);
+    let answerPage = $state(1);
+    let answerPages = $derived(Math.ceil(answerCount / ANSWERS_PER_PAGE));
+    let answersEl = $state<HTMLElement>();
+    /** The page `?page=N` asks for; 0 when the URL names none. */
+    let urlPage = $derived.by(() => {
+        const n = Number(page.url.searchParams.get('page'));
+        return Number.isInteger(n) && n > 0 ? n : 0;
+    });
+    let answersLoad = 0;
+    let answersShown = false;
 
     let editorOpen = $state(false);
     let replyTo = $state<{ id: string | number; username: string } | null>(null);
@@ -44,17 +57,66 @@
         return { ...a, html: parseMarkdown(a.description), myVote: a.vote_by_current_user };
     }
 
-    async function loadAnswers(after: number) {
-        const res = await api.post(`question/get-answers/${id}/?limit=${ANSWERS_PER_LOAD}`, {
-            cat: cursor(after)
-        });
-        const j = await api.json<{ data?: { questions: AnswerRow[] } }>(res);
-        const rows = j.data?.questions ?? [];
-        // The cursor has one-second precision, so a page can repeat the last
-        // answer of the previous one; skip anything already shown.
-        const seen = new Set(answers.map((a) => a.question_id));
-        answers = [...answers, ...rows.filter((r) => !seen.has(r.question_id)).map(toAnswer)];
-        moreAnswers = rows.length === ANSWERS_PER_LOAD;
+    /** Load page `target` of the answers, or the page holding answer `target.answer`. */
+    async function loadAnswers(target: number | { answer: string }): Promise<void> {
+        const seq = ++answersLoad;
+        const where =
+            typeof target === 'number' ? `offset=${(target - 1) * ANSWERS_PER_PAGE}` : `answer=${target.answer}`;
+        const res = await api.post(`question/get-answers/${id}/?limit=${ANSWERS_PER_PAGE}&${where}`, {});
+        const j = await api.json<{
+            data?: { questions: AnswerRow[] };
+            count?: number;
+            offset?: number;
+            message?: string;
+        }>(res);
+        if (seq !== answersLoad) return; // a newer page was requested meanwhile
+        if (res.status !== 200) {
+            alert(j.message || 'Could not load the answers.');
+            return;
+        }
+        const count = j.count ?? 0;
+        const last = Math.max(1, Math.ceil(count / ANSWERS_PER_PAGE));
+        const shown = Math.floor((j.offset ?? 0) / ANSWERS_PER_PAGE) + 1;
+        // `?page=` past the end (a stale link, or answers were deleted): show the last page.
+        if (shown > last) return loadAnswers(last);
+        answers = (j.data?.questions ?? []).map(toAnswer);
+        answerCount = count;
+        answerPage = shown;
+    }
+
+    /**
+     * Show the answers the URL points at: `?page=N`, else the page holding the
+     * answer linked as `#{answer_id}`, else page one. Then jump to and
+     * highlight that answer if it is on the page.
+     */
+    async function showAnswers(pageNo: number, hash: string) {
+        const first = !answersShown;
+        answersShown = true;
+        if (pageNo) await loadAnswers(pageNo);
+        else if (first && /^\d+$/.test(hash)) await loadAnswers({ answer: hash });
+        else await loadAnswers(1);
+
+        await tick();
+        const el = hash && document.getElementById(hash);
+        if (el) {
+            el.scrollIntoView({ block: 'center' });
+            el.classList.add('bg-green-100', 'transition-colors');
+        } else if (!first) {
+            answersEl?.scrollIntoView({ block: 'start' });
+        }
+    }
+
+    $effect(() => {
+        if (!question) return;
+        showAnswers(urlPage, page.url.hash.slice(1));
+    });
+
+    function goPage(pageNo: number, hash = '') {
+        const u = new URL(page.url.href);
+        if (pageNo > 1) u.searchParams.set('page', String(pageNo));
+        else u.searchParams.delete('page');
+        u.hash = hash;
+        return goto(u, { reset: false });
     }
 
     onMount(async () => {
@@ -73,17 +135,7 @@
         questionHtml = parseMarkdown(j.data.description);
         myVote = j.data.vote_by_current_user;
         replyTo = { id: j.data.posted_by_id, username: j.data.username };
-
-        await loadAnswers(j.data.cat);
-
-        // Jump to and highlight an answer linked as /questions/{id}/{slug}#{answer_id}.
-        await tick();
-        const target = page.url.hash.slice(1);
-        const el = target && document.getElementById(target);
-        if (el) {
-            el.scrollIntoView({ block: 'center' });
-            el.classList.add('bg-green-100', 'transition-colors');
-        }
+        // Setting `question` starts the answers loading (see the effect above).
     });
 
     async function vote(value: 1 | -1, postId: string) {
@@ -129,7 +181,8 @@
     }
 
     async function share(answerId: string) {
-        const url = `${location.origin}/questions/${id}/${slug}#${answerId}`;
+        const where = answerPage > 1 ? `?page=${answerPage}` : '';
+        const url = `${location.origin}/questions/${id}/${slug}${where}#${answerId}`;
         try {
             await navigator.clipboard.writeText(url);
             alert('Link copied to the clipboard.');
@@ -164,10 +217,21 @@
             replyError = j.message || 'Could not post your answer, try again.';
             return;
         }
+        const text = replyText;
+        replyText = '';
+        editorOpen = false;
+        // A new answer is the last one. If that is not on the page being
+        // shown, go to the page it is on instead of appending it here.
+        answerCount += 1;
+        const last = Math.ceil(answerCount / ANSWERS_PER_PAGE);
+        if (last !== answerPage) {
+            await goPage(last, j.data);
+            return;
+        }
         answers.push(
             toAnswer({
                 question_id: j.data,
-                description: replyText,
+                description: text,
                 votes: 0,
                 posted_by_id: String(user.id),
                 username: user.username,
@@ -181,8 +245,6 @@
                 cat: Math.floor(Date.now() / 1000)
             })
         );
-        replyText = '';
-        editorOpen = false;
     }
 </script>
 
@@ -287,6 +349,7 @@
             </div>
         </div>
 
+        <div bind:this={answersEl} class="scroll-mt-4"></div>
         {#each answers as a (a.question_id)}
             <hr class="my-4 border-gray-200" />
             <div class="flex gap-4 rounded" id={a.question_id}>
@@ -371,14 +434,14 @@
             </div>
         {/each}
 
-        {#if moreAnswers}
-            <div class="mt-4 flex justify-center">
-                <button
-                    type="button"
-                    class="btn-secondary"
-                    onclick={() => loadAnswers(answers[answers.length - 1].cat)}>Load more answers</button
-                >
-            </div>
+        {#if answerPages > 1}
+            <Pagination
+                page={answerPage}
+                pages={answerPages}
+                onfirst={() => goPage(1)}
+                onprev={() => goPage(answerPage - 1)}
+                onnext={() => goPage(answerPage + 1)}
+            />
         {/if}
 
         <hr class="my-4 border-gray-200" />

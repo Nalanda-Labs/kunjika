@@ -149,6 +149,8 @@ pub struct ProfileResponse {
     pub karma: i64,
     pub created_date: SqlDateTime,
     pub cat: i64,
+    /// `normal` or `suspended`.
+    pub status: String,
 }
 
 /// Limits mirror registration for `username` and the column widths for the

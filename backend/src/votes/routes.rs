@@ -17,6 +17,10 @@ async fn vote(
     match state.get_ref().handle_vote(&data, &auth.user).await {
         Ok(r) => {
             if r.e == VoteEnum::VoteSuccessful {
+                if data.vote == 1 {
+                    crate::notifications::dao::on_upvote(state.get_ref(), data.id, auth.user.id)
+                        .await;
+                }
                 // do not send any data member for successful case
                 HttpResponse::Ok().json(&json!({"success": true, "count_by_user": r.vote_by_user}))
             } else if r.e == VoteEnum::VoteOnce {

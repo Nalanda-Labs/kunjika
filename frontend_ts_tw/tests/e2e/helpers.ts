@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
 // Shared helpers for the e2e specs. Not a spec itself: playwright.e2e.config.ts
@@ -5,6 +7,23 @@ import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
 export const BACKEND = 'http://localhost:8000/api/v1';
 export const MAILPIT = 'http://localhost:8026';
+/**
+ * The test database, for the one thing the API cannot do: make a moderator.
+ * Resolved like the backend's own tooling: `KUNJIKA_TEST_DB_URL`, else the
+ * `DATABASE_URL` in backend/.env (what the migration runner and sqlx use),
+ * else the backend test harness's default.
+ */
+export const DB_URL = process.env.KUNJIKA_TEST_DB_URL ?? envFileDatabaseUrl() ?? 'postgres://yugabyte:yugabyte@127.0.1.1:5433/kunjika_test';
+
+function envFileDatabaseUrl(): string | undefined {
+    try {
+        // Playwright runs from frontend_ts_tw/, next to backend/.
+        const m = readFileSync('../backend/.env', 'utf8').match(/^\s*DATABASE_URL\s*=\s*(.+)$/m);
+        return m?.[1].trim().replace(/^["']|["']$/g, '') || undefined;
+    } catch {
+        return undefined;
+    }
+}
 
 /** A unique 10-character username that starts with a letter. */
 export function uniqueUsername(prefix = 'e2e'): string {
@@ -43,10 +62,54 @@ export async function waitForMailMatching(
 export type SessionUser = { id: number; username: string; email: string };
 
 /**
+ * Run one SQL statement against the test database with `psql` (already a
+ * requirement of the migration runner). `vars` are passed as psql variables
+ * and referenced in `sql` as `:'name'`, so values are quoted by psql rather
+ * than pasted into the statement. Returns the trimmed output.
+ */
+export function sql(statement: string, vars: Record<string, string> = {}): string {
+    const args = [DB_URL, '-v', 'ON_ERROR_STOP=1', '-qAt'];
+    for (const [k, v] of Object.entries(vars)) args.push('-v', `${k}=${v}`);
+    return execFileSync('psql', args, { input: statement, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+}
+
+/** Why moderator tests cannot run here, or null when they can. */
+export function moderatorUnavailable(): string | null {
+    try {
+        sql('select 1');
+        return null;
+    } catch (e) {
+        return `cannot reach the test database with psql (${DB_URL.replace(/:[^:@/]*@/, ':***@')}): ${
+            e instanceof Error ? e.message.split('\n')[0] : e
+        }`;
+    }
+}
+
+/**
+ * Like `signInViaApi`, but the new account is a moderator.
+ *
+ * No endpoint grants that role, so it is set in the database, between
+ * confirming the account and logging in: the `logged_in` cookie the UI reads
+ * is written at login, and so already says `is_moderator`.
+ * Guard specs with `test.skip(!!moderatorUnavailable(), …)`.
+ */
+export function signInAsModerator(page: Page, prefix = 'mod'): Promise<SessionUser> {
+    return signInViaApi(page, prefix, (email) => {
+        const id = sql(`update users set is_moderator = true where email = :'email' returning id;`, { email });
+        expect(id, 'moderator row updated').toMatch(/^\d+$/);
+    });
+}
+
+/**
  * Register, confirm and log in through the API. `page.request` shares the
  * browser context's cookie jar, so the page is logged in afterwards.
+ * `beforeLogin` runs once the account exists and is confirmed.
  */
-export async function signInViaApi(page: Page, prefix = 'e2e'): Promise<SessionUser> {
+export async function signInViaApi(
+    page: Page,
+    prefix = 'e2e',
+    beforeLogin?: (email: string) => void
+): Promise<SessionUser> {
     const username = uniqueUsername(prefix);
     const email = `${username}@example.com`;
 
@@ -57,6 +120,8 @@ export async function signInViaApi(page: Page, prefix = 'e2e'): Promise<SessionU
     const token = link?.[1].replace(/[.,;:]+$/, '');
     expect(token, 'confirmation token').toBeTruthy();
     expect((await page.request.get(`${BACKEND}/confirm-email/${token}`)).status()).toBe(200);
+
+    beforeLogin?.(email);
 
     const submit = await page.request.post(`${BACKEND}/submit-email`, { data: { email } });
     expect(submit.status(), 'submit-email').toBe(200);

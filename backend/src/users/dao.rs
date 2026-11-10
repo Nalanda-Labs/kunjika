@@ -115,7 +115,7 @@ impl IUser for &AppStateRaw {
         let qr = sqlx::query!(
             r#"
             select id, username, name, title, designation, location, email, image_url, git, website,
-            twitter, karma, displayname, created_date from users
+            twitter, karma, displayname, created_date, status from users
             where id = $1 and deleted=false
             "#,
             uid
@@ -168,6 +168,7 @@ impl IUser for &AppStateRaw {
             karma,
             created_date,
             cat: created_date.unix_timestamp(),
+            status: qr.status,
         };
         Ok(p)
     }

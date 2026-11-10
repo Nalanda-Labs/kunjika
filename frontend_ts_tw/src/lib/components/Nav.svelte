@@ -1,7 +1,14 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
+    import { afterNavigate } from '$app/navigation';
     import { page } from '$app/state';
+    import { refreshUnread, unread } from '#lib/notifications.svelte.ts';
     import Icon from './Icon.svelte';
+
+    // Keep the bell current: checked on load and after every navigation.
+    afterNavigate(() => {
+        if (page.data.user) refreshUnread();
+    });
 
     let search = $state('');
     let menuOpen = $state(false);
@@ -44,6 +51,22 @@
             </form>
             <ul class="flex items-center gap-3">
                 {#if page.data.user}
+                    <li>
+                        <a
+                            href="/notifications"
+                            class="relative inline-flex h-8 w-8 items-center justify-center rounded text-gray-700 hover:bg-gray-100"
+                            aria-label={unread.count > 0 ? `Notifications (${unread.count} unread)` : 'Notifications'}
+                            title="Notifications"
+                        >
+                            <Icon name="bell" size={20} />
+                            {#if unread.count > 0}
+                                <span
+                                    class="absolute -top-1 -right-1 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] leading-4 text-white"
+                                    id="unreadBadge">{unread.count > 99 ? '99+' : unread.count}</span
+                                >
+                            {/if}
+                        </a>
+                    </li>
                     <li>
                         <a href="/users/{page.data.user.id}/{page.data.user.username}" aria-label="Your profile">
                             <img

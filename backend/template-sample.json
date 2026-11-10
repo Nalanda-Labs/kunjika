@@ -28,5 +28,11 @@
   "backend_url": "http://localhost:8000/api/v1/",
   "image_max_size": 2097152,
   "karma_gain_per_answer": 20,
-  "login_code_length": 10
+  "login_code_length": 10,
+  // Rate limits, per hour; 0 switches one off. All optional (these are the defaults).
+  "rate_limit_questions_per_hour": 10,
+  "rate_limit_answers_per_hour": 30,
+  "rate_limit_registrations_per_hour": 5,
+  "rate_limit_login_codes_per_hour": 5,
+  "rate_limit_login_attempts_per_hour": 10
 }

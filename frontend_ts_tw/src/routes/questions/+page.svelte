@@ -1,6 +1,7 @@
 <script lang="ts">
     import { page } from '$app/state';
     import PagedQuestions from '#lib/components/PagedQuestions.svelte';
+    import { api_base } from '#lib/config.ts';
     import { fetchQuestions } from '#lib/questions.ts';
 
     const PER_PAGE = 30;
@@ -32,6 +33,7 @@
 
 <svelte:head>
     <title>All questions ❤ Kunjika</title>
+    <link rel="alternate" type="application/rss+xml" title="Newest questions" href="{api_base}/feeds/questions/" />
 </svelte:head>
 
 <div class="mt-5">

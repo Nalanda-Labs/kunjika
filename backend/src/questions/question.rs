@@ -71,6 +71,19 @@ pub struct QuestionResponse {
     pub vote_by_current_user: i64,
     pub cat: i64,
     pub uat: i64,
+    /// A closed question is readable but takes no new answers.
+    pub closed: bool,
+    /// Set when the question was closed as a duplicate of another one.
+    pub duplicate_of: Option<DuplicateOf>,
+    /// Whether the post has earlier versions (see `posts/{id}/history`).
+    pub edited: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DuplicateOf {
+    pub id: String,
+    pub title: String,
+    pub slug: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -91,6 +104,8 @@ pub struct QuestionsReq {
 pub struct SearchReq {
     pub search: String,
     pub questions_per_page: i64,
+    /// Number of matches to skip, for the pages after the first.
+    pub offset: Option<i64>,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]
@@ -180,6 +195,8 @@ pub struct AR {
     pub rimage_url: Option<String>,
     pub vote_by_current_user: i64,
     pub cat: i64,
+    /// Whether the answer has earlier versions.
+    pub edited: bool,
 }
 
 #[derive(FromRow, Serialize, Deserialize, Debug)]

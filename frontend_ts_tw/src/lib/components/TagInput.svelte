@@ -45,8 +45,11 @@
         }
         try {
             const res = await api.post('get-tags', { tag: q });
-            if (mine !== requestId) return;
             const j = await api.json<{ data?: { name: string }[] }>(res);
+            // Checked after the LAST await: a tag committed while the body was
+            // still being read used to let this stale answer reopen the list,
+            // on top of the form's submit button.
+            if (mine !== requestId) return;
             suggestions = (j.data ?? []).map((t) => t.name).filter((n) => !tags.includes(n));
             active = -1;
         } catch {

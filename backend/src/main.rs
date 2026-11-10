@@ -17,6 +17,9 @@ use num_cpus;
 
 // pub mod api;
 pub mod config;
+pub mod feeds;
+pub mod moderation;
+pub mod notifications;
 // pub mod how;
 pub mod middlewares;
 // pub mod models;
@@ -89,12 +92,21 @@ async fn main() -> std::io::Result<()> {
             )
             .state(state.clone())
             .middleware(web::middleware::Logger::default())
-            .middleware(web::middleware::Compress::default())
+            // No `Compress` middleware. With ntex 3.12 it corrupts any
+            // response whose COMPRESSED size passes roughly 4 KB ("invalid
+            // chunk size" in curl, a failed fetch in Node), for clients that
+            // accept only gzip/deflate - which includes the SvelteKit server.
+            // Browsers never benefited: they also offer brotli, ntex prefers
+            // it, cannot produce it, and sends the body as is. Compress at
+            // the proxy (nginx `gzip on;`) instead.
             .service((web::scope(APIV1)
                 .configure(users::routes::init)
                 .configure(tags::routes::init)
                 .configure(votes::routes::init)
                 .configure(questions::routes::init)
+                .configure(moderation::routes::init)
+                .configure(notifications::routes::init)
+                .configure(feeds::routes::init)
                 .configure(uploads::routes::init),))
     })
     .workers(num_cpus::get())   

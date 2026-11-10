@@ -174,6 +174,8 @@ SMTP `2525`, API `http://127.0.0.1:8025`).
 | `api_users_a..d.rs` | register happy path, validation, availability, OTP login, 3/33/34-char username boundaries, 23505-vs-other error mapping, email/tag uniqueness |
 | `api_mail.rs` | confirmation mail, `confirm-email`, OTP mail + single-use OTP — all delivered over STARTTLS |
 | `api_writes_a/b.rs` | question lifecycle, answer, edit, vote, bookmark, duplicate tags, edit ownership/validation, `reply_to` shapes, self-answer with no notification |
+| `api_pagination.rs` | answers paged with limit/offset (+ `?answer=`), report queue paged with a keyset cursor |
+| `api_community.rs` | deleting posts, closing/reopening questions, suspending users, edit history, notifications and followed tags, rate limits, RSS feeds, sitemap, search paging |
 | `smtp_tls_probe.rs` | STARTTLS handshake against the TLS mail server (section 1b) |
 
 ### Why the harness can spawn the backend with an `LD_PRELOAD` shim
@@ -260,6 +262,15 @@ npx playwright test -c playwright.e2e.config.ts
 It starts `npm run build && npm run preview` on **port 5173** on purpose: the
 backend CORS allow-list in `backend/src/main.rs` only accepts
 `http://localhost:5173`, `http://localhost:3000` and `http://localhost`.
+
+`moderation.spec.ts` covers the moderator-only screens (report queue,
+closing/reopening questions, deleting other people's posts, suspending
+users). No endpoint grants the moderator role, so `signInAsModerator` in
+`tests/e2e/helpers.ts` sets `is_moderator` in the test database with `psql`
+between confirming the account and logging in. The database is taken from
+`KUNJIKA_TEST_DB_URL`, else `DATABASE_URL` in `backend/.env`, else the
+harness default; if `psql` cannot reach it, those tests are skipped with the
+reason rather than failed.
 
 `auth.spec.ts` runs a genuine full-stack flow: register in the UI, read the
 confirmation token out of Mailpit, `confirm-email`, request an OTP, read the OTP

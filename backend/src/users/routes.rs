@@ -4,6 +4,7 @@ use crate::middlewares::auth::{self, AuthorizationService};
 use crate::state::AppState;
 use crate::users::token;
 use crate::uploads::save::save_upload;
+use crate::utils::rate_limit::{self, HOUR};
 use crate::utils::request::{db_error, internal_error, parse_id};
 use crate::utils::security::{check_signature, extract_email, sign, sign_in_code, SignatureError};
 use crate::utils::verify_user::verify_profile_user;
@@ -38,8 +39,29 @@ fn cookie_domain(host: &str) -> String {
 }
 
 #[post("/register")]
-async fn register(form: web::types::Json<Register>, state: AppState) -> impl Responder {
+async fn register(
+    form: web::types::Json<Register>,
+    req: HttpRequest,
+    state: AppState,
+) -> impl Responder {
     let form = form.into_inner();
+
+    // Per client address: registration is the one write an anonymous
+    // visitor can make, and every attempt sends an email.
+    if let Some(ip) = rate_limit::client_ip(&req) {
+        if let Err(r) = rate_limit::check(
+            state.get_ref(),
+            "register",
+            &ip,
+            state.config.rate_limit_registrations_per_hour,
+            HOUR,
+            "registrations from this address",
+        )
+        .await
+        {
+            return r;
+        }
+    }
 
     if let Err(e) = form.validate() {
         error!("regitser {:?} error: {:?}", form, e);
@@ -139,9 +161,37 @@ fn is_unique_violation(err: &sqlx::Error) -> bool {
         .unwrap_or(false)
 }
 
+fn suspended_response() -> HttpResponse {
+    HttpResponse::Forbidden()
+        .json(&json!({"status": "fail", "message": "This account has been suspended."}))
+}
+
 #[post("/submit-email")]
 async fn submit_email_for_login(form: web::types::Json<Login>, state: AppState) -> impl Responder {
     let form = form.into_inner();
+
+    // Each request mails a code to `email`: without a limit this endpoint
+    // can be used to flood somebody's inbox.
+    if let Err(r) = rate_limit::check(
+        state.get_ref(),
+        "login-code",
+        &form.email.trim().to_lowercase(),
+        state.config.rate_limit_login_codes_per_hour,
+        HOUR,
+        "sign-in codes requested",
+    )
+    .await
+    {
+        return r;
+    }
+
+    // Suspended accounts are told so here rather than being mailed a code
+    // that will not work.
+    if let Ok(user) = state.get_ref().user_query(&form.email).await {
+        if user.status == "suspended" {
+            return suspended_response();
+        }
+    }
 
     match state.get_ref().get_email_for_login(&form.email).await {
         Ok(true) => {
@@ -213,8 +263,22 @@ Team Kunjika",
 async fn login(form: web::types::Json<LoginForm>, state: AppState) -> impl Responder {
     let form = form.into_inner();
 
-    // todo: distable login for deleted and blocked users
+    // Bounds guessing of the emailed code for one address.
+    if let Err(r) = rate_limit::check(
+        state.get_ref(),
+        "login",
+        &form.email.trim().to_lowercase(),
+        state.config.rate_limit_login_attempts_per_hour,
+        HOUR,
+        "sign-in attempts",
+    )
+    .await
+    {
+        return r;
+    }
+
     match state.get_ref().user_query(&form.email).await {
+        Ok(user) if user.status == "suspended" => suspended_response(),
         Ok(user) => {
             info!("login attempt for user {}", user.id);
             match state

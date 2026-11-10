@@ -54,6 +54,12 @@ export interface QuestionDetail {
     vote_by_current_user: number;
     cat: number;
     uat: number;
+    /** A closed question is readable but takes no new answers. */
+    closed: boolean;
+    /** Set when the question was closed as a duplicate of another one. */
+    duplicate_of: { id: string; title: string; slug: string } | null;
+    /** Whether the post has earlier versions to show under "History". */
+    edited: boolean;
 }
 
 /** An answer on a question page (`AR` in the backend). */
@@ -71,6 +77,7 @@ export interface AnswerRow {
     vote_by_current_user: number;
     created_at: string;
     cat: number;
+    edited: boolean;
 }
 
 /** An answer or bookmark in a user's profile tabs (`AR2` in the backend). */
@@ -129,6 +136,8 @@ export interface Profile {
     karma: number;
     created_date: string;
     cat: number;
+    /** `normal` or `suspended`. */
+    status: string;
 }
 
 export interface Report {
@@ -146,4 +155,42 @@ export interface Report {
     post_excerpt: string | null;
     is_question: boolean | null;
     open_count: number | null;
+}
+
+export type NotificationKind = 'answer' | 'reply' | 'accepted' | 'upvote' | 'tag_question';
+
+export interface Notification {
+    id: number;
+    kind: NotificationKind;
+    actor_id: number | null;
+    actor: string | null;
+    question_id: number | null;
+    question_title: string | null;
+    question_slug: string | null;
+    post_id: number | null;
+    cat: number;
+    read: boolean;
+}
+
+/** One earlier version of a post (`posts/{id}/history`). */
+export interface Revision {
+    id: number;
+    title: string | null;
+    description: string;
+    tags: string | null;
+    edited_by_id: number | null;
+    editor: string | null;
+    /** When this version was replaced by the next one. */
+    cat: number;
+}
+
+export interface PostHistory {
+    question_id: number;
+    question_slug: string;
+    is_question: boolean;
+    title: string | null;
+    description: string;
+    author: string | null;
+    posted_by_id: number;
+    revisions: Revision[];
 }

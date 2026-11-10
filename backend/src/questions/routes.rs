@@ -3,6 +3,9 @@ use super::question::*;
 use crate::middlewares::auth::AuthorizationService;
 use crate::state::{AppState, AppStateRaw};
 use crate::uploads::save::save_upload;
+use crate::moderation::dao::question_closed;
+use crate::notifications::dao as notifications;
+use crate::utils::rate_limit::{self, HOUR};
 use crate::utils::request::{
     db_error, optional_user_id, parse_cursor, parse_id, parse_keyset_cursor,
 };
@@ -139,6 +142,19 @@ async fn insert_question(
             .json(&json!({"status": "fail", "message": e.to_string()}));
     }
 
+    if let Err(r) = rate_limit::check(
+        state.get_ref(),
+        "question",
+        &auth.user.id.to_string(),
+        state.config.rate_limit_questions_per_hour,
+        HOUR,
+        "questions",
+    )
+    .await
+    {
+        return r;
+    }
+
     let slug = create_slug(&r.title).await;
 
     let q = DbQuestion {
@@ -157,6 +173,7 @@ async fn insert_question(
         }
         Ok(t) => {
             debug!("insert question {:?} ", t);
+            notifications::on_question(state.get_ref(), t as i64, auth.user.id).await;
             let res = AskResponse {
                 id: t.to_string(),
                 slug,
@@ -329,9 +346,12 @@ async fn notify_participants(state: AppStateRaw, qid: i64, author: i64) {
 
 A new answer has been posted for the question you interacted with.
 You can read it at https://{}/questions/{}/{}
+
 Thanks,
-Team Kunjika",
-        state.config.host, qid, slug
+Team Kunjika
+
+To stop these emails, turn them off at https://{}/notifications",
+        state.config.host, qid, slug, state.config.host
     );
 
     let mut builder = Message::builder()
@@ -377,8 +397,45 @@ async fn answer(
             .json(&json!({"status": "fail", "message": e.to_string()}));
     }
 
+    // Answers go on questions that exist and are still open. (An answer to
+    // an unknown id used to be stored as an orphan row.)
+    match question_closed(state.get_ref(), answer.id).await {
+        Ok(Some(false)) => {}
+        Ok(Some(true)) => {
+            return HttpResponse::Conflict().json(&json!({
+                "status": "fail", "message": "This question is closed and takes no new answers.",
+            }))
+        }
+        Ok(None) => {
+            return HttpResponse::NotFound()
+                .json(&json!({"status": "fail", "message": "No such question."}))
+        }
+        Err(e) => return db_error(&e, json!("fail")),
+    }
+
+    if let Err(r) = rate_limit::check(
+        state.get_ref(),
+        "answer",
+        &auth.user.id.to_string(),
+        state.config.rate_limit_answers_per_hour,
+        HOUR,
+        "answers",
+    )
+    .await
+    {
+        return r;
+    }
+
     match state.get_ref().insert_answer(&answer, &auth.user.id).await {
         Ok(answer_res) => {
+            notifications::on_answer(
+                state.get_ref(),
+                answer.id,
+                answer_res as i64,
+                auth.user.id,
+                answer.reply_to,
+            )
+            .await;
             ntex::rt::spawn(notify_participants(
                 state.get_ref().clone(),
                 answer.id,
@@ -468,7 +525,7 @@ async fn update_post(
 
     match state
         .get_ref()
-        .update_post(pid, &er.description, &er.tag_list, &title, &slug)
+        .update_post(pid, &er.description, &er.tag_list, &title, &slug, auth.user.id)
         .await
     {
         Ok((post, slug)) => HttpResponse::Ok().json(&json!({"data": { "id": post, "slug": slug}})),
@@ -499,6 +556,7 @@ async fn accept_answer(
 
     match state.get_ref().accept_answer(qid, aid, &auth.user.id).await {
         Ok(AcceptOutcome::Accepted) => {
+            notifications::on_accepted(state.get_ref(), qid, aid, auth.user.id).await;
             HttpResponse::Ok().json(&json!({"success": true, "accepted": true}))
         }
         Ok(AcceptOutcome::Unaccepted) => {
@@ -712,10 +770,13 @@ async fn search_questions(
     // rejecting) keeps the client's requested page size working while bounding
     // the payload; results stay ordered by relevance.
     let limit = form.questions_per_page.clamp(1, SEARCH_RESULTS_LIMIT);
+    // `count` in the response is the total number of matches; `offset`
+    // pages through them, `limit` at a time.
+    let offset = form.offset.unwrap_or(0).max(0);
 
     match state
         .get_ref()
-        .search_questions(&form.search, limit)
+        .search_questions(&form.search, limit, offset)
         .await
     {
         Ok(db_questions) => {
@@ -873,7 +934,7 @@ async fn edit_answer(
 
     match state
         .get_ref()
-        .edit_answer(pid, &er.description)
+        .edit_answer(pid, &er.description, auth.user.id)
         .await
     {
         Ok(()) => HttpResponse::Ok().json(&json!({"data": {}})),

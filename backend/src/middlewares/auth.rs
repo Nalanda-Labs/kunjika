@@ -145,6 +145,14 @@ impl<Err> FromRequest<Err> for AuthorizationService {
         .await;
 
         match query_result {
+            // A suspended account keeps its session cookies, so the check
+            // has to be made on every authenticated request, not at login.
+            Ok(Some(user)) if user.status == "suspended" => {
+                Err(ntex::web::error::ErrorForbidden(ErrorResponse {
+                    status: "fail".to_string(),
+                    message: "This account has been suspended.".to_string(),
+                }))
+            }
             Ok(Some(user)) => Ok(AuthorizationService {
                 user,
                 xsrf_token: access_token_uuid.to_string(),

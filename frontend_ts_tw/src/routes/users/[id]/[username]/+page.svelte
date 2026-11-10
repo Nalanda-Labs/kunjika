@@ -8,7 +8,7 @@
     import EditProfile from '#lib/components/profile/EditProfile.svelte';
     import Summary from '#lib/components/profile/Summary.svelte';
     import UserPosts from '#lib/components/profile/UserPosts.svelte';
-    import type { Profile, QuestionRow } from '#lib/types.ts';
+    import { isReviewer, type Profile, type QuestionRow } from '#lib/types.ts';
 
     type Tab = 'activity' | 'bookmarks' | 'settings';
     type Sub = 'summary1' | 'questions' | 'answers';
@@ -44,6 +44,21 @@
         throw new Error(j.message || 'Could not load questions.');
     };
 
+    let suspended = $derived(profile?.status === 'suspended');
+
+    /** Moderators: suspend this account, or reinstate it. */
+    async function setSuspended(next: boolean) {
+        if (!profile) return;
+        const question = next
+            ? `Suspend ${profile.username}? They will be signed out and unable to sign in or post.`
+            : `Reinstate ${profile.username}?`;
+        if (!confirm(question)) return;
+        const res = await api.post(`users/${profile.id}/suspend/`, { suspended: next });
+        const j = await api.json<{ message?: string }>(res);
+        if (res.status === 200) profile.status = next ? 'suspended' : 'normal';
+        else alert(j.message || 'Could not update the account.');
+    }
+
     function link(href: string | null | undefined): string {
         if (!href) return '';
         return /^https?:\/\//.test(href) ? href : `https://${href}`;
@@ -59,7 +74,14 @@
         <div class="flex gap-4">
             <img src={profile.image_url} alt="{profile.username}'s avatar" class="h-32 w-32 rounded object-cover" />
             <div class="min-w-0">
-                <h4 class="text-2xl font-normal break-words">{profile.username}</h4>
+                <h4 class="text-2xl font-normal break-words">
+                    {profile.username}
+                    {#if suspended}
+                        <span class="ml-2 rounded bg-red-100 px-2 py-0.5 align-middle text-xs font-medium text-red-800" id="suspendedBadge"
+                            >suspended</span
+                        >
+                    {/if}
+                </h4>
                 <p class="text-gray-500">Member since {new Date(profile.cat * 1000).toISOString().slice(0, 10)}</p>
                 {#if profile.designation}<p class="text-sm text-gray-700">{profile.designation}</p>{/if}
                 <p class="mt-2 flex flex-wrap gap-4 text-sm">
@@ -67,6 +89,13 @@
                     {#if profile.website}<a class="link" href={link(profile.website)} target="_blank" rel="noopener noreferrer">website</a>{/if}
                     {#if profile.location}<span class="text-gray-600">{profile.location}</span>{/if}
                 </p>
+                {#if isReviewer(page.data.user) && !isSelf}
+                    <button
+                        type="button"
+                        class="{suspended ? 'btn-secondary' : 'btn-danger'} mt-3 text-sm"
+                        onclick={() => setSuspended(!suspended)}>{suspended ? 'Reinstate user' : 'Suspend user'}</button
+                    >
+                {/if}
             </div>
         </div>
 

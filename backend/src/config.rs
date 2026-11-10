@@ -55,6 +55,37 @@ pub struct Config {
     pub image_max_size: usize,
     pub karma_gain_per_answer: i64,
     pub login_code_length: usize,
+    /// Rate limits (see `utils/rate_limit.rs`). Each is a count per hour;
+    /// 0 switches that limit off. All are optional in the config file.
+    #[serde(default = "default_questions_per_hour")]
+    pub rate_limit_questions_per_hour: u32,
+    #[serde(default = "default_answers_per_hour")]
+    pub rate_limit_answers_per_hour: u32,
+    /// Per client IP address.
+    #[serde(default = "default_registrations_per_hour")]
+    pub rate_limit_registrations_per_hour: u32,
+    /// Sign-in codes mailed to one address.
+    #[serde(default = "default_login_codes_per_hour")]
+    pub rate_limit_login_codes_per_hour: u32,
+    /// Sign-in attempts (code guesses) for one address.
+    #[serde(default = "default_login_attempts_per_hour")]
+    pub rate_limit_login_attempts_per_hour: u32,
+}
+
+fn default_questions_per_hour() -> u32 {
+    10
+}
+fn default_answers_per_hour() -> u32 {
+    30
+}
+fn default_registrations_per_hour() -> u32 {
+    5
+}
+fn default_login_codes_per_hour() -> u32 {
+    5
+}
+fn default_login_attempts_per_hour() -> u32 {
+    10
 }
 
 impl Config {

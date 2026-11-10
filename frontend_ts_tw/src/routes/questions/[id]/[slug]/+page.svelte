@@ -52,6 +52,9 @@
     let reportDialog = $state<ReturnType<typeof ReportDialog>>();
 
     let isAsker = $derived(!!user && !!question && String(user.id) === String(question.posted_by_id));
+    let reviewer = $derived(isReviewer(user));
+    // Authors may delete a question nobody has answered; moderators any question.
+    let canDeleteQuestion = $derived(reviewer || (isAsker && answerCount === 0));
 
     function toAnswer(a: AnswerRow): Answer {
         return { ...a, html: parseMarkdown(a.description), myVote: a.vote_by_current_user };
@@ -180,6 +183,77 @@
         alert(j.message || 'Something went wrong, try again!');
     }
 
+    /** Delete the question (`postId === id`) or one of its answers. Permanent. */
+    async function deletePost(postId: string) {
+        const isQuestion = postId === id;
+        const warning = isQuestion
+            ? answerCount > 0
+                ? `Delete this question and its ${answerCount} answer(s)? This cannot be undone.`
+                : 'Delete this question? This cannot be undone.'
+            : 'Delete this answer? This cannot be undone.';
+        if (!confirm(warning)) return;
+        const res = await api.post(`delete-post/${postId}`, {});
+        const j = await api.json<{ message?: string }>(res);
+        if (res.status !== 200) {
+            alert(j.message || 'Could not delete the post.');
+            return;
+        }
+        if (isQuestion) {
+            await goto('/questions');
+            return;
+        }
+        // Reload the page of answers: later answers move up to fill the gap.
+        await loadAnswers(answerPage);
+    }
+
+    /** Moderators: close the question, optionally as a duplicate of another. */
+    async function closeQuestion() {
+        const input = prompt(
+            'Close this question.\n\nIf it duplicates another question, paste that question\'s link or id. Leave empty to close it without one.'
+        );
+        if (input === null) return;
+        let duplicate_of: number | undefined;
+        if (input.trim()) {
+            // A question link (…/questions/123/slug) or a bare id. Digits
+            // elsewhere in a link, such as a port number, are not an id.
+            const m = input.trim().match(/questions\/(\d+)/) ?? input.trim().match(/^#?(\d+)$/);
+            if (!m) {
+                alert('That does not look like a question link or id.');
+                return;
+            }
+            duplicate_of = Number(m[1]);
+        }
+        const res = await api.post(`questions/${id}/close/`, { duplicate_of });
+        const j = await api.json<{ message?: string }>(res);
+        if (res.status !== 200) {
+            alert(j.message || 'Could not close the question.');
+            return;
+        }
+        await reloadQuestion();
+    }
+
+    async function reopenQuestion() {
+        if (!confirm('Reopen this question?')) return;
+        const res = await api.post(`questions/${id}/reopen/`, {});
+        const j = await api.json<{ message?: string }>(res);
+        if (res.status !== 200) {
+            alert(j.message || 'Could not reopen the question.');
+            return;
+        }
+        await reloadQuestion();
+    }
+
+    /** Refresh the closed / duplicate state after a moderation action. */
+    async function reloadQuestion() {
+        const res = await api.get(`questions/${id}/${slug}`);
+        const j = await api.json<{ data?: QuestionDetail }>(res);
+        if (res.status === 200 && j.data && question) {
+            question.closed = j.data.closed;
+            question.duplicate_of = j.data.duplicate_of;
+            if (question.closed) editorOpen = false;
+        }
+    }
+
     async function share(answerId: string) {
         const where = answerPage > 1 ? `?page=${answerPage}` : '';
         const url = `${location.origin}/questions/${id}/${slug}${where}#${answerId}`;
@@ -242,7 +316,8 @@
                 rimage_url: null,
                 vote_by_current_user: 0,
                 created_at: '',
-                cat: Math.floor(Date.now() / 1000)
+                cat: Math.floor(Date.now() / 1000),
+                edited: false
             })
         );
     }
@@ -286,6 +361,21 @@
     <div class="mt-5">
         <h3 class="text-2xl font-normal">{question.title}</h3>
         <hr class="my-3 border-gray-200" />
+        {#if question.closed}
+            <div class="alert-warning mb-4 flex items-start gap-2" role="status" id="closedNotice">
+                <Icon name="lock" size={18} class="mt-0.5" />
+                <span>
+                    {#if question.duplicate_of}
+                        This question is closed as a duplicate of
+                        <a class="link" href="/questions/{question.duplicate_of.id}/{question.duplicate_of.slug}"
+                            >{question.duplicate_of.title}</a
+                        >. It takes no new answers.
+                    {:else}
+                        This question is closed and takes no new answers.
+                    {/if}
+                </span>
+            </div>
+        {/if}
 
         <div class="flex gap-4">
             <div class="flex w-14 shrink-0 flex-col items-center gap-2">
@@ -314,9 +404,32 @@
                                 }}><Icon name="pin" size={16} />Pin</a
                             >
                         {/if}
+                        {#if reviewer}
+                            <a
+                                href="/questions/close/{id}"
+                                class="action-link"
+                                title={question.closed ? 'Reopen this question' : 'Close this question'}
+                                onclick={(e) => {
+                                    e.preventDefault();
+                                    if (question!.closed) reopenQuestion();
+                                    else closeQuestion();
+                                }}><Icon name="lock" size={16} />{question.closed ? 'Reopen' : 'Close'}</a
+                            >
+                        {/if}
                         <a href="/questions/edit/{id}" class="action-link" title="Edit this post"
                             ><Icon name="edit" size={16} />Edit</a
                         >
+                        {#if canDeleteQuestion}
+                            <a
+                                href="/delete/{id}"
+                                class="action-link text-danger"
+                                title="Delete this question"
+                                onclick={(e) => {
+                                    e.preventDefault();
+                                    deletePost(id);
+                                }}><Icon name="trash" size={16} />Delete</a
+                            >
+                        {/if}
                         <a
                             href="/report/{id}"
                             class="action-link text-danger"
@@ -335,15 +448,22 @@
                                 bookmark(0);
                             }}><Icon name="bookmark" size={16} />Bookmark</a
                         >
-                        <a
-                            href="/reply"
-                            class="action-link"
-                            title="Reply to this post"
-                            onclick={(e) => {
-                                e.preventDefault();
-                                showEditor({ id: question!.posted_by_id, username: question!.username });
-                            }}><Icon name="reply" size={16} />Reply</a
-                        >
+                        {#if !question.closed}
+                            <a
+                                href="/reply"
+                                class="action-link"
+                                title="Reply to this post"
+                                onclick={(e) => {
+                                    e.preventDefault();
+                                    showEditor({ id: question!.posted_by_id, username: question!.username });
+                                }}><Icon name="reply" size={16} />Reply</a
+                            >
+                        {/if}
+                        {#if question.edited}
+                            <a href="/posts/{id}/history" class="action-link" title="See earlier versions of this post"
+                                ><Icon name="history" size={16} />History</a
+                            >
+                        {/if}
                     </div>
                 {/if}
             </div>
@@ -401,15 +521,35 @@
                                     reportDialog?.open(a.question_id, '');
                                 }}><Icon name="flag" size={16} />Report</a
                             >
-                            <a
-                                href="/reply"
-                                class="action-link"
-                                title="Reply to this post"
-                                onclick={(e) => {
-                                    e.preventDefault();
-                                    showEditor({ id: a.posted_by_id, username: a.username });
-                                }}><Icon name="reply" size={16} />Reply</a
-                            >
+                            {#if reviewer || String(user.id) === String(a.posted_by_id)}
+                                <a
+                                    href="/delete/{a.question_id}"
+                                    class="action-link text-danger"
+                                    title="Delete this answer"
+                                    onclick={(e) => {
+                                        e.preventDefault();
+                                        deletePost(a.question_id);
+                                    }}><Icon name="trash" size={16} />Delete</a
+                                >
+                            {/if}
+                            {#if a.edited}
+                                <a
+                                    href="/posts/{a.question_id}/history"
+                                    class="action-link"
+                                    title="See earlier versions of this post"><Icon name="history" size={16} />History</a
+                                >
+                            {/if}
+                            {#if !question.closed}
+                                <a
+                                    href="/reply"
+                                    class="action-link"
+                                    title="Reply to this post"
+                                    onclick={(e) => {
+                                        e.preventDefault();
+                                        showEditor({ id: a.posted_by_id, username: a.username });
+                                    }}><Icon name="reply" size={16} />Reply</a
+                                >
+                            {/if}
                             <a
                                 href="/share/{a.question_id}"
                                 class="action-link"
@@ -445,7 +585,7 @@
         {/if}
 
         <hr class="my-4 border-gray-200" />
-        {#if user}
+        {#if user && !question.closed}
             <a
                 href="/reply"
                 class="action-link"

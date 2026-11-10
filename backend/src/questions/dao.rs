@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use super::question::*;
 use crate::state::AppStateRaw;
+use crate::moderation::dao::{purge_post, snapshot_post};
 use crate::utils::request::encode_keyset_cursor;
 
 #[async_trait]
@@ -43,6 +44,7 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         &self,
         search: &String,
         limit: i64,
+        offset: i64,
     ) -> sqlx::Result<QuestionsResponse>;
     async fn get_post(&self, pid: i64) -> sqlx::Result<PostResponse>;
     /// Owner of the post, used to authorise `/edit-post/{id}`.
@@ -56,6 +58,7 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         tag_list: &Option<Vec<String>>,
         title: &String,
         slug: &String,
+        editor_id: i64,
     ) -> sqlx::Result<(u64, String)>;
     async fn accept_answer(&self, qid: i64, aid: i64, uid: &i64) -> sqlx::Result<AcceptOutcome>;
     async fn get_questions_by_user(
@@ -106,6 +109,7 @@ pub trait IQuestion: std::ops::Deref<Target = AppStateRaw> {
         &self,
         pid: i64,
         description: &String,
+        editor_id: i64,
     ) -> sqlx::Result<()>;
 }
 
@@ -260,8 +264,11 @@ impl IQuestion for &AppStateRaw {
         let question = sqlx::query!(
             r#"
             select t.title as title, t.description, t.visible, t.created_at, t.posted_by_id, t.updated_at,
-            t.votes, t.views, t.op_id, t.updated_by_id, users.username as username, users.image_url as image_url
-            from posts t left join users on t.posted_by_id=users.id where t.id=$1
+            t.votes, t.views, t.op_id, t.updated_by_id, users.username as username, users.image_url as image_url,
+            t.closed_at, t.duplicate_of_id, d.title as "duplicate_title?", d.slug as "duplicate_slug?",
+            exists(select 1 from post_revisions r where r.post_id = t.id) as "edited!"
+            from posts t left join users on t.posted_by_id=users.id
+            left join posts d on d.id = t.duplicate_of_id where t.id=$1
             "#, qid
         ).fetch_one(&mut *tx)
         .await?;
@@ -312,6 +319,13 @@ impl IQuestion for &AppStateRaw {
             vote_by_current_user,
             cat: question.created_at.unix_timestamp(),
             uat: question.updated_at.unix_timestamp(),
+            closed: question.closed_at.is_some(),
+            duplicate_of: question.duplicate_of_id.map(|id| DuplicateOf {
+                id: id.to_string(),
+                title: question.duplicate_title.unwrap_or_default(),
+                slug: question.duplicate_slug.unwrap_or_default(),
+            }),
+            edited: question.edited,
         };
 
         Ok(qr)
@@ -333,7 +347,8 @@ impl IQuestion for &AppStateRaw {
             u1.username as "rusername: Option<String>",
             u1.image_url as "rimage_url: Option<String>",
             (CASE WHEN v.vote IS NULL THEN 0
-            ELSE vote::bigint END) as vote
+            ELSE vote::bigint END) as vote,
+            exists(select 1 from post_revisions r where r.post_id = t.id) as "edited!"
             from posts t left join users as u on t.posted_by_id=u.id
             left join users as u1 on t.reply_to_id=u1.id
             left join votes as v on v.from_user_id=$4 and v.topic_id=t.id
@@ -375,6 +390,7 @@ impl IQuestion for &AppStateRaw {
                 rimage_url: q.rimage_url,
                 vote_by_current_user: Option::expect(q.vote, "Error, which will never happen."),
                 cat: q.created_at.unix_timestamp(),
+                edited: q.edited,
             };
             ars.questions.push(qr);
         }
@@ -678,6 +694,7 @@ impl IQuestion for &AppStateRaw {
         &self,
         search: &String,
         limit: i64,
+        offset: i64,
     ) -> sqlx::Result<QuestionsResponse> {
         // The `@@ to_tsvector(...) @@ plainto_tsquery(...)` predicate and the
         // `ts_rank_cd(...)` ordering mirror the exact expression indexed by
@@ -697,15 +714,28 @@ impl IQuestion for &AppStateRaw {
             to_tsvector('english', coalesce(t.title, '') || ' ' || t.description) @@ plainto_tsquery('english', $1)
             group by t.id, users.id order by
             ts_rank_cd(to_tsvector('english', coalesce(t.title, '') || ' ' || t.description), plainto_tsquery('english', $1)) desc,
-            t.updated_at desc limit $2
+            t.updated_at desc, t.id desc limit $2 offset $3
             "#,
             search,
-            limit
+            limit,
+            offset
         )
         .fetch_all(&self.sql)
         .await?;
 
-        let count = questions.len() as i64;
+        // Total number of matches, so the client can page through them. Same
+        // predicate as above, so it is answered from `posts_search_idx` too.
+        let count = sqlx::query!(
+            r#"
+            select count(*) as count from posts t where t.title is not null and t.title <> '' and
+            to_tsvector('english', coalesce(t.title, '') || ' ' || t.description) @@ plainto_tsquery('english', $1)
+            "#,
+            search
+        )
+        .fetch_one(&self.sql)
+        .await?
+        .count
+        .unwrap_or(0);
 
         let mut qrs = QuestionsResponse {
             questions: Vec::new(),
@@ -862,6 +892,7 @@ impl IQuestion for &AppStateRaw {
         tag_list: &Option<Vec<String>>,
         title: &String,
         slug: &String,
+        editor_id: i64,
     ) -> sqlx::Result<(u64, String)> {
         let t_tags = Vec::new();
         let tags = match tag_list {
@@ -870,6 +901,9 @@ impl IQuestion for &AppStateRaw {
         };
 
         let mut tx = self.sql.begin().await?;
+
+        // Keep the version being replaced (edit history).
+        snapshot_post(&mut tx, pid, editor_id, title, description).await?;
 
         sqlx::query!(
             r#"
@@ -1792,91 +1826,9 @@ impl IQuestion for &AppStateRaw {
         }
 
         if status == "actioned" {
-            // Delete the reported post. A deleted question takes its whole
-            // thread (answers) with it: answers to an abusive/spam question
-            // are not worth keeping, and detaching them would orphan rows
-            // that list queries expect to have titles. Capture tag names
-            // BEFORE deleting post_tags so counters can be decremented.
-            let target = sqlx::query!(
-                r#"select id, op_id from posts where id = $1"#,
-                report.post_id
-            )
-            .fetch_optional(&mut *tx)
-            .await?;
-            if let Some(t) = target {
-                // Collect every post id going away: the target plus, for a
-                // question, all of its answers.
-                let mut doomed: Vec<i64> = vec![t.id];
-                let mut tag_names: Vec<String> = Vec::new();
-                if t.op_id.unwrap_or(0) == 0 {
-                    let answers = sqlx::query!(
-                        r#"select id from posts where op_id = $1"#,
-                        t.id
-                    )
-                    .fetch_all(&mut *tx)
-                    .await?;
-                    for a in &answers {
-                        doomed.push(a.id);
-                    }
-                    let tags = sqlx::query!(
-                        r#"select tg.name from tags tg
-                        join post_tags pt on pt.tag_id = tg.id
-                        where pt.post_id = $1"#,
-                        t.id
-                    )
-                    .fetch_all(&mut *tx)
-                    .await?;
-                    for tag in &tags {
-                        tag_names.push(tag.name.clone());
-                    }
-                } else {
-                    // An answer: decrement its question's answer_count.
-                    sqlx::query!(
-                        r#"update posts set answer_count = greatest(answer_count - 1, 0)
-                        where id = $1"#,
-                        t.op_id.unwrap_or(0)
-                    )
-                    .execute(&mut *tx)
-                    .await?;
-                }
-                for pid in &doomed {
-                    sqlx::query!(r#"delete from post_tags where post_id = $1"#, pid)
-                        .execute(&mut *tx)
-                        .await?;
-                    sqlx::query!(
-                        r#"delete from bookmarks where qid = $1 or aid = $1"#,
-                        pid
-                    )
-                    .execute(&mut *tx)
-                    .await?;
-                    sqlx::query!(r#"delete from votes where topic_id = $1"#, pid)
-                        .execute(&mut *tx)
-                        .await?;
-                    sqlx::query!(r#"delete from posts where id = $1"#, pid)
-                        .execute(&mut *tx)
-                        .await?;
-                }
-                for name in &tag_names {
-                    sqlx::query!(
-                        r#"update tags set post_count = greatest(post_count - 1, 0)
-                        where name = $1"#,
-                        name
-                    )
-                    .execute(&mut *tx)
-                    .await?;
-                }
-                // Any other OPEN reports on the now-deleted post(s) are
-                // actioned as well - there is nothing left to review.
-                sqlx::query!(
-                    r#"update post_reports set status = 'actioned',
-                        reviewed_by_id = $1, reviewed_at = now()
-                    where post_id = any($2) and status = 'open'"#,
-                    reviewer_id,
-                    &doomed
-                )
-                .execute(&mut *tx)
-                .await?;
-            } else {
+            // Delete the reported post (a question takes its answers with
+            // it). `purge_post` also actions every other open report on it.
+            if !purge_post(&mut tx, report.post_id, reviewer_id).await? {
                 // Post already gone: just close this report as reviewed.
                 sqlx::query!(
                     r#"update post_reports set status = 'reviewed',
@@ -1909,7 +1861,8 @@ impl IQuestion for &AppStateRaw {
 
         let qr = sqlx::query!(
             r#"
-            select email from users where id in(select posted_by_id from posts where id = $1 or op_id=$1)
+            select email from users where email_notifications = true and deleted = false
+            and id in(select posted_by_id from posts where id = $1 or op_id=$1)
             "#, id)
             .fetch_all(&self.sql)
             .await?;
@@ -1952,8 +1905,11 @@ impl IQuestion for &AppStateRaw {
         &self,
         pid: i64,
         description: &String,
+        editor_id: i64,
     ) -> sqlx::Result<()> {
         let mut tx = self.sql.begin().await?;
+
+        snapshot_post(&mut tx, pid, editor_id, "", description).await?;
 
         sqlx::query!(
             r#"

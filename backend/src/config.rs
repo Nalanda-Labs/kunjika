@@ -55,6 +55,12 @@ pub struct Config {
     pub image_max_size: usize,
     pub karma_gain_per_answer: i64,
     pub login_code_length: usize,
+    /// Apply pending database migrations when the backend starts (see
+    /// `migrate.rs`). On by default; set to false, or `KUNJIKA_AUTO_MIGRATE=0`
+    /// in the environment, to keep applying them by hand with
+    /// `migrations/run_migrations.py`.
+    #[serde(default = "default_true")]
+    pub auto_migrate: bool,
     /// Rate limits (see `utils/rate_limit.rs`). Each is a count per hour;
     /// 0 switches that limit off. All are optional in the config file.
     #[serde(default = "default_questions_per_hour")]
@@ -72,6 +78,9 @@ pub struct Config {
     pub rate_limit_login_attempts_per_hour: u32,
 }
 
+fn default_true() -> bool {
+    true
+}
 fn default_questions_per_hour() -> u32 {
     10
 }
@@ -121,6 +130,13 @@ impl Config {
         if let Ok(v) = std::env::var("KUNJIKA_MAIL_PORT") {
             if let Ok(p) = v.trim().parse::<u16>() {
                 cfg.mail_port = p;
+            }
+        }
+        if let Ok(v) = std::env::var("KUNJIKA_AUTO_MIGRATE") {
+            match v.trim().to_ascii_lowercase().as_str() {
+                "0" | "false" | "no" | "off" => cfg.auto_migrate = false,
+                "1" | "true" | "yes" | "on" => cfg.auto_migrate = true,
+                _ => {}
             }
         }
         if let Ok(v) = std::env::var("KUNJIKA_HOST") {
@@ -173,6 +189,21 @@ impl Config {
         match sql.try_acquire() {
             Some(_c) => info!("Connected to db!"),
             None => panic!("Could not connect to db!"),
+        }
+
+        // Before anything else touches the database: a statement prepared
+        // against the old schema would fail once a migration changed it.
+        if self.auto_migrate {
+            match crate::migrate::run(&sql).await {
+                Ok(crate::migrate::Outcome::UpToDate) => info!("migrations: up to date"),
+                Ok(crate::migrate::Outcome::Applied(n)) => info!("migrations: applied {n}"),
+                Ok(crate::migrate::Outcome::NeedsBaseline) => {}
+                // Serving requests against a half-migrated schema would be
+                // worse than not starting.
+                Err(e) => panic!("database migration failed, not starting: {e}"),
+            }
+        } else {
+            info!("migrations: auto_migrate is off, not checking");
         }
 
         // Mail transport. `mail_host`/`mail_port` may live on another

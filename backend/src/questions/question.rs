@@ -77,6 +77,8 @@ pub struct QuestionResponse {
     pub duplicate_of: Option<DuplicateOf>,
     /// Whether the post has earlier versions (see `posts/{id}/history`).
     pub edited: bool,
+    /// Whether the signed-in reader has muted this thread.
+    pub muted: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

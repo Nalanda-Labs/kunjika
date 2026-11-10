@@ -106,6 +106,28 @@ async fn follow_tag(
     }
 }
 
+#[derive(Deserialize)]
+struct MuteReq {
+    muted: bool,
+}
+
+/// Mute or unmute a question: a muted thread sends its reader no
+/// notifications or emails about new answers.
+#[post("/questions/{id}/mute/")]
+async fn mute_question(
+    params: ntex::web::types::Path<i64>,
+    form: ntex::web::types::Json<MuteReq>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    match dao::set_muted(state.get_ref(), auth.user.id, params.into_inner(), form.muted).await {
+        Ok(Some(muted)) => HttpResponse::Ok().json(&json!({"muted": muted})),
+        Ok(None) => HttpResponse::NotFound()
+            .json(&json!({"status": "fail", "message": "No such question."})),
+        Err(e) => db_error(&e, json!("fail")),
+    }
+}
+
 /// The tags the signed-in user follows.
 #[post("/tags/followed/")]
 async fn followed_tags(auth: AuthorizationService, state: AppState) -> impl Responder {
@@ -120,6 +142,7 @@ pub fn init(cfg: &mut ntex::web::ServiceConfig) {
     cfg.service(unread_count);
     cfg.service(mark_read);
     cfg.service(settings);
+    cfg.service(mute_question);
     cfg.service(follow_tag);
     cfg.service(followed_tags);
 }

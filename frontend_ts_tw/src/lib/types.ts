@@ -60,6 +60,8 @@ export interface QuestionDetail {
     duplicate_of: { id: string; title: string; slug: string } | null;
     /** Whether the post has earlier versions to show under "History". */
     edited: boolean;
+    /** Whether the signed-in reader has muted this thread. */
+    muted: boolean;
 }
 
 /** An answer on a question page (`AR` in the backend). */
@@ -193,4 +195,33 @@ export interface PostHistory {
     author: string | null;
     posted_by_id: number;
     revisions: Revision[];
+}
+
+/** One change to a user's karma (`users/{id}/karma/`). Never says who voted. */
+export interface KarmaEvent {
+    id: number;
+    delta: number;
+    reason: 'vote_up' | 'vote_down' | 'accepted' | 'unaccepted' | 'post_deleted' | 'opening_balance';
+    post_id: number | null;
+    /** Null once the post has been deleted. */
+    question_id: number | null;
+    question_title: string | null;
+    question_slug: string | null;
+    is_answer: boolean;
+    cat: number;
+}
+
+export interface ModLogEntry {
+    id: number;
+    action: 'delete_post' | 'close_question' | 'reopen_question' | 'suspend_user' | 'reinstate_user';
+    actor_id: number;
+    actor: string | null;
+    target_user_id: number | null;
+    target_user: string | null;
+    post_id: number | null;
+    /** Null once the post has been deleted. */
+    question_id: number | null;
+    question_slug: string | null;
+    details: string;
+    cat: number;
 }

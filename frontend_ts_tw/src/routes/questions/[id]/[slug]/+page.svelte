@@ -243,6 +243,15 @@
         await reloadQuestion();
     }
 
+    /** Mute or unmute this thread: no notifications or emails about new answers. */
+    async function toggleMute() {
+        if (!question) return;
+        const res = await api.post(`questions/${id}/mute/`, { muted: !question.muted });
+        const j = await api.json<{ muted?: boolean; message?: string }>(res);
+        if (res.status === 200) question.muted = !!j.muted;
+        else alert(j.message || 'Could not update the thread.');
+    }
+
     /** Refresh the closed / duplicate state after a moderation action. */
     async function reloadQuestion() {
         const res = await api.get(`questions/${id}/${slug}`);
@@ -438,6 +447,17 @@
                                 e.preventDefault();
                                 reportDialog?.open(id, question?.title ?? '');
                             }}><Icon name="flag" size={16} />Report</a
+                        >
+                        <a
+                            href="/questions/mute/{id}"
+                            class="action-link"
+                            title={question.muted
+                                ? 'Get notifications about this thread again'
+                                : 'Stop notifications about new answers in this thread'}
+                            onclick={(e) => {
+                                e.preventDefault();
+                                toggleMute();
+                            }}><Icon name="bell" size={16} />{question.muted ? 'Unmute' : 'Mute'}</a
                         >
                         <a
                             href="/bookmark/{id}/0"

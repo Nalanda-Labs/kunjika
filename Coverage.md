@@ -124,7 +124,7 @@ LLVM_PROFILE_FILE="$PROF/unit-%p-%m.profraw" cargo test --bin kunjika
 
 LLVM_PROFILE_FILE="$PROF/server-%p-%m.profraw" \
   ./target/coverage/debug/kunjika -c template.test.json -v 1 &
-(cd ../frontend && npx playwright test -c playwright.e2e.config.ts)
+(cd ../frontend_ts_tw && npx playwright test)
 (cd test-harness && unset CARGO_TARGET_DIR RUSTFLAGS && \
   KUNJIKA_TEST_NO_SPAWN=1 KUNJIKA_TEST_MAILPIT_URL=http://127.0.0.1:8026 \
   cargo test -- --test-threads=1)

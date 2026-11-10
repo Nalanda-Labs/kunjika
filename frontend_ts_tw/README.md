@@ -1,8 +1,8 @@
 # Kunjika frontend (SvelteKit + TypeScript + Tailwind)
 
-A port of `../frontend` (SvelteKit 2, JavaScript, Bootstrap) to SvelteKit 3,
-Svelte 5 runes, TypeScript and Tailwind CSS 4. It talks to the same backend
-API and has the same pages, routes and features.
+The Kunjika web app: SvelteKit 3, Svelte 5 runes, TypeScript and Tailwind
+CSS 4. It replaced the original SvelteKit 2 / JavaScript / Bootstrap frontend,
+which has been removed from the repository.
 
 ## Running
 
@@ -18,7 +18,7 @@ The backend URL is set in `src/lib/config.ts`. The backend's CORS list allows
 
 ## Tests
 
-The Playwright suite from `../frontend` runs unchanged against this app:
+The Playwright suite lives in `tests/e2e`:
 
 ```bash
 npx playwright install chromium
@@ -31,7 +31,7 @@ pnpm test:e2e   # needs the backend on :8000 (template.test.json) and Mailpit on
 
 | Path | Contents |
 |---|---|
-| `src/routes/` | Same routes as the original frontend |
+| `src/routes/` | Pages and server routes |
 | `src/lib/api.ts` | Typed fetch wrapper; sends the XSRF header automatically |
 | `src/lib/types.ts` | Types for the API's responses |
 | `src/lib/markdown.ts`, `editor.ts` | Markdown rendering (marked + DOMPurify + highlight.js + MathJax) and editor commands |
@@ -56,8 +56,7 @@ Fixes and replacements made while porting:
 - "Share" copies a link to the answer instead of linking to a `/share/{id}` page that never
   existed. Report-queue links go to the real question URL.
 - The confirm-email page offers "Resend" for expired links, as the backend's message says.
-- Question pages load answers 50 at a time with a "Load more answers" button; the old page
-  showed only the first 50.
+- Question pages show answers 20 to a page; the old page showed only the first 50.
 - Icons are inline SVG instead of Font Awesome and Material Icons from CDNs; `svelte-tags-input`
   and `markdown-to-txt` are replaced by small local code.
 - Form actions redirect with 303 after a POST.

@@ -5,11 +5,14 @@ frontend.
 
 ## Current status
 
-| Suite | Command | Result |
-| --- | --- | --- |
-| Backend REST (`cargo test`) | [section 2](#2-backend-test-harness) — STARTTLS env vars required | **41 passed** |
-| Backend unit (`cargo test --bin kunjika`) | `cd backend && cargo test --bin kunjika` | **3 passed** |
-| Frontend e2e (Playwright) | `cd frontend && npx playwright test -c playwright.e2e.config.ts` | **67 passed** |
+| Suite | Command |
+| --- | --- |
+| Backend REST (`cargo test`) | [section 2](#2-backend-test-harness) — STARTTLS env vars required |
+| Backend unit (`cargo test --bin kunjika`) | `cd backend && cargo test --bin kunjika` |
+| Frontend e2e (Playwright) | `cd frontend_ts_tw && npx playwright test` |
+
+All three run on every push in GitHub Actions (`.github/workflows/ci.yml`);
+the badge in `README.md` shows the current result.
 
 ---
 
@@ -104,10 +107,10 @@ with) is pre-set for the TLS-only instance below:
 ```
 
 The test certificate lives in `backend/test-harness/certs/` —
-self-signed, 30-day validity, regenerate when expired:
+self-signed, valid until 2036; regenerate with:
 
 ```bash
-openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
+openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
   -keyout backend/test-harness/certs/mailpit-key.pem \
   -out    backend/test-harness/certs/mailpit-cert.pem \
   -subj "/CN=127.0.0.1" -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
@@ -175,7 +178,7 @@ SMTP `2525`, API `http://127.0.0.1:8025`).
 | `api_mail.rs` | confirmation mail, `confirm-email`, OTP mail + single-use OTP — all delivered over STARTTLS |
 | `api_writes_a/b.rs` | question lifecycle, answer, edit, vote, bookmark, duplicate tags, edit ownership/validation, `reply_to` shapes, self-answer with no notification |
 | `api_pagination.rs` | answers paged with limit/offset (+ `?answer=`), report queue paged with a keyset cursor |
-| `api_community.rs` | deleting posts, closing/reopening questions, suspending users, edit history, notifications and followed tags, rate limits, RSS feeds, sitemap, search paging |
+| `api_community.rs` | deleting posts, closing/reopening questions, suspending users, edit history, notifications, followed tags and muted threads, rate limits, RSS feeds, sitemap, search (paging, matches in answers), karma history and its reversal on delete, the moderation log |
 | `smtp_tls_probe.rs` | STARTTLS handshake against the TLS mail server (section 1b) |
 
 ### Why the harness can spawn the backend with an `LD_PRELOAD` shim
@@ -251,15 +254,12 @@ see [section 1b](#1b-starttls-mail-server-the-path-the-backend-uses).
 ## 3. Frontend e2e (Playwright)
 
 ```bash
-cd frontend
+cd frontend_ts_tw
 npx playwright install chromium
-npx playwright test -c playwright.e2e.config.ts
+npx playwright test
 ```
 
-`playwright.e2e.config.ts` is additive; the repo's own `playwright.config.ts`
-(which has no `baseURL`, so `page.goto('/')` cannot resolve) is untouched.
-
-It starts `npm run build && npm run preview` on **port 5173** on purpose: the
+`playwright.config.ts` starts `npm run build && npm run preview` on **port 5173** on purpose: the
 backend CORS allow-list in `backend/src/main.rs` only accepts
 `http://localhost:5173`, `http://localhost:3000` and `http://localhost`.
 
@@ -309,6 +309,31 @@ DATABASE_URL=postgres://yugabyte:yugabyte@127.0.0.1:5433/kunjika_test cargo test
 
 ## 5. Applying migrations
 
+There are two ways, and they share one bookkeeping table
+(`kunjika_migrations`: version, description, checksum), so a database
+migrated by either is seen as up to date by the other.
+
+**At startup (default).** The backend applies pending migrations itself
+before it serves anything (`backend/src/migrate.rs`). The `.sql` files are
+compiled into the binary by `build.rs`, so nothing has to be deployed next to
+it and `psql` is not needed on the server. It logs what it applies
+(`migrations: applying …`, `migrations: up to date`) and refuses to start if
+a migration fails part-way. Turn it off with `"auto_migrate": false` in the
+config file or `KUNJIKA_AUTO_MIGRATE=0` in the environment.
+
+Two cases it deliberately leaves alone:
+
+- A migration file that was edited after it was applied is reported in the
+  log and not re-run.
+- A database that already has the schema but an empty `kunjika_migrations`
+  table (one set up by hand) is not touched; the log says to record its state
+  with `run_migrations.py --baseline` first.
+
+**By hand, with the script.** Still required before the first `cargo build`
+on a new machine and in CI: sqlx checks every query against a migrated
+database at compile time, so the schema has to exist before there is a
+backend to create it.
+
 `backend/migrations/run_migrations.py` applies every
 `<version>_<description>.sql` in order - each file body through `psql -f` with
 `ON_ERROR_STOP=1` - and records what it applied (version, description,
@@ -320,11 +345,8 @@ cd backend/migrations
 ./run_migrations.py              # apply the pending ones
 ```
 
-It exists because **nothing in `backend/src/` runs migrations**: there is no
-`sqlx::migrate!()` call and no `_sqlx_migrations` table, so schema changes were
-being applied by hand. Keeping the script *inside* the migrations directory is
-safe - `sqlx::migrate!()` only reads files matching
-`<version>_<description>.sql`, so it ignores a `.py` file sitting next to them.
+Both this script and the backend's own migrator only read files named
+`<version>_<description>.sql`, so the script can live in the same directory.
 
 The target database is `$DATABASE_URL`, falling back to `backend/.env`. Two
 requirements: the `psycopg` v3 driver for the connection and bookkeeping

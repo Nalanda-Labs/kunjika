@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use super::question::*;
 use crate::state::AppStateRaw;
+use crate::karma::dao as karma;
 use crate::moderation::dao::{purge_post, snapshot_post};
 use crate::utils::request::encode_keyset_cursor;
 
@@ -266,10 +267,11 @@ impl IQuestion for &AppStateRaw {
             select t.title as title, t.description, t.visible, t.created_at, t.posted_by_id, t.updated_at,
             t.votes, t.views, t.op_id, t.updated_by_id, users.username as username, users.image_url as image_url,
             t.closed_at, t.duplicate_of_id, d.title as "duplicate_title?", d.slug as "duplicate_slug?",
-            exists(select 1 from post_revisions r where r.post_id = t.id) as "edited!"
+            exists(select 1 from post_revisions r where r.post_id = t.id) as "edited!",
+            exists(select 1 from thread_mutes m where m.question_id = t.id and m.user_id = $2) as "muted!"
             from posts t left join users on t.posted_by_id=users.id
             left join posts d on d.id = t.duplicate_of_id where t.id=$1
-            "#, qid
+            "#, qid, uid
         ).fetch_one(&mut *tx)
         .await?;
         let tags = sqlx::query!(
@@ -326,6 +328,7 @@ impl IQuestion for &AppStateRaw {
                 slug: question.duplicate_slug.unwrap_or_default(),
             }),
             edited: question.edited,
+            muted: question.muted,
         };
 
         Ok(qr)
@@ -696,25 +699,41 @@ impl IQuestion for &AppStateRaw {
         limit: i64,
         offset: i64,
     ) -> sqlx::Result<QuestionsResponse> {
-        // The `@@ to_tsvector(...) @@ plainto_tsquery(...)` predicate and the
-        // `ts_rank_cd(...)` ordering mirror the exact expression indexed by
-        // `posts_search_idx` (see `20261009120000_posts_search_idx.sql`), so the
-        // planner uses the GIN index (`Index Scan using posts_search_idx`).
-        // The `title IS NOT NULL AND title <> ''` guard matches the index's
-        // partial predicate, keeping the search scoped to questions only.
+        // A question matches when its own title/body matches, or when one of
+        // its answers does. Each half uses the exact expression and partial
+        // predicate of its GIN index (`posts_search_idx` for questions,
+        // `posts_answers_search_idx` for answers), so both are index scans.
+        // A question's rank is its best hit; a match in the question itself
+        // outranks the same match in an answer.
         let questions = sqlx::query_as!(
             QR1,
             r#"
-            select t.id, t.visible, t.title, t.created_at, t.posted_by_id, t.updated_at, t.votes,
-            t.views, t.slug, t.answer_accepted, users.image_url,
-            users.username as username, users.id as uid, array_agg(post_tags.tag_id) as tag_id,
-            array_agg(tags.name) as tags, t.answer_count from posts t left
+            with hits as (
+                select q.id as qid,
+                    ts_rank_cd(to_tsvector('english', coalesce(q.title, '') || ' ' || q.description),
+                               plainto_tsquery('english', $1)) as rank
+                from posts q
+                where q.title is not null and q.title <> '' and
+                    to_tsvector('english', coalesce(q.title, '') || ' ' || q.description) @@ plainto_tsquery('english', $1)
+                union all
+                select a.op_id as qid,
+                    0.5 * ts_rank_cd(to_tsvector('english', a.description), plainto_tsquery('english', $1)) as rank
+                from posts a
+                where a.op_id <> 0 and
+                    to_tsvector('english', a.description) @@ plainto_tsquery('english', $1)
+            ), ranked as (
+                select qid, max(rank) as rank from hits group by qid
+            )
+            select t.id as "id!", t.visible as "visible!", t.title, t.created_at as "created_at!",
+            t.posted_by_id as "posted_by_id!", t.updated_at as "updated_at!", t.votes as "votes!",
+            t.views as "views!", t.slug, t.answer_accepted as "answer_accepted!", users.image_url as "image_url!",
+            users.username as "username!", users.id as "uid!", array_agg(post_tags.tag_id) as tag_id,
+            array_agg(tags.name) as tags, t.answer_count as "answer_count!"
+            from ranked r join posts t on t.id = r.qid
             join users on t.posted_by_id=users.id left join post_tags on post_tags.post_id=t.id left join
-            tags on post_tags.tag_id = tags.id where t.title is not null and t.title <> '' and
-            to_tsvector('english', coalesce(t.title, '') || ' ' || t.description) @@ plainto_tsquery('english', $1)
-            group by t.id, users.id order by
-            ts_rank_cd(to_tsvector('english', coalesce(t.title, '') || ' ' || t.description), plainto_tsquery('english', $1)) desc,
-            t.updated_at desc, t.id desc limit $2 offset $3
+            tags on post_tags.tag_id = tags.id
+            group by t.id, users.id, r.rank order by r.rank desc, t.updated_at desc, t.id desc
+            limit $2 offset $3
             "#,
             search,
             limit,
@@ -723,12 +742,19 @@ impl IQuestion for &AppStateRaw {
         .fetch_all(&self.sql)
         .await?;
 
-        // Total number of matches, so the client can page through them. Same
-        // predicate as above, so it is answered from `posts_search_idx` too.
+        // Total number of matching questions, so the client can page through
+        // them: the same two predicates, counted once per question.
         let count = sqlx::query!(
             r#"
-            select count(*) as count from posts t where t.title is not null and t.title <> '' and
-            to_tsvector('english', coalesce(t.title, '') || ' ' || t.description) @@ plainto_tsquery('english', $1)
+            select count(*) as count from (
+                select q.id as qid from posts q
+                where q.title is not null and q.title <> '' and
+                    to_tsvector('english', coalesce(q.title, '') || ' ' || q.description) @@ plainto_tsquery('english', $1)
+                union
+                select a.op_id as qid from posts a
+                where a.op_id <> 0 and
+                    to_tsvector('english', a.description) @@ plainto_tsquery('english', $1)
+            ) matches join posts t on t.id = matches.qid
             "#,
             search
         )
@@ -1094,12 +1120,14 @@ impl IQuestion for &AppStateRaw {
             .execute(&mut *tx)
             .await?;
             if cur.posted_by_id != *uid {
-                sqlx::query!(
-                    r#"update users set karma=greatest(karma - $2, 1) where id=$1"#,
+                karma::apply(
+                    &mut tx,
                     cur.posted_by_id,
-                    self.config.karma_gain_per_answer
+                    -self.config.karma_gain_per_answer,
+                    "unaccepted",
+                    Some(cur.id),
+                    Some(*uid),
                 )
-                .execute(&mut *tx)
                 .await?;
             }
             // Clicking the accepted answer again un-accepts it.
@@ -1117,12 +1145,14 @@ impl IQuestion for &AppStateRaw {
         .execute(&mut *tx)
         .await?;
         if answer.posted_by_id != *uid {
-            sqlx::query!(
-                r#"update users set karma=karma + $2 where id=$1"#,
+            karma::apply(
+                &mut tx,
                 answer.posted_by_id,
-                self.config.karma_gain_per_answer
+                self.config.karma_gain_per_answer,
+                "accepted",
+                Some(aid),
+                Some(*uid),
             )
-            .execute(&mut *tx)
             .await?;
         }
 
@@ -1828,7 +1858,7 @@ impl IQuestion for &AppStateRaw {
         if status == "actioned" {
             // Delete the reported post (a question takes its answers with
             // it). `purge_post` also actions every other open report on it.
-            if !purge_post(&mut tx, report.post_id, reviewer_id).await? {
+            if !purge_post(&mut tx, report.post_id, reviewer_id, &self.config).await? {
                 // Post already gone: just close this report as reviewed.
                 sqlx::query!(
                     r#"update post_reports set status = 'reviewed',
@@ -1861,8 +1891,9 @@ impl IQuestion for &AppStateRaw {
 
         let qr = sqlx::query!(
             r#"
-            select email from users where email_notifications = true and deleted = false
+            select email from users u where email_notifications = true and deleted = false
             and id in(select posted_by_id from posts where id = $1 or op_id=$1)
+            and not exists (select 1 from thread_mutes m where m.user_id = u.id and m.question_id = $1)
             "#, id)
             .fetch_all(&self.sql)
             .await?;

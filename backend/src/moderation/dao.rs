@@ -1,5 +1,7 @@
+use crate::config::Config;
 use crate::state::AppStateRaw;
 use crate::users::user::User;
+use crate::utils::request::encode_keyset_cursor;
 
 type Tx<'a> = sqlx::Transaction<'a, sqlx::Postgres>;
 type SqlDateTime = time::OffsetDateTime;
@@ -17,11 +19,25 @@ fn is_reviewer(user: &User) -> bool {
 /// revisions), the counters that included it are corrected, and any report
 /// still open against it is marked `actioned` by `actor_id`.
 ///
+/// The karma the removed posts earned their authors is taken back (see
+/// `karma::dao::reverse_for_posts`), and the deletion is written to the
+/// moderation log with a description of what was removed.
+///
 /// Shared by the moderation queue ("actioned" reports) and by
 /// [`delete_post`], so both paths leave the database in the same state.
-pub async fn purge_post(tx: &mut Tx<'_>, post_id: i64, actor_id: i64) -> sqlx::Result<bool> {
+pub async fn purge_post(
+    tx: &mut Tx<'_>,
+    post_id: i64,
+    actor_id: i64,
+    config: &Config,
+) -> sqlx::Result<bool> {
     let target = sqlx::query!(
-        r#"select id, op_id, answer_accepted from posts where id = $1"#,
+        r#"select p.id, p.op_id, p.answer_accepted, p.title, p.posted_by_id,
+            u.username as "author?", q.title as "question_title?"
+        from posts p
+        left join users u on u.id = p.posted_by_id
+        left join posts q on q.id = p.op_id
+        where p.id = $1"#,
         post_id
     )
     .fetch_optional(&mut **tx)
@@ -30,6 +46,15 @@ pub async fn purge_post(tx: &mut Tx<'_>, post_id: i64, actor_id: i64) -> sqlx::R
         return Ok(false);
     };
     let question_id = t.op_id.unwrap_or(0);
+    let author = t.author.clone().unwrap_or_default();
+    let details = if question_id == 0 {
+        format!("question \"{}\" by {author}", t.title.clone().unwrap_or_default())
+    } else {
+        format!(
+            "answer by {author} on \"{}\"",
+            t.question_title.clone().unwrap_or_default()
+        )
+    };
 
     let mut doomed: Vec<i64> = vec![t.id];
     if question_id == 0 {
@@ -61,7 +86,13 @@ pub async fn purge_post(tx: &mut Tx<'_>, post_id: i64, actor_id: i64) -> sqlx::R
         .await?;
     }
 
+    // While the votes and accepted flags are still there to count.
+    crate::karma::dao::reverse_for_posts(tx, &doomed, actor_id, config).await?;
+
     sqlx::query!(r#"delete from post_tags where post_id = any($1)"#, &doomed)
+        .execute(&mut **tx)
+        .await?;
+    sqlx::query!(r#"delete from thread_mutes where question_id = any($1)"#, &doomed)
         .execute(&mut **tx)
         .await?;
     sqlx::query!(
@@ -105,7 +136,113 @@ pub async fn purge_post(tx: &mut Tx<'_>, post_id: i64, actor_id: i64) -> sqlx::R
     .execute(&mut **tx)
     .await?;
 
+    log(&mut **tx, actor_id, "delete_post", Some(post_id), Some(t.posted_by_id), &details).await?;
+
     Ok(true)
+}
+
+/// Add an entry to the moderation log. `details` describes the target in
+/// words, because the row it points at may be deleted later (or already is).
+pub async fn log<'e, E>(
+    executor: E,
+    actor_id: i64,
+    action: &str,
+    post_id: Option<i64>,
+    target_user_id: Option<i64>,
+    details: &str,
+) -> sqlx::Result<()>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
+    // The column is varchar(512); cut on a character boundary.
+    let details: String = details.chars().take(512).collect();
+    sqlx::query!(
+        r#"insert into moderation_log (actor_id, action, post_id, target_user_id, details)
+        values ($1, $2, $3, $4, $5)"#,
+        actor_id,
+        action,
+        post_id,
+        target_user_id,
+        details
+    )
+    .execute(executor)
+    .await?;
+    Ok(())
+}
+
+#[derive(Serialize, Debug)]
+pub struct LogEntry {
+    pub id: i64,
+    pub action: String,
+    pub actor_id: i64,
+    pub actor: Option<String>,
+    pub target_user_id: Option<i64>,
+    pub target_user: Option<String>,
+    pub post_id: Option<i64>,
+    /// Where the post can still be seen; `None` once it has been deleted.
+    pub question_id: Option<i64>,
+    pub question_slug: Option<String>,
+    pub details: String,
+    #[serde(skip)]
+    pub created_at: SqlDateTime,
+    /// Unix seconds of the action.
+    pub cat: i64,
+}
+
+/// One page of the moderation log, newest first, and the cursor for the
+/// page after it.
+pub async fn log_entries(
+    state: &AppStateRaw,
+    limit: i64,
+    cursor: Option<(SqlDateTime, i64)>,
+) -> sqlx::Result<(Vec<LogEntry>, Option<String>)> {
+    let (after_at, after_id) = match cursor {
+        Some((at, id)) => (Some(at), Some(id)),
+        None => (None, None),
+    };
+    let rows = sqlx::query!(
+        r#"select l.id, l.action, l.actor_id, l.target_user_id, l.post_id, l.details, l.created_at,
+            a.username as "actor?", t.username as "target_user?",
+            q.id as "question_id?", q.slug as "question_slug?"
+        from moderation_log l
+        left join users a on a.id = l.actor_id
+        left join users t on t.id = l.target_user_id
+        left join posts p on p.id = l.post_id
+        left join posts q on q.id = coalesce(nullif(p.op_id, 0), p.id)
+        where ($2::timestamptz is null
+               or (l.created_at, l.id) < ($2::timestamptz, $3::bigint))
+        order by l.created_at desc, l.id desc
+        limit $1"#,
+        limit + 1,
+        after_at,
+        after_id
+    )
+    .fetch_all(&state.sql)
+    .await?;
+    let mut items: Vec<LogEntry> = rows
+        .into_iter()
+        .map(|r| LogEntry {
+            id: r.id,
+            action: r.action,
+            actor_id: r.actor_id,
+            actor: r.actor,
+            target_user_id: r.target_user_id,
+            target_user: r.target_user,
+            post_id: r.post_id,
+            question_id: r.question_id,
+            question_slug: r.question_slug,
+            details: r.details,
+            cat: r.created_at.unix_timestamp(),
+            created_at: r.created_at,
+        })
+        .collect();
+    let next = if items.len() as i64 > limit {
+        items.truncate(limit as usize);
+        items.last().map(|e| encode_keyset_cursor(e.created_at, e.id))
+    } else {
+        None
+    };
+    Ok((items, next))
 }
 
 pub enum DeleteOutcome {
@@ -119,7 +256,11 @@ pub enum DeleteOutcome {
 
 /// Delete a post on behalf of `user`: authors may delete their own answers
 /// and their own unanswered questions; moderators may delete anything.
-pub async fn delete_post(state: &AppStateRaw, pid: i64, user: &User) -> sqlx::Result<DeleteOutcome> {
+pub async fn delete_post(
+    state: &AppStateRaw,
+    pid: i64,
+    user: &User,
+) -> sqlx::Result<DeleteOutcome> {
     let mut tx = state.sql.begin().await?;
     let post = sqlx::query!(
         r#"select op_id, posted_by_id, answer_count from posts where id = $1"#,
@@ -138,7 +279,7 @@ pub async fn delete_post(state: &AppStateRaw, pid: i64, user: &User) -> sqlx::Re
     if question_id == 0 && post.answer_count > 0 && !reviewer {
         return Ok(DeleteOutcome::HasAnswers);
     }
-    purge_post(&mut tx, pid, user.id).await?;
+    purge_post(&mut tx, pid, user.id, &state.config).await?;
     tx.commit().await?;
     Ok(DeleteOutcome::Deleted { question_id })
 }
@@ -297,18 +438,47 @@ pub async fn close_question(
     )
     .execute(&state.sql)
     .await?;
-    Ok(if done.rows_affected() == 0 { CloseOutcome::NotFound } else { CloseOutcome::Done })
+    if done.rows_affected() == 0 {
+        return Ok(CloseOutcome::NotFound);
+    }
+    let details = match duplicate_of {
+        Some(original) => format!("{} (duplicate of #{original})", question_label(state, qid).await?),
+        None => question_label(state, qid).await?,
+    };
+    log(&state.sql, by, "close_question", Some(qid), None, &details).await?;
+    Ok(CloseOutcome::Done)
 }
 
-pub async fn reopen_question(state: &AppStateRaw, qid: i64) -> sqlx::Result<CloseOutcome> {
+/// `question "<title>"`, for moderation log entries.
+async fn question_label(state: &AppStateRaw, qid: i64) -> sqlx::Result<String> {
+    let row = sqlx::query!(r#"select title from posts where id = $1"#, qid)
+        .fetch_optional(&state.sql)
+        .await?;
+    Ok(format!(
+        "question \"{}\"",
+        row.and_then(|r| r.title).unwrap_or_default()
+    ))
+}
+
+pub async fn reopen_question(state: &AppStateRaw, qid: i64, by: i64) -> sqlx::Result<CloseOutcome> {
+    // Only a closed question can be reopened; reopening an open one changes
+    // nothing and is not worth a log entry.
     let done = sqlx::query!(
         r#"update posts set closed_at = null, closed_by_id = null, duplicate_of_id = null
-        where id = $1 and coalesce(op_id, 0) = 0"#,
+        where id = $1 and coalesce(op_id, 0) = 0 and closed_at is not null"#,
         qid
     )
     .execute(&state.sql)
     .await?;
-    Ok(if done.rows_affected() == 0 { CloseOutcome::NotFound } else { CloseOutcome::Done })
+    if done.rows_affected() > 0 {
+        let details = question_label(state, qid).await?;
+        log(&state.sql, by, "reopen_question", Some(qid), None, &details).await?;
+        return Ok(CloseOutcome::Done);
+    }
+    Ok(match question_closed(state, qid).await? {
+        Some(_) => CloseOutcome::Done,
+        None => CloseOutcome::NotFound,
+    })
 }
 
 /// Whether question `qid` is closed; `None` when it is not a question.
@@ -344,7 +514,7 @@ pub async fn set_suspended(
         return Ok(SuspendOutcome::SelfTarget);
     }
     let user = sqlx::query!(
-        r#"select is_superuser, is_moderator from users where id = $1 and deleted = false"#,
+        r#"select is_superuser, is_moderator, username, status from users where id = $1 and deleted = false"#,
         target
     )
     .fetch_optional(&state.sql)
@@ -365,5 +535,10 @@ pub async fn set_suspended(
     )
     .execute(&state.sql)
     .await?;
+    // Logged only when the state actually changed.
+    if (user.status == "suspended") != suspended {
+        let action = if suspended { "suspend_user" } else { "reinstate_user" };
+        log(&state.sql, actor.id, action, None, Some(target), &format!("user {}", user.username)).await?;
+    }
     Ok(SuspendOutcome::Done)
 }

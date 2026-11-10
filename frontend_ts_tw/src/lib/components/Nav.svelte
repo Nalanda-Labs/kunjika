@@ -5,9 +5,27 @@
     import { refreshUnread, unread } from '#lib/notifications.svelte.ts';
     import Icon from './Icon.svelte';
 
-    // Keep the bell current: checked on load and after every navigation.
+    // Keep the bell current: checked on load, after every navigation, and
+    // then every 30 seconds while the tab is visible, so a new answer shows
+    // up without the reader having to click anything. (Polling rather than a
+    // pushed stream: the API authenticates with a header that a browser
+    // EventSource cannot send.)
+    const POLL_MS = 30_000;
     afterNavigate(() => {
         if (page.data.user) refreshUnread();
+    });
+    $effect(() => {
+        if (!page.data.user) return;
+        const check = () => {
+            if (document.visibilityState === 'visible') refreshUnread();
+        };
+        const timer = setInterval(check, POLL_MS);
+        // Catch up straight away when the reader comes back to the tab.
+        document.addEventListener('visibilitychange', check);
+        return () => {
+            clearInterval(timer);
+            document.removeEventListener('visibilitychange', check);
+        };
     });
 
     let search = $state('');

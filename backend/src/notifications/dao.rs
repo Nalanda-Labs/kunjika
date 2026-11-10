@@ -17,6 +17,7 @@ fn log_failure(what: &str, r: sqlx::Result<sqlx::postgres::PgQueryResult>) {
 
 /// A new answer `aid` on question `qid`: tell everyone who has posted in the
 /// thread. The user being replied to gets a `reply` instead of an `answer`.
+/// Users who muted the thread are told nothing.
 pub async fn on_answer(state: &AppStateRaw, qid: i64, aid: i64, actor: i64, reply_to: Option<i64>) {
     let r = sqlx::query!(
         r#"insert into notifications (user_id, kind, actor_id, question_id, post_id)
@@ -24,7 +25,9 @@ pub async fn on_answer(state: &AppStateRaw, qid: i64, aid: i64, actor: i64, repl
         from users u
         where u.deleted = false and u.id <> $3
           and (u.id = $4::bigint
-               or u.id in (select posted_by_id from posts where id = $1 or op_id = $1))"#,
+               or u.id in (select posted_by_id from posts where id = $1 or op_id = $1))
+          and not exists (select 1 from thread_mutes m
+                          where m.user_id = u.id and m.question_id = $1)"#,
         qid,
         aid,
         actor,
@@ -203,6 +206,48 @@ pub async fn email_setting(state: &AppStateRaw, user: i64, set: Option<bool>) ->
         .fetch_one(&state.sql)
         .await?;
     Ok(row.email_notifications)
+}
+
+// ---------------------------------------------------------------------------
+// Muted threads.
+// ---------------------------------------------------------------------------
+
+/// Mute or unmute question `qid` for `user`: no notifications or emails
+/// about new answers in it. `None` when `qid` is not a question.
+pub async fn set_muted(
+    state: &AppStateRaw,
+    user: i64,
+    qid: i64,
+    muted: bool,
+) -> sqlx::Result<Option<bool>> {
+    let question = sqlx::query!(
+        r#"select id from posts where id = $1 and coalesce(op_id, 0) = 0"#,
+        qid
+    )
+    .fetch_optional(&state.sql)
+    .await?;
+    if question.is_none() {
+        return Ok(None);
+    }
+    if muted {
+        sqlx::query!(
+            r#"insert into thread_mutes (user_id, question_id) values ($1, $2)
+            on conflict (user_id, question_id) do nothing"#,
+            user,
+            qid
+        )
+        .execute(&state.sql)
+        .await?;
+    } else {
+        sqlx::query!(
+            r#"delete from thread_mutes where user_id = $1 and question_id = $2"#,
+            user,
+            qid
+        )
+        .execute(&state.sql)
+        .await?;
+    }
+    Ok(Some(muted))
 }
 
 // ---------------------------------------------------------------------------

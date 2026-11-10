@@ -31,9 +31,9 @@ the file works with both).
 
 ```bash
 # from the repo root; first boot is slow (YugabyteDB ~30-60s + Rust build)
-podman-compose -f podman-compose.yaml up --build
+podman-compose -f podman-test-compose.yaml up --build
 # or detached:
-podman-compose -f podman-compose.yaml up --build -d
+podman-compose -f podman-test-compose.yaml up --build -d
 ```
 
 What that does, in order: starts YugabyteDB, Redis and Mailpit; the one-shot
@@ -44,10 +44,10 @@ build, port 3000) start. So "bring up containers and the entire app after
 running migrations" is exactly what `up` does.
 
 ```bash
-podman-compose -f podman-compose.yaml ps     # status
-podman-compose -f podman-compose.yaml logs -f backend   # follow API logs
-podman-compose -f podman-compose.yaml down              # stop, keep DB data
-podman-compose -f podman-compose.yaml down -v           # stop, drop DB data
+podman-compose -f podman-test-compose.yaml ps     # status
+podman-compose -f podman-test-compose.yaml logs -f backend   # follow API logs
+podman-compose -f podman-test-compose.yaml down              # stop, keep DB data
+podman-compose -f podman-test-compose.yaml down -v           # stop, drop DB data
 ```
 
 Notes:
@@ -61,7 +61,7 @@ Notes:
   `backend/src/config.rs`.
 - Config inside compose comes from `backend/template-sample.json` (copied to
   `template.compose.json` on first start) plus the `KUNJIKA_*` environment in
-  `podman-compose.yaml`. To customise mail sender, secrets or JWT keys, edit
+  `podman-test-compose.yaml`. To customise mail sender, secrets or JWT keys, edit
   `template.compose.json` or mount your own file.
 
 ### Option B: entire app without podman (host services)
@@ -74,7 +74,11 @@ YugabyteDB (YSQL on 5433), Redis (6379), and a plaintext SMTP relay on
 1. Start YugabyteDB + Redis + Mailpit (see `TESTING.md` section 1 for the
    exact `podman run` commands and ports; install the same daemons natively
    if you want zero containers).
-2. Create the database and run migrations (one of):
+2. Create the database and run migrations (one of). This is needed once,
+   before the first build: sqlx checks queries against a migrated database
+   at compile time. After that the backend applies new migrations itself
+   each time it starts (`"auto_migrate": false` in the config turns that
+   off):
 
 ```bash
 cd backend/migrations && ./run_migrations.sh --status && ./run_migrations.sh
@@ -100,17 +104,17 @@ cd backend && cargo build && ./target/debug/kunjika -c template.json -v 1
 
    The `listen` field from the config is now honoured (previously the bind
    was hardcoded to `127.0.0.1:8000`); compose sets it to `0.0.0.0:8000`.
-5. Install and run the frontend (`frontend/src/env.js` points at
+5. Install and run the frontend (`frontend_ts_tw/src/lib/config.ts` points at
    `http://localhost:8000/api/v1`):
 
 ```bash
-cd frontend && npm i -g pnpm && pnpm i && pnpm dev     # dev on :5173
+cd frontend_ts_tw && npm i -g pnpm && pnpm i && pnpm dev     # dev on :5173
 # production: pnpm build && node build               # serves on :3000
 ```
 
    Whitelist the frontend origin in the backend CORS list
    (`backend/src/main.rs`: 5173 dev, 3000 prod) if you serve it elsewhere.
-   For per-directory detail see `backend/README.md` / `frontend/README.md`.
+   For per-directory detail see `backend/README.md` / `frontend_ts_tw/README.md`.
 
 ## Running the test suites
 
@@ -119,11 +123,11 @@ this is the short version. All three suites need the infra from section 1 of
 that file (YugabyteDB with a migrated `kunjika_test` database, Redis,
 plaintext Mailpit on 2525/8026) plus a backend built from `backend/`.
 
-| Suite | Command | Result |
-| --- | --- | --- |
-| Backend REST (`cargo test`) | `cd backend/test-harness && cargo test` | 41 passed |
-| Backend unit (`cargo test --bin kunjika`) | `cd backend && cargo test --bin kunjika` | 3 passed |
-| Frontend e2e (Playwright) | `cd frontend && npx playwright test -c playwright.e2e.config.ts` | 67 passed |
+| Suite | Command |
+| --- | --- |
+| Backend REST (`cargo test`) | `cd backend/test-harness && cargo test` |
+| Backend unit (`cargo test --bin kunjika`) | `cd backend && cargo test --bin kunjika` |
+| Frontend e2e (Playwright) | `cd frontend_ts_tw && npx playwright test` |
 
 Order matters: start infra, apply migrations, then run the suites.
 
@@ -137,8 +141,8 @@ cd backend/test-harness && cargo test
 # 3b. backend unit tests (need DATABASE_URL / backend/.env pointing at YSQL)
 cd backend && cargo test --bin kunjika
 # 3c. frontend e2e (needs backend on 127.0.0.1:8000; starts preview on :5173)
-cd frontend && npx playwright install chromium \
-  && npx playwright test -c playwright.e2e.config.ts
+cd frontend_ts_tw && npx playwright install chromium \
+  && npx playwright test
 ```
 
 `backend/test-harness` is a separate crate driving the running backend over

@@ -154,7 +154,93 @@ test('an edited answer links to its history', async ({ page }) => {
     await page.locator(`a[href="/posts/${answerId}/history"]`).click();
     await expect(page.getByRole('heading', { name: 'Edit history' })).toBeVisible();
     await expect(page.getByLabel('Current version')).toContainText(edited);
-    await expect(page.getByLabel('Earlier version')).toContainText(original);
+    await expect(page.getByLabel('Original version')).toContainText(original);
+    // The edit is shown as a diff: the old line removed, the new one added.
+    const changes = page.getByLabel('Changes in edit 1');
+    await expect(changes.locator('[data-diff="del"]')).toContainText(original);
+    await expect(changes.locator('[data-diff="add"]')).toContainText(edited);
+});
+
+test('a diff shows only the lines an edit changed', async ({ page }) => {
+    await signInViaApi(page, 'dif');
+    const q = await createQuestion(page, tag);
+    const res = await postAnswer(page, q.id, 'First line stays the same.\nSecond line will change.\nThird line stays too.');
+    const answerId = (await res.json()).data as string;
+    const edit = await page.request.post(`${BACKEND}/edit/answer/${answerId}`, {
+        data: { description: 'First line stays the same.\nSecond line has changed.\nThird line stays too.\nA fourth line is new.' },
+        headers: await xsrfHeaders(page)
+    });
+    expect(edit.status()).toBe(200);
+
+    await page.goto(`/posts/${answerId}/history`);
+    const changes = page.getByLabel('Changes in edit 1');
+    await expect(changes.locator('[data-diff="same"]')).toHaveCount(2, { timeout: 15000 });
+    await expect(changes.locator('[data-diff="del"]')).toHaveText(/Second line will change\.$/);
+    await expect(changes.locator('[data-diff="add"]')).toHaveCount(2);
+    await expect(changes.locator('[data-diff="add"]').first()).toHaveText(/Second line has changed\.$/);
+    await expect(changes.locator('[data-diff="add"]').last()).toHaveText(/A fourth line is new\.$/);
+});
+
+test('the profile shows where karma came from', async ({ browser }) => {
+    const author = await (await browser.newContext()).newPage();
+    const a = await signInViaApi(author, 'kra');
+    const q = await createQuestion(author, tag);
+    const voter = await (await browser.newContext()).newPage();
+    await signInViaApi(voter, 'krv');
+    const vote = await voter.request.post(`${BACKEND}/votes`, {
+        data: { vote: 1, id: Number(q.id) },
+        headers: await xsrfHeaders(voter)
+    });
+    expect(vote.status()).toBe(200);
+
+    // Anyone can see the history, but not who voted.
+    await voter.goto(`/users/${a.id}/${a.username}`);
+    await voter.getByRole('link', { name: 'Karma', exact: true }).click();
+    const rows = voter.getByRole('list', { name: 'Karma history' }).getByRole('listitem');
+    await expect(rows).toHaveCount(1, { timeout: 15000 });
+    await expect(rows.first()).toContainText('+10');
+    await expect(rows.first()).toContainText('Vote up on');
+    await expect(rows.first().getByRole('link', { name: q.title })).toHaveAttribute(
+        'href',
+        `/questions/${q.id}/${q.slug}`
+    );
+    await expect(voter.locator('#karmaTotal')).toHaveText('11');
+    await expect(rows.first()).not.toContainText('krv');
+});
+
+test('muting a thread stops its notifications; the bell updates by itself', async ({ browser }) => {
+    const asker = await (await browser.newContext()).newPage();
+    await signInViaApi(asker, 'mua');
+    const q = await createQuestion(asker, tag);
+    const helper = await (await browser.newContext()).newPage();
+    await signInViaApi(helper, 'muh');
+
+    await asker.goto(`/questions/${q.id}/${q.slug}`);
+    const mute = asker.getByRole('link', { name: /^(Mute|Unmute)$/ });
+    await expect(mute).toHaveText('Mute', { timeout: 15000 });
+    await expect(asker.locator('#unreadBadge')).toHaveCount(0);
+
+    // An answer arrives while the asker just sits on the page. The bell is
+    // re-checked on a timer and whenever the tab becomes visible again;
+    // trigger the latter rather than waiting out the timer.
+    expect((await postAnswer(helper, q.id, 'An answer that arrives while the asker is reading.')).status()).toBe(200);
+    await asker.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect(asker.locator('#unreadBadge')).toHaveText('1', { timeout: 15000 });
+
+    // Muted: the next answer adds nothing.
+    await mute.click();
+    await expect(mute).toHaveText('Unmute');
+    expect((await postAnswer(helper, q.id, 'A second answer, posted after the thread was muted.')).status()).toBe(200);
+    await asker.reload();
+    await expect(asker.getByRole('link', { name: 'Unmute' })).toBeVisible({ timeout: 15000 });
+    await expect(asker.locator('#unreadBadge')).toHaveText('1');
+
+    // Unmuted: notifications resume.
+    await asker.getByRole('link', { name: 'Unmute' }).click();
+    await expect(asker.getByRole('link', { name: 'Mute', exact: true })).toBeVisible();
+    expect((await postAnswer(helper, q.id, 'A third answer, posted after it was unmuted.')).status()).toBe(200);
+    await asker.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect(asker.locator('#unreadBadge')).toHaveText('2', { timeout: 15000 });
 });
 
 test('search results are paged', async ({ page }) => {

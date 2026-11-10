@@ -1,7 +1,7 @@
 use super::dao::{self, CloseOutcome, DeleteOutcome, SuspendOutcome};
 use crate::middlewares::auth::AuthorizationService;
 use crate::state::AppState;
-use crate::utils::request::db_error;
+use crate::utils::request::{db_error, parse_keyset_cursor};
 
 use ntex::web::{get, post, HttpResponse, Responder};
 use serde_json::json;
@@ -87,7 +87,7 @@ async fn reopen_question(
     if !auth.is_moderator() {
         return HttpResponse::Forbidden().json(&fail("Only moderators can reopen questions."));
     }
-    match dao::reopen_question(state.get_ref(), params.into_inner()).await {
+    match dao::reopen_question(state.get_ref(), params.into_inner(), auth.user.id).await {
         Ok(CloseOutcome::NotFound) => HttpResponse::NotFound().json(&fail("No such question.")),
         Ok(_) => HttpResponse::Ok().json(&json!({"success": true})),
         Err(e) => db_error(&e, json!("fail")),
@@ -126,7 +126,40 @@ async fn suspend_user(
     }
 }
 
+#[derive(Deserialize)]
+struct LogReq {
+    per_page: Option<i64>,
+    /// The `next_cursor` of the previous page; absent for the first page.
+    cursor: Option<String>,
+}
+
+/// The moderation log: deletions, closes, reopens, suspensions and
+/// reinstatements, newest first, cursor paginated. Moderators only.
+#[post("/moderation/log/")]
+async fn moderation_log(
+    form: ntex::web::types::Json<LogReq>,
+    auth: AuthorizationService,
+    state: AppState,
+) -> impl Responder {
+    if !auth.is_moderator() {
+        return HttpResponse::Forbidden()
+            .json(&fail("Only moderators can view the moderation log."));
+    }
+    let per_page = form.per_page.unwrap_or(30).clamp(1, 100);
+    let cursor = match parse_keyset_cursor(form.cursor.as_deref()) {
+        Ok(c) => c,
+        Err(r) => return r,
+    };
+    match dao::log_entries(state.get_ref(), per_page, cursor).await {
+        Ok((entries, next_cursor)) => {
+            HttpResponse::Ok().json(&json!({"data": entries, "next_cursor": next_cursor}))
+        }
+        Err(e) => db_error(&e, json!("fail")),
+    }
+}
+
 pub fn init(cfg: &mut ntex::web::ServiceConfig) {
+    cfg.service(moderation_log);
     cfg.service(delete_post);
     cfg.service(post_history);
     cfg.service(close_question);

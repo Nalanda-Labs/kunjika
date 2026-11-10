@@ -14,6 +14,13 @@ async fn vote(
 ) -> impl Responder {
     let data = form.into_inner();
 
+    // A vote is one up or one down. Anything else used to be added to the
+    // post's score as it came, so `{"vote": 1000}` gave a post 1000 points.
+    if data.vote != 1 && data.vote != -1 {
+        return HttpResponse::BadRequest()
+            .json(&json!({"success": false, "data": "A vote must be 1 or -1."}));
+    }
+
     match state.get_ref().handle_vote(&data, &auth.user).await {
         Ok(r) => {
             if r.e == VoteEnum::VoteSuccessful {

@@ -12,7 +12,7 @@
 #   migrate     one-shot: waits for YSQL, creates `kunjika_test` if missing,
 #               then runs backend/migrations/run_migrations.py
 #   backend     Rust/ntex API compiled from ./backend, serves :8000
-#   frontend    SvelteKit node build from ./frontend, serves :3000 and
+#   frontend    SvelteKit node build from ./frontend_ts_tw, serves :3000 and
 #               shares the backend netns so SSR fetch(localhost:8000) works
 #
 # Usage:
@@ -29,7 +29,7 @@
 #   cd backend/test-harness
 #   KUNJIKA_TEST_SMTP_PORT=1026 KUNJIKA_TEST_MAILPIT_URL=http://127.0.0.1:8026 \
 #     cargo test -- --test-threads=1            # 32 tests
-#   cd frontend && npx playwright test -c playwright.e2e.config.ts  # 13
+#   cd frontend_ts_tw && npx playwright test
 #
 # URLs once up:
 #   frontend  http://localhost:3000
@@ -91,7 +91,7 @@ services:
 
   # STARTTLS-only SMTP -- the path the backend actually uses. The cert must
   # carry a SAN for the in-network hostname `mailpit-tls`; regenerate with:
-  #   openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
+  #   openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
   #     -keyout backend/test-harness/certs/mailpit-key.pem \
   #     -out    backend/test-harness/certs/mailpit-cert.pem \
   #     -subj "/CN=mailpit-tls" \
@@ -225,7 +225,7 @@ services:
       PORT: "3000"
       HOST: "0.0.0.0"
     volumes:
-      - ./frontend:/app:rw,Z
+      - ./frontend_ts_tw:/app:rw,Z
     working_dir: /app
     entrypoint: ["/bin/sh", "-c"]
     command:
@@ -236,7 +236,7 @@ services:
         # already ran npm i, since plain `podman run -v` shares node_modules).
         if [ ! -d /app/node_modules ]; then pnpm install || npm install; fi
         npm run build
-        # Serve from a container-local copy: the host bind-mounts ./frontend
+        # Serve from a container-local copy: the host bind-mounts ./frontend_ts_tw
         # over /app, and a host-side `npm run build` (e.g. the Playwright e2e
         # run) rewrites build/ underneath us. adapter-node keeps the old
         # hashed manifest, then dies on the unhandled ReadStream ENOENT when

@@ -18,6 +18,8 @@ use num_cpus;
 // pub mod api;
 pub mod config;
 pub mod feeds;
+pub mod karma;
+pub mod migrate;
 pub mod moderation;
 pub mod notifications;
 // pub mod how;
@@ -107,6 +109,7 @@ async fn main() -> std::io::Result<()> {
                 .configure(moderation::routes::init)
                 .configure(notifications::routes::init)
                 .configure(feeds::routes::init)
+                .configure(karma::routes::init)
                 .configure(uploads::routes::init),))
     })
     .workers(num_cpus::get())   

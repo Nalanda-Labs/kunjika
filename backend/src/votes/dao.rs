@@ -6,6 +6,24 @@ use crate::users::user::User;
 #[async_trait]
 pub trait IVote: std::ops::Deref<Target = AppStateRaw> {
     async fn handle_vote(&self, data: &VoteRequest, user: &User) -> sqlx::Result<VoteResult>;
+
+    /// The karma that goes with one vote: `karma_gain_per_vote` to the
+    /// post's author for a vote up, `karma_loss_per_vote` (negative) for a
+    /// vote down, recorded in their karma history.
+    async fn vote_karma(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        data: &VoteRequest,
+        receiving_user: i64,
+        voter: i64,
+    ) -> sqlx::Result<()> {
+        let (delta, reason) = if data.vote > 0 {
+            (self.config.karma_gain_per_vote, "vote_up")
+        } else {
+            (self.config.karma_loss_per_vote, "vote_down")
+        };
+        crate::karma::dao::apply(tx, receiving_user, delta, reason, Some(data.id), Some(voter)).await
+    }
 }
 
 #[cfg(any(feature = "postgres"))]
@@ -41,12 +59,6 @@ impl IVote for &AppStateRaw {
             });
         }
 
-        let query1 = sqlx::query!(r#"select karma from users where id=$1"#, receiving_user)
-            .fetch_one(&mut *tx)
-            .await?;
-
-        let karma = query1.karma;
-
         let vote = sqlx::query!(
             "select * from votes where topic_id=$1 and from_user_id=$2",
             data.id,
@@ -75,29 +87,7 @@ impl IVote for &AppStateRaw {
             .execute(&mut *tx)
             .await?;
 
-            if data.vote == 1 {
-                sqlx::query!(
-                    "update users set karma = karma + $2 where id=$1",
-                    receiving_user,
-                    self.config.karma_gain_per_vote
-                )
-                .execute(&mut *tx)
-                .await?;
-            } else if data.vote == -1 {
-                if karma + self.config.karma_loss_per_vote < 1 {
-                    sqlx::query!(r#"update users set karma = 1 where id=$1"#, receiving_user)
-                        .execute(&mut *tx)
-                        .await?;
-                } else {
-                    sqlx::query!(
-                        "update users set karma = karma + $2 where id=$1",
-                        receiving_user,
-                        self.config.karma_loss_per_vote
-                    )
-                    .execute(&mut *tx)
-                    .await?;
-                }
-            }
+            self.vote_karma(&mut tx, data, receiving_user, user.id).await?;
         } else {
             if data.vote == vote[0].vote {
                 debug!("You can cast upvote/downvote only once.");
@@ -122,29 +112,7 @@ impl IVote for &AppStateRaw {
                 .execute(&mut *tx)
                 .await?;
 
-                if data.vote == 1 {
-                    sqlx::query!(
-                        "update users set karma = karma + $2 where id=$1",
-                        receiving_user,
-                        self.config.karma_gain_per_vote
-                    )
-                    .execute(&mut *tx)
-                    .await?;
-                } else if data.vote == -1 {
-                    if karma + self.config.karma_loss_per_vote < 1 {
-                        sqlx::query!(r#"update users set karma = 1 where id=$1"#, receiving_user)
-                            .execute(&mut *tx)
-                            .await?;
-                    } else {
-                        sqlx::query!(
-                            "update users set karma = karma + $2 where id=$1",
-                            receiving_user,
-                            self.config.karma_loss_per_vote
-                        )
-                        .execute(&mut *tx)
-                        .await?;
-                    }
-                }
+                self.vote_karma(&mut tx, data, receiving_user, user.id).await?;
             }
 
             let vote = sqlx::query!(

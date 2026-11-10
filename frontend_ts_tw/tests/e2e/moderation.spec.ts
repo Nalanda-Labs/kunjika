@@ -238,3 +238,47 @@ test('a moderator suspends and reinstates a user from their profile', async ({ b
     await expect(mod.getByRole('heading', { name: m.username })).toBeVisible({ timeout: 15000 });
     await expect(mod.getByRole('button', { name: /Suspend user|Reinstate user/ })).toHaveCount(0);
 });
+
+test('the moderation log records who did what', async ({ browser }) => {
+    const user = await (await browser.newContext()).newPage();
+    const u = await signInViaApi(user, 'mlu');
+    const closed = await createQuestion(user, tag);
+    const deleted = await createQuestion(user, tag);
+
+    const mod = await (await browser.newContext()).newPage();
+    const m = await signInAsModerator(mod, 'mlm');
+    const act = async (path: string, data: object = {}) => {
+        const res = await mod.request.post(`${BACKEND}/${path}`, { data, headers: await xsrfHeaders(mod) });
+        expect(res.status(), `${path}: ${await res.text()}`).toBe(200);
+    };
+    await act(`questions/${closed.id}/close/`);
+    await act(`delete-post/${deleted.id}`);
+    await act(`users/${u.id}/suspend/`, { suspended: true });
+    await act(`users/${u.id}/suspend/`, { suspended: false });
+
+    // Ordinary users have no link and are refused the page's data.
+    await user.goto('/questions');
+    await expect(user.getByRole('link', { name: 'Moderation log' })).toHaveCount(0);
+    await user.goto('/moderation-log');
+    await expect(user.getByText(/Only moderators can view this page/)).toBeVisible();
+
+    await mod.goto('/questions');
+    await mod.getByRole('link', { name: 'Moderation log' }).click();
+    await expect(mod).toHaveURL(/\/moderation-log$/);
+    // Newest first; other tests add entries too, so look only at this moderator's.
+    const mine = mod
+        .getByRole('list', { name: 'Moderation log' })
+        .getByRole('listitem')
+        .filter({ has: mod.getByRole('link', { name: m.username, exact: true }) });
+    await expect(mine).toHaveCount(4, { timeout: 15000 });
+    await expect(mine.nth(0)).toContainText(`reinstated user ${u.username}`);
+    await expect(mine.nth(1)).toContainText(`suspended user ${u.username}`);
+    // A deleted question is named but cannot be linked; a closed one is linked.
+    await expect(mine.nth(2)).toContainText(`deleted question "${deleted.title}" by ${u.username}`);
+    await expect(mine.nth(2).getByRole('link', { name: new RegExp(deleted.title.slice(0, 20)) })).toHaveCount(0);
+    await expect(mine.nth(3)).toContainText('closed');
+    await expect(mine.nth(3).getByRole('link', { name: `question "${closed.title}"` })).toHaveAttribute(
+        'href',
+        `/questions/${closed.id}/${closed.slug}`
+    );
+});

@@ -47,6 +47,14 @@
                         {/if}
                     </a>
                 </li>
+                <li>
+                    <a
+                        href="/moderation-log"
+                        class="{item} {page.url.pathname.startsWith('/moderation-log') ? activeItem : ''}"
+                    >
+                        <Icon name="history" /><span>Moderation log</span>
+                    </a>
+                </li>
             {/if}
             <li class="my-2 hidden border-t border-gray-200 md:block" role="separator"></li>
             <li class="hidden md:block">

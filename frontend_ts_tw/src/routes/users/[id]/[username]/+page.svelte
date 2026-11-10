@@ -6,12 +6,13 @@
     import PagedQuestions from '#lib/components/PagedQuestions.svelte';
     import DeleteProfile from '#lib/components/profile/DeleteProfile.svelte';
     import EditProfile from '#lib/components/profile/EditProfile.svelte';
+    import KarmaHistory from '#lib/components/profile/KarmaHistory.svelte';
     import Summary from '#lib/components/profile/Summary.svelte';
     import UserPosts from '#lib/components/profile/UserPosts.svelte';
     import { isReviewer, type Profile, type QuestionRow } from '#lib/types.ts';
 
     type Tab = 'activity' | 'bookmarks' | 'settings';
-    type Sub = 'summary1' | 'questions' | 'answers';
+    type Sub = 'summary1' | 'questions' | 'answers' | 'karma';
     type Setting = 'edit-profile' | 'delete-profile';
 
     let id = $derived(page.params.id ?? '');
@@ -112,6 +113,7 @@
                 <a href="#summary1" class="tab-link" class:active={sub === 'summary1'} onclick={(e) => open(e, () => (sub = 'summary1'), 'summary1')}>Summary</a>
                 <a href="#questions" class="tab-link" class:active={sub === 'questions'} onclick={(e) => open(e, () => (sub = 'questions'), 'questions')}>Questions</a>
                 <a href="#answers" class="tab-link" class:active={sub === 'answers'} onclick={(e) => open(e, () => (sub = 'answers'), 'answers')}>Answers</a>
+                <a href="#karma" class="tab-link" class:active={sub === 'karma'} onclick={(e) => open(e, () => (sub = 'karma'), 'karma')}>Karma</a>
             </div>
             <div id="summary1" hidden={sub !== 'summary1'}><Summary {id} /></div>
             <div id="questions" hidden={sub !== 'questions'}>
@@ -119,6 +121,9 @@
             </div>
             <div id="answers" hidden={sub !== 'answers'}>
                 {#if opened.has('answers')}<UserPosts path="{id}/get-answers-by-user/" empty="No answers yet." />{/if}
+            </div>
+            <div id="karma" hidden={sub !== 'karma'}>
+                {#if opened.has('karma')}<KarmaHistory {id} />{/if}
             </div>
         </div>
 

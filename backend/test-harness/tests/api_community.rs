@@ -524,3 +524,272 @@ fn feeds_sitemap_and_search_paging() {
     assert_eq!(count_beyond, 3);
     assert_eq!(search(2, Some(-5)).0, all[..2], "a negative offset is the first page");
 }
+
+fn karma(ctx: &TestCtx, user: i64) -> i64 {
+    ctx.q_i64("SELECT karma FROM users WHERE id = $1", &[&user])
+}
+
+/// A user's karma history as (reason, delta, post_id) rows, newest first.
+fn karma_history(ctx: &TestCtx, user: i64) -> (Vec<(String, i64, i64)>, Value) {
+    let r = ctx
+        .client
+        .post(ctx.url(&format!("/users/{user}/karma/")))
+        .json(&json!({"per_page": 100}))
+        .send()
+        .unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    let j: Value = r.json().unwrap();
+    let rows = j["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| {
+            (
+                e["reason"].as_str().unwrap().to_string(),
+                e["delta"].as_i64().unwrap(),
+                e["post_id"].as_i64().unwrap_or(0),
+            )
+        })
+        .collect();
+    (rows, j)
+}
+
+#[test]
+fn karma_changes_are_recorded_and_taken_back_on_delete() {
+    let ctx = TestCtx::new();
+    wait_for_backend_healthy(&ctx, 60);
+    ctx.ensure_tag("karmatag");
+    let asker = login_capture(&ctx, "kask");
+    let helper = login_capture(&ctx, "khelp");
+    let voter = login_capture(&ctx, "kvote");
+    let (qid, _) = ask(&asker, &ctx, "karmatag", "A question that moves karma around?");
+    let a1 = answer(&helper, &ctx, qid, None);
+    let vote = |who: &AuthSession, id: i64, v: i64| post(who, &ctx, "/votes", json!({"vote": v, "id": id}));
+    // The test config: +10 / -10 per vote, +25 for an accepted answer.
+    assert_eq!(karma(&ctx, helper.user_id), 1);
+    assert!(karma_history(&ctx, helper.user_id).0.is_empty(), "a new user has no history");
+
+    // A vote is one up or one down, nothing else.
+    for bad in [0, 2, -3, 1000] {
+        assert_eq!(vote(&voter, a1, bad).0, 400, "vote {bad}");
+    }
+    assert_eq!(ctx.q_i64("SELECT votes FROM posts WHERE id = $1", &[&a1]), 0);
+
+    // Up, then accepted, then the upvote is turned into a downvote.
+    assert_eq!(vote(&voter, a1, 1).0, 200);
+    assert_eq!(post(&asker, &ctx, &format!("/accept-answer/{qid}/{a1}/"), json!({})).0, 200);
+    assert_eq!(vote(&voter, a1, -1).0, 200);
+    let (rows, j) = karma_history(&ctx, helper.user_id);
+    assert_eq!(
+        rows,
+        vec![
+            ("vote_down".to_string(), -10, a1),
+            ("accepted".to_string(), 25, a1),
+            ("vote_up".to_string(), 10, a1),
+        ],
+        "{j}"
+    );
+    assert_eq!(karma(&ctx, helper.user_id), 26);
+    assert_eq!(j["karma"], json!(26));
+    // Each row links to the question, and never says who voted.
+    let first = &j["data"][0];
+    assert_eq!(first["question_id"], json!(qid));
+    assert_eq!(first["question_title"], json!("A question that moves karma around?"));
+    assert_eq!(first["is_answer"], json!(true));
+    assert!(first.get("actor_id").is_none() && first.get("actor").is_none(), "{first}");
+
+    // Un-accepting takes the bonus back.
+    assert_eq!(post(&asker, &ctx, &format!("/accept-answer/{qid}/{a1}/"), json!({})).0, 200);
+    assert_eq!(karma_history(&ctx, helper.user_id).0[0], ("unaccepted".to_string(), -25, a1));
+    assert_eq!(karma(&ctx, helper.user_id), 1);
+
+    // Cursor pagination walks the same rows one at a time.
+    let mut cursor: Option<String> = None;
+    let mut walked = Vec::new();
+    loop {
+        let mut body = json!({"per_page": 1});
+        if let Some(c) = &cursor {
+            body["cursor"] = json!(c);
+        }
+        let r = ctx.client.post(ctx.url(&format!("/users/{}/karma/", helper.user_id))).json(&body).send().unwrap();
+        let page: Value = r.json().unwrap();
+        walked.push(page["data"][0]["reason"].as_str().unwrap().to_string());
+        match page["next_cursor"].as_str() {
+            Some(c) => cursor = Some(c.to_string()),
+            None => break,
+        }
+    }
+    assert_eq!(walked, ["unaccepted", "vote_down", "accepted", "vote_up"]);
+    let r = ctx.client.post(ctx.url("/users/0/karma/")).json(&json!({})).send().unwrap();
+    assert_eq!(r.status().as_u16(), 404);
+
+    // Deleting a post takes back what it earned: a second answer that is
+    // upvoted twice and accepted (+45), then deleted by its author.
+    let a2 = answer(&helper, &ctx, qid, None);
+    assert_eq!(vote(&voter, a2, 1).0, 200);
+    assert_eq!(vote(&asker, a2, 1).0, 200);
+    assert_eq!(post(&asker, &ctx, &format!("/accept-answer/{qid}/{a2}/"), json!({})).0, 200);
+    assert_eq!(karma(&ctx, helper.user_id), 46);
+    assert_eq!(post(&helper, &ctx, &format!("/delete-post/{a2}"), json!({})).0, 200);
+    assert_eq!(karma(&ctx, helper.user_id), 1);
+    let (rows, j) = karma_history(&ctx, helper.user_id);
+    assert_eq!(rows[0], ("post_deleted".to_string(), -45, a2), "{j}");
+    assert!(j["data"][0]["question_id"].is_null(), "the post is gone, so there is nothing to link to");
+
+    // Deleting the whole question takes back the +10 the asker got for it.
+    // helper's a1 goes with it; it is voted down on balance (-10, absorbed
+    // by the floor of 1), and a loss is not refunded on deletion - otherwise
+    // helper would come out of this with more karma than they ever had.
+    assert_eq!(vote(&voter, qid, 1).0, 200);
+    assert_eq!(karma(&ctx, asker.user_id), 11);
+    assert_eq!(vote(&voter, a1, -1).0, 200);
+    assert_eq!(ctx.q_i64("SELECT votes FROM posts WHERE id = $1", &[&a1]), -1);
+    assert_eq!(karma(&ctx, helper.user_id), 1, "karma never drops below 1");
+    let before = karma_history(&ctx, helper.user_id).0.len();
+    let modr = moderator(&ctx, "kmod");
+    assert_eq!(post(&modr, &ctx, &format!("/delete-post/{qid}"), json!({})).0, 200);
+    assert_eq!(karma(&ctx, asker.user_id), 1);
+    assert_eq!(karma_history(&ctx, asker.user_id).0[0], ("post_deleted".to_string(), -10, qid));
+    assert_eq!(karma(&ctx, helper.user_id), 1);
+    assert_eq!(karma_history(&ctx, helper.user_id).0.len(), before, "no refund for a downvoted post");
+}
+
+#[test]
+fn moderation_actions_are_logged() {
+    let ctx = TestCtx::new();
+    wait_for_backend_healthy(&ctx, 60);
+    ctx.ensure_tag("logtag");
+    let user = login_capture(&ctx, "lguser");
+    let modr = moderator(&ctx, "lgmod");
+    let username = ctx.q_string("SELECT username FROM users WHERE id = $1", &[&user.user_id]);
+    let (keep, _) = ask(&user, &ctx, "logtag", "A question that is closed and reopened?");
+    let (gone, _) = ask(&user, &ctx, "logtag", "A question that a moderator deletes?");
+    let own = answer(&user, &ctx, keep, None);
+
+    assert_eq!(post(&modr, &ctx, &format!("/questions/{keep}/close/"), json!({})).0, 200);
+    assert_eq!(post(&modr, &ctx, &format!("/questions/{keep}/reopen/"), json!({})).0, 200);
+    // Reopening an open question changes nothing and is not logged.
+    assert_eq!(post(&modr, &ctx, &format!("/questions/{keep}/reopen/"), json!({})).0, 200);
+    assert_eq!(post(&modr, &ctx, &format!("/delete-post/{gone}"), json!({})).0, 200);
+    // A user deleting their own post is logged too, with them as the actor.
+    assert_eq!(post(&user, &ctx, &format!("/delete-post/{own}"), json!({})).0, 200);
+    assert_eq!(post(&modr, &ctx, &format!("/users/{}/suspend/", user.user_id), json!({"suspended": true})).0, 200);
+    // Suspending an already suspended user is not logged twice.
+    assert_eq!(post(&modr, &ctx, &format!("/users/{}/suspend/", user.user_id), json!({"suspended": true})).0, 200);
+    assert_eq!(post(&modr, &ctx, &format!("/users/{}/suspend/", user.user_id), json!({"suspended": false})).0, 200);
+
+    // Moderators only.
+    assert_eq!(post(&user, &ctx, "/moderation/log/", json!({})).0, 403);
+    let (st, j) = post(&modr, &ctx, "/moderation/log/", json!({"per_page": 100}));
+    assert_eq!(st, 200, "{j}");
+    // Other tests write to the log as well; pick out this test's entries.
+    let mine: Vec<&Value> = j["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|e| {
+            e["actor_id"] == json!(modr.user_id)
+                || e["actor_id"] == json!(user.user_id)
+                || e["target_user_id"] == json!(user.user_id)
+        })
+        .collect();
+    let actions: Vec<&str> = mine.iter().map(|e| e["action"].as_str().unwrap()).collect();
+    assert_eq!(
+        actions,
+        ["reinstate_user", "suspend_user", "delete_post", "delete_post", "reopen_question", "close_question"],
+        "{j}"
+    );
+    assert_eq!(mine[0]["target_user"], json!(username));
+    // A deleted post is described in words, since it cannot be linked to...
+    assert_eq!(mine[2]["actor_id"], json!(user.user_id));
+    assert!(mine[2]["details"].as_str().unwrap().starts_with(&format!("answer by {username} on")), "{}", mine[2]);
+    assert_eq!(mine[3]["details"], json!(format!("question \"A question that a moderator deletes?\" by {username}")));
+    assert!(mine[3]["question_id"].is_null());
+    // ...while a question that still exists is.
+    assert_eq!(mine[5]["question_id"], json!(keep));
+    assert_eq!(mine[5]["actor_id"], json!(modr.user_id));
+
+    // Cursor pagination, and a deletion made from the report queue is logged.
+    let (_, page) = post(&modr, &ctx, "/moderation/log/", json!({"per_page": 2}));
+    assert_eq!(page["data"].as_array().unwrap().len(), 2);
+    assert!(page["next_cursor"].is_string());
+    let reporter = login_capture(&ctx, "lgrep");
+    let (reported, _) = ask(&reporter, &ctx, "logtag", "A question removed through a report?");
+    assert_eq!(post(&modr, &ctx, "/report-post/", json!({"post_id": reported, "reason": "spam"})).0, 200);
+    let report_id = ctx.q_i64("SELECT id FROM post_reports WHERE post_id = $1", &[&reported]);
+    assert_eq!(post(&modr, &ctx, &format!("/reports/{report_id}/review/"), json!({"status": "actioned"})).0, 200);
+    let (_, j) = post(&modr, &ctx, "/moderation/log/", json!({"per_page": 1}));
+    assert_eq!(j["data"][0]["action"], json!("delete_post"));
+    assert_eq!(j["data"][0]["post_id"], json!(reported));
+}
+
+#[test]
+fn a_muted_thread_sends_no_notifications() {
+    let ctx = TestCtx::new();
+    wait_for_backend_healthy(&ctx, 60);
+    ctx.ensure_tag("mutetag");
+    let asker = login_capture(&ctx, "muask");
+    let helper = login_capture(&ctx, "muhelp");
+    let (qid, slug) = ask(&asker, &ctx, "mutetag", "A thread its author mutes?");
+    let muted_flag = |who: &AuthSession| {
+        let r = who.auth(who.client.get(ctx.url(&format!("/questions/{qid}/{slug}")))).send().unwrap();
+        r.json::<Value>().unwrap()["data"]["muted"].clone()
+    };
+    let mute = |on: bool| post(&asker, &ctx, &format!("/questions/{qid}/mute/"), json!({"muted": on}));
+
+    let a1 = answer(&helper, &ctx, qid, None);
+    assert_eq!(notifications(&ctx, &asker).0, vec![("answer".to_string(), a1)]);
+    assert_eq!(muted_flag(&asker), json!(false));
+
+    // Muted: later answers - even direct replies - are not announced.
+    assert_eq!(mute(true), (200, json!({"muted": true})));
+    assert_eq!(mute(true).0, 200, "muting twice is harmless");
+    assert_eq!(muted_flag(&asker), json!(true));
+    assert_eq!(muted_flag(&helper), json!(false), "muting is per reader");
+    answer(&helper, &ctx, qid, Some(asker.user_id));
+    assert_eq!(notifications(&ctx, &asker).0.len(), 1);
+
+    // Unmuted: they are again.
+    assert_eq!(mute(false), (200, json!({"muted": false})));
+    let a3 = answer(&helper, &ctx, qid, None);
+    assert_eq!(notifications(&ctx, &asker).0[0], ("answer".to_string(), a3));
+
+    // Only questions can be muted.
+    assert_eq!(post(&asker, &ctx, &format!("/questions/{a1}/mute/"), json!({"muted": true})).0, 404);
+}
+
+#[test]
+fn search_finds_questions_through_their_answers() {
+    let ctx = TestCtx::new();
+    wait_for_backend_healthy(&ctx, 60);
+    ctx.ensure_tag("anssearch");
+    let author = login_capture(&ctx, "ansrch");
+    let word = format!("zyxanswerword{}", std::process::id());
+    // One question says the word itself; the other only has it in an answer
+    // (two answers, to check the question is still listed once).
+    let (in_answer, _) = ask(&author, &ctx, "anssearch", "A question whose answers hold the term?");
+    for _ in 0..2 {
+        let (st, j) = post(&author, &ctx, "/answer",
+                           json!({"id": in_answer, "value": format!("The answer mentions {word} in passing.")}));
+        assert_eq!(st, 200, "{j}");
+    }
+    let (in_question, _) = ask(&author, &ctx, "anssearch", &format!("A question about {word} directly?"));
+
+    let r = ctx
+        .client
+        .post(ctx.url("/search-questions/"))
+        .json(&json!({"search": word, "questions_per_page": 10}))
+        .send()
+        .unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    let j: Value = r.json().unwrap();
+    let ids: Vec<i64> = j["data"]["questions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|q| q["id"].as_str().unwrap().parse().unwrap())
+        .collect();
+    // Both are found, once each; the direct match ranks first.
+    assert_eq!(ids, vec![in_question, in_answer], "{j}");
+    assert_eq!(j["count"], json!(2));
+}

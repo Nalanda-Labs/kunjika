@@ -51,9 +51,16 @@ impl ITag for &AppStateRaw {
             Some(_d) => {
                 tags = sqlx::query_as!(
             Tag, r#"
-            select t.id, t.name, t.info, t.post_count, w.count as weekly_count, d.count as daily_count from tags t
-            left join weekly_tags_by_popularity w on w.name=t.name
-            left join daily_tags_by_popularity d on d.name=t.name
+            select t.id, t.name, t.info, t.post_count,
+                p.weekly_count as "weekly_count?", p.daily_count as "daily_count?"
+            from tags t
+            left join (
+                select tag_id, count(*) as weekly_count,
+                    count(*) filter (where created_at > now() - interval '1 day') as daily_count
+                from post_tags
+                where created_at > now() - interval '7 days'
+                group by tag_id
+            ) p on p.tag_id = t.id
             where t.name < $1 order by t.name desc limit $2
             "#,
             name, self.config.tags_per_page
@@ -64,9 +71,16 @@ impl ITag for &AppStateRaw {
             None => {
                 tags = sqlx::query_as!(
             Tag, r#"
-            select t.id, t.name, t.info, t.post_count, w.count as weekly_count, d.count as daily_count from tags t
-            left join weekly_tags_by_popularity w on w.name=t.name
-            left join daily_tags_by_popularity d on d.name=t.name
+            select t.id, t.name, t.info, t.post_count,
+                p.weekly_count as "weekly_count?", p.daily_count as "daily_count?"
+            from tags t
+            left join (
+                select tag_id, count(*) as weekly_count,
+                    count(*) filter (where created_at > now() - interval '1 day') as daily_count
+                from post_tags
+                where created_at > now() - interval '7 days'
+                group by tag_id
+            ) p on p.tag_id = t.id
             where t.name > $1 order by t.name asc limit $2
             "#,
             name, self.config.tags_per_page
@@ -122,10 +136,17 @@ impl ITag for &AppStateRaw {
     async fn search_tags(&self, tag: &String, tags_per_page: i64) -> sqlx::Result<Vec<Tag>> {
         let tags = sqlx::query_as!(
             Tag,
-            r#"select t.id, t.name, t.info, t.post_count, w.count as
-            weekly_count, d.count as daily_count from tags t
-            left join weekly_tags_by_popularity w on w.name=t.name
-            left join daily_tags_by_popularity d on d.name=t.name
+            r#"
+            select t.id, t.name, t.info, t.post_count,
+                p.weekly_count as "weekly_count?", p.daily_count as "daily_count?"
+            from tags t
+            left join (
+                select tag_id, count(*) as weekly_count,
+                    count(*) filter (where created_at > now() - interval '1 day') as daily_count
+                from post_tags
+                where created_at > now() - interval '7 days'
+                group by tag_id
+            ) p on p.tag_id = t.id
             where t.name like '%' || $1 || '%' order by t.name desc limit $2
             "#,
             tag,

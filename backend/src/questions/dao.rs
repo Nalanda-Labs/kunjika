@@ -1206,7 +1206,7 @@ impl IQuestion for &AppStateRaw {
         };
 
         let count = sqlx::query!(
-            r#"select count from questions_count_by_user where posted_by_id = $1"#,
+            r#"select count(*) as count from posts where posted_by_id = $1 and op_id = 0"#,
             uid
         )
         .fetch_one(&self.sql)
@@ -1276,7 +1276,7 @@ impl IQuestion for &AppStateRaw {
         let mut tx = self.sql.begin().await?;
 
         let count = sqlx::query!(
-            r#"select count from answers_count where posted_by_id = $1"#,
+            r#"select count(*) as count from posts where posted_by_id = $1 and op_id <> 0"#,
             uid
         )
         .fetch_one(&mut *tx)
@@ -1466,7 +1466,7 @@ impl IQuestion for &AppStateRaw {
     ) -> sqlx::Result<(AnswersResponse1, i64)> {
         let mut tx = self.sql.begin().await?;
 
-        let count = sqlx::query!(r#"select count from bookmarks_count where uid = $1"#, uid)
+        let count = sqlx::query!(r#"select count(*) as count from bookmarks where uid = $1"#, uid)
             .fetch_one(&mut *tx)
             .await?;
 

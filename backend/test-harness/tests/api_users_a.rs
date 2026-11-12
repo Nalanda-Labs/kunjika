@@ -72,3 +72,34 @@ fn summary_works_for_user_without_posts() {
     assert_eq!(body["data"]["questions_count"], json!(0), "{body}");
     assert!(body["data"]["karma"].is_number(), "{body}");
 }
+
+#[test]
+fn profile_lists_work_for_user_without_posts() {
+    // BEFORE: the questions, answers and bookmarks tabs of a profile read
+    // their totals with `fetch_one` from the GROUP BY views
+    // `questions_count_by_user`, `answers_count` and `bookmarks_count`. A
+    // user with none of those has no row in the view, so each tab of a new
+    // user's profile answered 500 instead of an empty list.
+    let ctx = TestCtx::new();
+    wait_for_backend_healthy(&ctx, 60);
+
+    let s = login_capture(&ctx, "nolists");
+    let lists = [
+        ("get-questions-by-user", json!({"uat": ""})),
+        ("get-answers-by-user", json!({"uat": ""})),
+        ("get-bookmarks-by-user", json!({"uat": "", "bookmarks_per_page": 30})),
+    ];
+    for (list, body) in lists {
+        let resp = s
+            .auth(s.client.post(ctx.url(&format!("/{}/{}/", s.user_id, list))))
+            .json(&body)
+            .send()
+            .unwrap_or_else(|e| panic!("POST {list} failed: {e}"));
+        let status = resp.status().as_u16();
+        let text = resp.text().unwrap_or_default();
+        assert_eq!(status, 200, "{list} must work for a user with nothing to list, got: {text}");
+        let body: serde_json::Value = serde_json::from_str(&text).expect("response is JSON");
+        assert_eq!(body["count"], json!(0), "{list}: {body}");
+        assert_eq!(body["data"], json!([]), "{list}: {body}");
+    }
+}
